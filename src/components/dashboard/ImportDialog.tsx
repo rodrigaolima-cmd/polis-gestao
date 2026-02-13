@@ -66,7 +66,7 @@ export function ImportDialog({ open, onOpenChange, onImport }: ImportDialogProps
           return;
         }
 
-        const cols = Object.keys(json[0]);
+        const cols = Object.keys(json[0]).filter((c) => c.trim() !== "");
         setHeaders(cols);
         setRawRows(json);
 
