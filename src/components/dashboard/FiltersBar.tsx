@@ -125,7 +125,7 @@ function FilterSelect({ label, value, options, onChange }: { label: string; valu
         </SelectTrigger>
         <SelectContent>
           <SelectItem value="all">Todos</SelectItem>
-          {options.map((opt) => (
+          {options.filter((opt) => opt.trim() !== "").map((opt) => (
             <SelectItem key={opt} value={opt}>{opt}</SelectItem>
           ))}
         </SelectContent>
