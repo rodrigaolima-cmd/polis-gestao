@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { mockContracts } from "@/data/mockContracts";
-import { DashboardFilters } from "@/types/contract";
+import { ContractRow, DashboardFilters } from "@/types/contract";
 import {
   applyFilters, consolidateByClient, defaultFilters,
   formatCurrency, formatPercent, getExpirationStatus,
@@ -10,16 +10,20 @@ import { KPICard } from "@/components/dashboard/KPICard";
 import { FiltersBar } from "@/components/dashboard/FiltersBar";
 import { DashboardCharts } from "@/components/dashboard/DashboardCharts";
 import { ActionTables } from "@/components/dashboard/ActionTables";
+import { ImportDialog } from "@/components/dashboard/ImportDialog";
 import {
   DollarSign, TrendingUp, AlertTriangle, BarChart3,
-  CalendarX, Clock, AlertCircle, FileSpreadsheet, Printer
+  CalendarX, Clock, AlertCircle, FileSpreadsheet, Printer, Upload
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export default function Dashboard() {
   const [filters, setFilters] = useState<DashboardFilters>(defaultFilters);
+  const [contracts, setContracts] = useState<ContractRow[]>(mockContracts);
+  const [importOpen, setImportOpen] = useState(false);
+  const [dataSource, setDataSource] = useState<"mock" | "imported">("mock");
 
-  const filteredContracts = useMemo(() => applyFilters(mockContracts, filters), [filters]);
+  const filteredContracts = useMemo(() => applyFilters(contracts, filters), [contracts, filters]);
   const clients = useMemo(() => consolidateByClient(filteredContracts), [filteredContracts]);
 
   // KPIs
@@ -37,6 +41,18 @@ export default function Dashboard() {
   const contractsByStatus = useMemo(() => getContractsByStatus(filteredContracts), [filteredContracts]);
   const distributionByUG = useMemo(() => getDistributionByUG(filteredContracts), [filteredContracts]);
   const expirationTimeline = useMemo(() => getExpirationTimeline(filteredContracts), [filteredContracts]);
+
+  const handleImport = (data: ContractRow[]) => {
+    setContracts(data);
+    setDataSource("imported");
+    setFilters(defaultFilters);
+  };
+
+  const handleResetToMock = () => {
+    setContracts(mockContracts);
+    setDataSource("mock");
+    setFilters(defaultFilters);
+  };
 
   const handleExport = () => {
     const headers = ["Cliente", "Tipo UG", "Total Contratado", "Total Faturado", "Diferença", "% Faturado", "Produtos", "Próx. Vencimento"];
@@ -62,12 +78,23 @@ export default function Dashboard() {
       <header className="border-b border-border/50 bg-card/50 backdrop-blur-xl sticky top-0 z-50">
         <div className="max-w-[1600px] mx-auto px-6 py-4 flex items-center justify-between">
           <div>
-            <h1 className="text-xl font-bold tracking-tight">
-              Gestão de Contratos
-            </h1>
-            <p className="text-xs text-muted-foreground">Polis Gestão • Painel Executivo</p>
+            <h1 className="text-xl font-bold tracking-tight">Gestão de Contratos</h1>
+            <p className="text-xs text-muted-foreground">
+              Polis Gestão • Painel Executivo
+              {dataSource === "imported" && (
+                <span className="ml-2 text-success">• Dados importados ({contracts.length} registros)</span>
+              )}
+            </p>
           </div>
           <div className="flex items-center gap-2">
+            <Button variant="default" size="sm" className="gap-2 text-xs" onClick={() => setImportOpen(true)}>
+              <Upload className="h-3.5 w-3.5" /> Importar
+            </Button>
+            {dataSource === "imported" && (
+              <Button variant="ghost" size="sm" className="gap-2 text-xs text-muted-foreground" onClick={handleResetToMock}>
+                Dados demo
+              </Button>
+            )}
             <Button variant="outline" size="sm" className="gap-2 text-xs" onClick={handleExport}>
               <FileSpreadsheet className="h-3.5 w-3.5" /> Exportar
             </Button>
@@ -79,15 +106,13 @@ export default function Dashboard() {
       </header>
 
       <main className="max-w-[1600px] mx-auto px-6 py-6 space-y-6">
-        {/* Filters */}
         <FiltersBar
           filters={filters}
-          contracts={mockContracts}
+          contracts={contracts}
           onFilterChange={setFilters}
           onReset={() => setFilters(defaultFilters)}
         />
 
-        {/* KPIs */}
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
           <KPICard title="Total Contratado" value={formatCurrency(totalContracted)} icon={DollarSign} variant="info" animationDelay={0} />
           <KPICard title="Total Faturado" value={formatCurrency(totalBilled)} icon={TrendingUp} variant="success" animationDelay={50} />
@@ -98,7 +123,6 @@ export default function Dashboard() {
           <KPICard title="Vencer 30 dias" value={String(expiring30)} icon={AlertCircle} variant="danger" animationDelay={300} />
         </div>
 
-        {/* Charts */}
         <DashboardCharts
           clients={clients}
           billingByProduct={billingByProduct}
@@ -107,9 +131,10 @@ export default function Dashboard() {
           expirationTimeline={expirationTimeline}
         />
 
-        {/* Action Tables */}
         <ActionTables clients={clients} />
       </main>
+
+      <ImportDialog open={importOpen} onOpenChange={setImportOpen} onImport={handleImport} />
     </div>
   );
 }
