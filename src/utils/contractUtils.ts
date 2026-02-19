@@ -4,7 +4,14 @@ import { differenceInDays, parseISO, format } from "date-fns";
 const today = new Date();
 
 export function getDaysToExpire(expirationDate: string): number {
-  return differenceInDays(parseISO(expirationDate), today);
+  if (!expirationDate) return 0;
+  try {
+    const parsed = parseISO(expirationDate);
+    if (isNaN(parsed.getTime())) return 0;
+    return differenceInDays(parsed, today);
+  } catch {
+    return 0;
+  }
 }
 
 export function getExpirationStatus(days: number): "expired" | "critical" | "warning" | "ok" {
