@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react";
 import { mockContracts } from "@/data/mockContracts";
 import { ContractRow, DashboardFilters } from "@/types/contract";
+import { StatusReportDialog } from "@/components/dashboard/StatusReportDialog";
 import {
   applyFilters, consolidateByClient, defaultFilters,
   formatCurrency, formatPercent, getExpirationStatus,
@@ -22,6 +23,8 @@ export default function Dashboard() {
   const [contracts, setContracts] = useState<ContractRow[]>(mockContracts);
   const [importOpen, setImportOpen] = useState(false);
   const [dataSource, setDataSource] = useState<"mock" | "imported">("mock");
+  const [selectedStatus, setSelectedStatus] = useState("");
+  const [statusReportOpen, setStatusReportOpen] = useState(false);
 
   const filteredContracts = useMemo(() => applyFilters(contracts, filters), [contracts, filters]);
   const clients = useMemo(() => consolidateByClient(filteredContracts), [filteredContracts]);
@@ -129,12 +132,22 @@ export default function Dashboard() {
           contractsByStatus={contractsByStatus}
           distributionByUG={distributionByUG}
           expirationTimeline={expirationTimeline}
+          onStatusClick={(status) => {
+            setSelectedStatus(status);
+            setStatusReportOpen(true);
+          }}
         />
 
         <ActionTables clients={clients} />
       </main>
 
       <ImportDialog open={importOpen} onOpenChange={setImportOpen} onImport={handleImport} />
+      <StatusReportDialog
+        status={selectedStatus}
+        contracts={filteredContracts.filter((c) => c.contractStatus === selectedStatus)}
+        open={statusReportOpen}
+        onOpenChange={setStatusReportOpen}
+      />
     </div>
   );
 }

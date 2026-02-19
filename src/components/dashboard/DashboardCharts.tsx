@@ -25,9 +25,10 @@ interface ChartsProps {
   contractsByStatus: { status: string; count: number }[];
   distributionByUG: { ugType: string; count: number }[];
   expirationTimeline: { month: string; count: number }[];
+  onStatusClick?: (status: string) => void;
 }
 
-export function DashboardCharts({ clients, billingByProduct, contractsByStatus, distributionByUG, expirationTimeline }: ChartsProps) {
+export function DashboardCharts({ clients, billingByProduct, contractsByStatus, distributionByUG, expirationTimeline, onStatusClick }: ChartsProps) {
   const top10 = [...clients].sort((a, b) => b.totalBilled - a.totalBilled).slice(0, 10);
 
   const contractedVsBilled = [...clients]
@@ -134,7 +135,7 @@ export function DashboardCharts({ clients, billingByProduct, contractsByStatus, 
             <XAxis dataKey="status" stroke="hsl(215, 15%, 55%)" fontSize={11} />
             <YAxis stroke="hsl(215, 15%, 55%)" fontSize={11} />
             <Tooltip contentStyle={tooltipStyle} />
-            <Bar dataKey="count" name="Contratos" radius={[4, 4, 0, 0]}>
+            <Bar dataKey="count" name="Contratos" radius={[4, 4, 0, 0]} cursor="pointer" onClick={(data: any) => onStatusClick?.(data?.status)}>
               {contractsByStatus.map((entry, i) => (
                 <Cell
                   key={i}
