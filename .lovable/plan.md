@@ -1,30 +1,45 @@
 
 
-## Correcao: Valor Contratado deve somar todas as linhas do cliente
+## Relatorio por Status ao Clicar no Grafico
 
-### Problema
+### Objetivo
+Ao clicar em uma barra do grafico "Contratos por Status" (ex: Vigente, Vencido, Suspenso), abrir um dialog/modal com a lista detalhada dos contratos daquele status, com opcao de exportar em PDF.
 
-Na funcao `consolidateByClient` (arquivo `src/utils/contractUtils.ts`, linha 27), o calculo do valor contratado usa `Math.max()`, que pega apenas o maior valor entre todas as linhas do cliente. Isso ignora as demais linhas.
+### Alteracoes
 
-O valor faturado ja funciona corretamente porque usa `.reduce()` para somar todas as linhas.
+**1. Novo componente: `src/components/dashboard/StatusReportDialog.tsx`**
+- Dialog (usando Radix Dialog existente) que recebe:
+  - `status: string` (o status clicado)
+  - `contracts: ContractRow[]` (contratos filtrados por aquele status)
+  - `open / onOpenChange` (controle do dialog)
+- Conteudo do dialog:
+  - Titulo: "Relatorio - Contratos [Status]"
+  - Tabela com colunas: Cliente, Tipo UG, Produto, Valor Contratado, Valor Faturado, Diferenca, Data Assinatura, Vencimento
+  - Totalizadores no rodape: soma de contratado, faturado, diferenca
+  - Botao "Exportar PDF" que usa `window.print()` com CSS `@media print` para imprimir apenas o conteudo do relatorio
 
-### Solucao
+**2. Alteracao: `src/components/dashboard/DashboardCharts.tsx`**
+- Adicionar prop `onStatusClick: (status: string) => void` na interface `ChartsProps`
+- No grafico "Contratos por Status", adicionar `onClick` handler na `Bar` usando o evento do Recharts (`onClick` no componente `Bar` ou `BarChart`)
+- Ao clicar, chamar `onStatusClick(entry.status)`
 
-Alterar a linha 27 para usar a mesma logica de soma do faturado:
+**3. Alteracao: `src/components/dashboard/Dashboard.tsx`**
+- Adicionar estado para controlar o dialog: `selectedStatus` e `statusReportOpen`
+- Filtrar `filteredContracts` pelo status selecionado para passar ao dialog
+- Passar callback `onStatusClick` ao `DashboardCharts`
+- Renderizar `StatusReportDialog`
 
-**Antes:**
-```typescript
-const totalContracted = Math.max(...rows.map((r) => r.contractedValue));
-```
+**4. CSS para impressao PDF**
+- No `StatusReportDialog`, usar uma div com classe especifica (ex: `print-report`)
+- Adicionar regras `@media print` no `src/index.css`:
+  - Esconder tudo exceto o conteudo do relatorio
+  - Estilizar tabela para impressao (bordas, fontes, cores em preto/branco)
+  - Ajustar margens e quebras de pagina
 
-**Depois:**
-```typescript
-const totalContracted = rows.reduce((sum, r) => sum + r.contractedValue, 0);
-```
+### Detalhes Tecnicos
 
-### Arquivo alterado
-
-- `src/utils/contractUtils.ts` - uma unica linha (linha 27)
-
-Isso fara com que o Total Contratado some todas as linhas de cada cliente, da mesma forma que o Total Faturado ja faz.
+- O evento de clique do Recharts `BarChart` fornece o `payload` com os dados da barra clicada, incluindo o campo `status`
+- Para o PDF, `window.print()` combinado com `@media print` e visibilidade condicional que esconde o restante da pagina durante a impressao
+- O dialog usa os componentes `Dialog`, `DialogContent`, `DialogHeader`, `DialogTitle` ja existentes no projeto
+- A tabela reutiliza os componentes `Table`, `TableHeader`, `TableBody`, `TableRow`, `TableCell` existentes
 
