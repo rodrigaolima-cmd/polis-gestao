@@ -24,7 +24,7 @@ export function consolidateByClient(contracts: ContractRow[]): ClientSummary[] {
 
   return Array.from(grouped.entries()).map(([clientName, rows]) => {
     // Use MAX contracted value (global contract repeated per product)
-    const totalContracted = Math.max(...rows.map((r) => r.contractedValue));
+    const totalContracted = rows.reduce((sum, r) => sum + r.contractedValue, 0);
     const totalBilled = rows.reduce((sum, r) => sum + r.billedValue, 0);
     const difference = totalContracted - totalBilled;
     const billedPercentage = totalContracted > 0 ? (totalBilled / totalContracted) * 100 : 0;
