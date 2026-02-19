@@ -83,7 +83,14 @@ export function formatPercent(value: number): string {
 }
 
 export function formatDate(dateStr: string): string {
-  return format(parseISO(dateStr), "dd/MM/yyyy");
+  if (!dateStr) return "—";
+  try {
+    const parsed = parseISO(dateStr);
+    if (isNaN(parsed.getTime())) return dateStr;
+    return format(parsed, "dd/MM/yyyy");
+  } catch {
+    return dateStr;
+  }
 }
 
 export function getUniqueValues(contracts: ContractRow[], key: keyof ContractRow): string[] {
