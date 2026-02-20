@@ -39,7 +39,7 @@ const TITLES: Record<SectionReportType, string> = {
 export function SectionReportDialog({ reportType, clients, contracts, open, onOpenChange }: SectionReportDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-5xl max-h-[90vh] overflow-auto print:max-w-none print:max-h-none print:overflow-visible print:shadow-none">
+      <DialogContent className="max-w-5xl max-h-[90vh] overflow-auto print-report">
         <DialogHeader className="flex flex-row items-center justify-between print:mb-4">
           <DialogTitle className="text-lg">{TITLES[reportType]}</DialogTitle>
           <Button variant="outline" size="sm" className="gap-2 print:hidden" onClick={() => window.print()}>
@@ -62,7 +62,7 @@ export function SectionReportDialog({ reportType, clients, contracts, open, onOp
 }
 
 function Top10Report({ clients }: { clients: ClientSummary[] }) {
-  const sorted = [...clients].sort((a, b) => b.totalBilled - a.totalBilled).slice(0, 10);
+  const sorted = [...clients].sort((a, b) => b.totalBilled - a.totalBilled || a.clientName.localeCompare(b.clientName, 'pt-BR')).slice(0, 10);
   const totC = sorted.reduce((s, c) => s + c.totalContracted, 0);
   const totB = sorted.reduce((s, c) => s + c.totalBilled, 0);
   return (
@@ -103,7 +103,7 @@ function Top10Report({ clients }: { clients: ClientSummary[] }) {
 }
 
 function ContractedVsBilledReport({ clients }: { clients: ClientSummary[] }) {
-  const sorted = [...clients].sort((a, b) => b.totalContracted - a.totalContracted);
+  const sorted = [...clients].sort((a, b) => b.totalContracted - a.totalContracted || a.clientName.localeCompare(b.clientName, 'pt-BR'));
   const totC = sorted.reduce((s, c) => s + c.totalContracted, 0);
   const totB = sorted.reduce((s, c) => s + c.totalBilled, 0);
   return (
@@ -144,7 +144,7 @@ function ContractedVsBilledReport({ clients }: { clients: ClientSummary[] }) {
 }
 
 function RankingReport({ clients }: { clients: ClientSummary[] }) {
-  const ranking = [...clients].filter((c) => c.difference > 0).sort((a, b) => b.difference - a.difference);
+  const ranking = [...clients].filter((c) => c.difference > 0).sort((a, b) => b.difference - a.difference || a.clientName.localeCompare(b.clientName, 'pt-BR'));
   const totC = ranking.reduce((s, c) => s + c.totalContracted, 0);
   const totB = ranking.reduce((s, c) => s + c.totalBilled, 0);
   const totP = ranking.reduce((s, c) => s + c.difference, 0);
@@ -188,7 +188,7 @@ function RankingReport({ clients }: { clients: ClientSummary[] }) {
 }
 
 function CriticalReport({ clients }: { clients: ClientSummary[] }) {
-  const critical = [...clients].filter((c) => c.daysToExpire <= 90).sort((a, b) => a.daysToExpire - b.daysToExpire);
+  const critical = [...clients].filter((c) => c.daysToExpire <= 90).sort((a, b) => a.daysToExpire - b.daysToExpire || a.clientName.localeCompare(b.clientName, 'pt-BR'));
   const totC = critical.reduce((s, c) => s + c.totalContracted, 0);
   const totB = critical.reduce((s, c) => s + c.totalBilled, 0);
   return (

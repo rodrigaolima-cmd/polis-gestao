@@ -29,7 +29,7 @@ export function consolidateByClient(contracts: ContractRow[]): ClientSummary[] {
     grouped.set(c.clientName, existing);
   });
 
-  return Array.from(grouped.entries()).map(([clientName, rows]) => {
+  const result = Array.from(grouped.entries()).map(([clientName, rows]) => {
     // Use MAX contracted value (global contract repeated per product)
     const totalContracted = rows.reduce((sum, r) => sum + r.contractedValue, 0);
     const totalBilled = rows.reduce((sum, r) => sum + r.billedValue, 0);
@@ -55,6 +55,7 @@ export function consolidateByClient(contracts: ContractRow[]): ClientSummary[] {
       hasOverbilling: totalBilled > totalContracted,
     };
   });
+  return result.sort((a, b) => a.clientName.localeCompare(b.clientName, 'pt-BR'));
 }
 
 export function applyFilters(contracts: ContractRow[], filters: DashboardFilters): ContractRow[] {
