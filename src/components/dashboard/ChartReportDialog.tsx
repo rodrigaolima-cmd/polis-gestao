@@ -9,14 +9,14 @@ import {
 import { Button } from "@/components/ui/button";
 import { Printer } from "lucide-react";
 
-interface StatusReportDialogProps {
-  status: string;
+interface ChartReportDialogProps {
+  title: string;
   contracts: ContractRow[];
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
-export function StatusReportDialog({ status, contracts, open, onOpenChange }: StatusReportDialogProps) {
+export function ChartReportDialog({ title, contracts, open, onOpenChange }: ChartReportDialogProps) {
   const totalContracted = contracts.reduce((s, c) => s + c.contractedValue, 0);
   const totalBilled = contracts.reduce((s, c) => s + c.billedValue, 0);
   const totalDifference = totalContracted - totalBilled;
@@ -29,9 +29,7 @@ export function StatusReportDialog({ status, contracts, open, onOpenChange }: St
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-[900px] max-h-[85vh] overflow-y-auto print-report">
         <DialogHeader className="flex flex-row items-center justify-between gap-4">
-          <DialogTitle className="text-lg">
-            Relatório — Contratos {status}
-          </DialogTitle>
+          <DialogTitle className="text-lg">{title}</DialogTitle>
           <Button variant="outline" size="sm" className="gap-2 text-xs print:hidden" onClick={handlePrint}>
             <Printer className="h-3.5 w-3.5" /> Exportar PDF
           </Button>

@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { mockContracts } from "@/data/mockContracts";
 import { ContractRow, DashboardFilters } from "@/types/contract";
-import { StatusReportDialog } from "@/components/dashboard/StatusReportDialog";
+import { ChartReportDialog } from "@/components/dashboard/ChartReportDialog";
 import {
   applyFilters, consolidateByClient, defaultFilters,
   formatCurrency, formatPercent, getExpirationStatus,
@@ -18,13 +18,17 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
+interface ReportConfig {
+  title: string;
+  contracts: ContractRow[];
+}
+
 export default function Dashboard() {
   const [filters, setFilters] = useState<DashboardFilters>(defaultFilters);
   const [contracts, setContracts] = useState<ContractRow[]>(mockContracts);
   const [importOpen, setImportOpen] = useState(false);
   const [dataSource, setDataSource] = useState<"mock" | "imported">("mock");
-  const [selectedStatus, setSelectedStatus] = useState("");
-  const [statusReportOpen, setStatusReportOpen] = useState(false);
+  const [reportConfig, setReportConfig] = useState<ReportConfig | null>(null);
 
   const filteredContracts = useMemo(() => applyFilters(contracts, filters), [contracts, filters]);
   const clients = useMemo(() => consolidateByClient(filteredContracts), [filteredContracts]);
@@ -73,6 +77,42 @@ export default function Dashboard() {
     a.download = "contratos_polis.csv";
     a.click();
     URL.revokeObjectURL(url);
+  };
+
+  // Report click handlers
+  const handleStatusClick = (status: string) => {
+    setReportConfig({
+      title: `Relatório — Contratos ${status}`,
+      contracts: filteredContracts.filter((c) => c.contractStatus === status),
+    });
+  };
+
+  const handleClientClick = (clientName: string) => {
+    setReportConfig({
+      title: `Relatório — Cliente: ${clientName}`,
+      contracts: filteredContracts.filter((c) => c.clientName === clientName),
+    });
+  };
+
+  const handleProductClick = (product: string) => {
+    setReportConfig({
+      title: `Relatório — Produto: ${product}`,
+      contracts: filteredContracts.filter((c) => c.product === product),
+    });
+  };
+
+  const handleUGClick = (ugType: string) => {
+    setReportConfig({
+      title: `Relatório — Tipo UG: ${ugType}`,
+      contracts: filteredContracts.filter((c) => c.ugType === ugType),
+    });
+  };
+
+  const handleMonthClick = (month: string) => {
+    setReportConfig({
+      title: `Relatório — Vencimentos: ${month}`,
+      contracts: filteredContracts.filter((c) => c.expirationDate.substring(0, 7) === month),
+    });
   };
 
   return (
@@ -132,21 +172,22 @@ export default function Dashboard() {
           contractsByStatus={contractsByStatus}
           distributionByUG={distributionByUG}
           expirationTimeline={expirationTimeline}
-          onStatusClick={(status) => {
-            setSelectedStatus(status);
-            setStatusReportOpen(true);
-          }}
+          onStatusClick={handleStatusClick}
+          onClientClick={handleClientClick}
+          onProductClick={handleProductClick}
+          onUGClick={handleUGClick}
+          onMonthClick={handleMonthClick}
         />
 
         <ActionTables clients={clients} />
       </main>
 
       <ImportDialog open={importOpen} onOpenChange={setImportOpen} onImport={handleImport} />
-      <StatusReportDialog
-        status={selectedStatus}
-        contracts={filteredContracts.filter((c) => c.contractStatus === selectedStatus)}
-        open={statusReportOpen}
-        onOpenChange={setStatusReportOpen}
+      <ChartReportDialog
+        title={reportConfig?.title ?? ""}
+        contracts={reportConfig?.contracts ?? []}
+        open={reportConfig !== null}
+        onOpenChange={(open) => { if (!open) setReportConfig(null); }}
       />
     </div>
   );
