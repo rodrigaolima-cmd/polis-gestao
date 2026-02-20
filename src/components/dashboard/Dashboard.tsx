@@ -17,7 +17,7 @@ import { ImportDialog } from "@/components/dashboard/ImportDialog";
 import {
   DollarSign, TrendingUp, AlertTriangle, BarChart3,
   CalendarX, Clock, AlertCircle, FileSpreadsheet, Printer, Upload,
-  Target, ShieldAlert, CheckSquare
+  Target, ShieldAlert, CheckSquare, FileText
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -183,6 +183,7 @@ export default function Dashboard() {
           <KPICard title="Ticket Médio" value={formatCurrency(ticketMedio)} subtitle="Por cliente" icon={Target} variant="info" animationDelay={350} />
           <KPICard title="Inadimplência" value={formatPercent(inadimplencia)} subtitle="Não faturado" icon={ShieldAlert} variant="warning" animationDelay={400} />
           <KPICard title="Contratos Ativos" value={String(contratosAtivos)} icon={CheckSquare} variant="success" animationDelay={450} sparklineData={sparkActive} />
+          <KPICard title="Relatório Geral" value={String(clients.length)} subtitle="Clientes" icon={FileText} variant="info" animationDelay={500} onClick={() => setSectionReport("general")} />
         </div>
 
         <DashboardCharts
