@@ -1,45 +1,64 @@
 
 
-## Relatorio por Status ao Clicar no Grafico
+## Relatorios Interativos em Todas as Sessoes dos Graficos
 
-### Objetivo
-Ao clicar em uma barra do grafico "Contratos por Status" (ex: Vigente, Vencido, Suspenso), abrir um dialog/modal com a lista detalhada dos contratos daquele status, com opcao de exportar em PDF.
+### Resumo
+Adicionar funcionalidade de clique em todos os 6 graficos do dashboard, abrindo um relatorio detalhado em tela (dialog/modal) com opcao de exportar em PDF. Atualmente apenas o grafico "Contratos por Status" possui essa funcionalidade.
 
-### Alteracoes
+### Graficos que receberao a funcionalidade
 
-**1. Novo componente: `src/components/dashboard/StatusReportDialog.tsx`**
-- Dialog (usando Radix Dialog existente) que recebe:
-  - `status: string` (o status clicado)
-  - `contracts: ContractRow[]` (contratos filtrados por aquele status)
-  - `open / onOpenChange` (controle do dialog)
-- Conteudo do dialog:
-  - Titulo: "Relatorio - Contratos [Status]"
-  - Tabela com colunas: Cliente, Tipo UG, Produto, Valor Contratado, Valor Faturado, Diferenca, Data Assinatura, Vencimento
-  - Totalizadores no rodape: soma de contratado, faturado, diferenca
-  - Botao "Exportar PDF" que usa `window.print()` com CSS `@media print` para imprimir apenas o conteudo do relatorio
+| Grafico | Filtro ao clicar | Exemplo |
+|---------|-----------------|---------|
+| Faturamento por Cliente (Top 10) | Por nome do cliente | Clicou em "Prefeitura X" -> contratos desse cliente |
+| Contratado vs Faturado | Por nome do cliente | Clicou em "Prefeitura X" -> contratos desse cliente |
+| Faturamento por Produto | Por produto | Clicou em "Contabilidade" -> contratos desse produto |
+| Distribuicao por Tipo de UG | Por tipo de UG | Clicou em "Prefeitura" -> contratos desse tipo |
+| Contratos por Status | Ja funciona | Mantido como esta |
+| Linha do Tempo de Vencimentos | Por mes de vencimento | Clicou em "2025-06" -> contratos que vencem nesse mes |
+
+### Alteracoes Tecnicas
+
+**1. Novo componente generico: `src/components/dashboard/ChartReportDialog.tsx`**
+- Substituira o `StatusReportDialog` atual por um componente mais flexivel
+- Props:
+  - `title: string` (ex: "Relatorio - Produto: Contabilidade")
+  - `contracts: ContractRow[]` (ja filtrados)
+  - `open / onOpenChange`
+- Mesma estrutura visual: tabela com colunas (Cliente, Tipo UG, Produto, Contratado, Faturado, Diferenca, Assinatura, Vencimento), totalizadores no rodape, botao Exportar PDF
 
 **2. Alteracao: `src/components/dashboard/DashboardCharts.tsx`**
-- Adicionar prop `onStatusClick: (status: string) => void` na interface `ChartsProps`
-- No grafico "Contratos por Status", adicionar `onClick` handler na `Bar` usando o evento do Recharts (`onClick` no componente `Bar` ou `BarChart`)
-- Ao clicar, chamar `onStatusClick(entry.status)`
+- Adicionar novos callbacks na interface `ChartsProps`:
+  - `onClientClick?: (clientName: string) => void`
+  - `onProductClick?: (product: string) => void`
+  - `onUGClick?: (ugType: string) => void`
+  - `onMonthClick?: (month: string) => void`
+- Adicionar `cursor="pointer"` e `onClick` em cada grafico:
+  - Barras dos graficos de cliente: chamar `onClientClick`
+  - Fatias do pie de produto: chamar `onProductClick`
+  - Fatias do pie de UG: chamar `onUGClick`
+  - Pontos da linha de vencimentos: chamar `onMonthClick` (usando `activeDot` com onClick)
 
 **3. Alteracao: `src/components/dashboard/Dashboard.tsx`**
-- Adicionar estado para controlar o dialog: `selectedStatus` e `statusReportOpen`
-- Filtrar `filteredContracts` pelo status selecionado para passar ao dialog
-- Passar callback `onStatusClick` ao `DashboardCharts`
-- Renderizar `StatusReportDialog`
+- Substituir os estados `selectedStatus` e `statusReportOpen` por um estado generico:
+  - `reportConfig: { title: string; contracts: ContractRow[] } | null`
+- Criar funcoes de filtro para cada tipo de clique:
+  - `onStatusClick`: filtra por `contractStatus`
+  - `onClientClick`: filtra por `clientName`
+  - `onProductClick`: filtra por `product`
+  - `onUGClick`: filtra por `ugType`
+  - `onMonthClick`: filtra por mes do `expirationDate` (substring 0-7)
+- Passar todos os callbacks para `DashboardCharts`
+- Renderizar `ChartReportDialog` controlado por `reportConfig`
 
-**4. CSS para impressao PDF**
-- No `StatusReportDialog`, usar uma div com classe especifica (ex: `print-report`)
-- Adicionar regras `@media print` no `src/index.css`:
-  - Esconder tudo exceto o conteudo do relatorio
-  - Estilizar tabela para impressao (bordas, fontes, cores em preto/branco)
-  - Ajustar margens e quebras de pagina
+**4. Remover `StatusReportDialog.tsx`**
+- Sera substituido pelo `ChartReportDialog` generico
+- As regras de CSS `@media print` existentes no `index.css` serao mantidas
 
-### Detalhes Tecnicos
+### Fluxo do Usuario
 
-- O evento de clique do Recharts `BarChart` fornece o `payload` com os dados da barra clicada, incluindo o campo `status`
-- Para o PDF, `window.print()` combinado com `@media print` e visibilidade condicional que esconde o restante da pagina durante a impressao
-- O dialog usa os componentes `Dialog`, `DialogContent`, `DialogHeader`, `DialogTitle` ja existentes no projeto
-- A tabela reutiliza os componentes `Table`, `TableHeader`, `TableBody`, `TableRow`, `TableCell` existentes
+1. Usuario clica em qualquer elemento de qualquer grafico
+2. Abre modal com titulo descritivo (ex: "Relatorio - Produto: Contabilidade")
+3. Tabela mostra todos os contratos filtrados por aquele criterio
+4. Rodape mostra totais de valores
+5. Botao "Exportar PDF" imprime apenas o conteudo do relatorio
 
