@@ -1,5 +1,5 @@
 import { ClientSummary, ContractRow } from "@/types/contract";
-import { formatCurrency, formatPercent, getExpirationStatus } from "@/utils/contractUtils";
+import { formatCurrency, formatPercent, formatDate, getExpirationStatus } from "@/utils/contractUtils";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
@@ -18,7 +18,8 @@ export type SectionReportType =
   | "timeline"
   | "expired"
   | "expiring30"
-  | "expiring90";
+  | "expiring90"
+  | "general";
 
 interface SectionReportDialogProps {
   reportType: SectionReportType;
@@ -40,6 +41,7 @@ const TITLES: Record<SectionReportType, string> = {
   expired: "Relatório — Contratos Vencidos",
   expiring30: "Relatório — Contratos a Vencer em 30 Dias",
   expiring90: "Relatório — Contratos a Vencer em 90 Dias",
+  general: "Relatório Geral de Contratos",
 };
 
 export function SectionReportDialog({ reportType, clients, contracts, open, onOpenChange }: SectionReportDialogProps) {
@@ -64,6 +66,7 @@ export function SectionReportDialog({ reportType, clients, contracts, open, onOp
           {reportType === "expired" && <ExpirationReport clients={clients} type="expired" />}
           {reportType === "expiring30" && <ExpirationReport clients={clients} type="expiring30" />}
           {reportType === "expiring90" && <ExpirationReport clients={clients} type="expiring90" />}
+          {reportType === "general" && <GeneralReport clients={clients} />}
         </div>
       </DialogContent>
     </Dialog>
@@ -494,6 +497,51 @@ function ExpirationReport({ clients, type }: { clients: ClientSummary[]; type: "
           <TableCell className="text-xs text-right mono">{formatCurrency(totC)}</TableCell>
           <TableCell className="text-xs text-right mono">{formatCurrency(totB)}</TableCell>
           <TableCell></TableCell>
+        </TableRow>
+      </TableFooter>
+    </Table>
+  );
+}
+
+function GeneralReport({ clients }: { clients: ClientSummary[] }) {
+  const sorted = [...clients].sort((a, b) => a.clientName.localeCompare(b.clientName, 'pt-BR'));
+  const totC = sorted.reduce((s, c) => s + c.totalContracted, 0);
+  const totB = sorted.reduce((s, c) => s + c.totalBilled, 0);
+  const totD = sorted.reduce((s, c) => s + c.difference, 0);
+
+  return (
+    <Table>
+      <TableHeader>
+        <TableRow className="border-border/50">
+          <TableHead className="text-xs">Cliente</TableHead>
+          <TableHead className="text-xs">Tipo UG</TableHead>
+          <TableHead className="text-xs text-right">Contratado</TableHead>
+          <TableHead className="text-xs text-right">Faturado</TableHead>
+          <TableHead className="text-xs text-right">Diferença</TableHead>
+          <TableHead className="text-xs text-center">Vencimento</TableHead>
+          <TableHead className="text-xs text-center">Status</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {sorted.map((c) => (
+          <TableRow key={c.clientName} className="border-border/30">
+            <TableCell className="text-sm font-medium">{c.clientName}</TableCell>
+            <TableCell className="text-xs">{c.ugType}</TableCell>
+            <TableCell className="text-xs text-right mono">{formatCurrency(c.totalContracted)}</TableCell>
+            <TableCell className="text-xs text-right mono text-success">{formatCurrency(c.totalBilled)}</TableCell>
+            <TableCell className="text-xs text-right mono text-danger">{formatCurrency(c.difference)}</TableCell>
+            <TableCell className="text-xs text-center mono">{formatDate(c.nextExpiration)}</TableCell>
+            <TableCell className="text-xs text-center capitalize">{c.status}</TableCell>
+          </TableRow>
+        ))}
+      </TableBody>
+      <TableFooter>
+        <TableRow className="bg-muted/50 font-bold">
+          <TableCell colSpan={2} className="text-sm">Total ({sorted.length} clientes)</TableCell>
+          <TableCell className="text-xs text-right mono">{formatCurrency(totC)}</TableCell>
+          <TableCell className="text-xs text-right mono">{formatCurrency(totB)}</TableCell>
+          <TableCell className="text-xs text-right mono">{formatCurrency(totD)}</TableCell>
+          <TableCell colSpan={2}></TableCell>
         </TableRow>
       </TableFooter>
     </Table>
