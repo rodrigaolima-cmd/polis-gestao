@@ -150,6 +150,65 @@ export function getExpirationTimeline(contracts: ContractRow[]): { month: string
     .sort((a, b) => a.month.localeCompare(b.month));
 }
 
+// Helper: check if contract status means "active"
+export function isActiveStatus(status: string): boolean {
+  const s = status.trim().toLowerCase();
+  const negativos = ["inativ", "cancel", "suspens", "encerr", "vencid", "rescind"];
+  if (negativos.some(n => s.includes(n))) return false;
+  return s.includes("ativ") || s.includes("vigente") || s.includes("em vigor") || s === "active";
+}
+
+// Generate monthly trend data for sparklines
+export function getMonthlyTrend(
+  contracts: ContractRow[],
+  mode: "contractedValue" | "billedValue" | "unbilled" | "count" | "activeCount" | "expiredCount",
+  months = 6
+): number[] {
+  const now = new Date();
+  const result: number[] = [];
+
+  for (let i = months - 1; i >= 0; i--) {
+    const targetMonth = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const ym = format(targetMonth, "yyyy-MM");
+
+    // Filter contracts whose signature month <= target and expiration month >= target
+    const relevant = contracts.filter((c) => {
+      const sigMonth = c.signatureDate.substring(0, 7);
+      const expMonth = c.expirationDate.substring(0, 7);
+      return sigMonth <= ym && expMonth >= ym;
+    });
+
+    switch (mode) {
+      case "contractedValue":
+        result.push(relevant.reduce((s, c) => s + c.contractedValue, 0));
+        break;
+      case "billedValue":
+        result.push(relevant.reduce((s, c) => s + c.billedValue, 0));
+        break;
+      case "unbilled":
+        result.push(relevant.reduce((s, c) => s + (c.contractedValue - c.billedValue), 0));
+        break;
+      case "count":
+        result.push(relevant.length);
+        break;
+      case "activeCount":
+        result.push(relevant.filter((c) => isActiveStatus(c.contractStatus)).length);
+        break;
+      case "expiredCount": {
+        const monthEnd = new Date(targetMonth.getFullYear(), targetMonth.getMonth() + 1, 0);
+        result.push(contracts.filter((c) => {
+          try {
+            const exp = parseISO(c.expirationDate);
+            return exp < monthEnd && exp >= new Date(targetMonth.getFullYear(), targetMonth.getMonth(), 1);
+          } catch { return false; }
+        }).length);
+        break;
+      }
+    }
+  }
+  return result;
+}
+
 export const defaultFilters: DashboardFilters = {
   ugType: "",
   product: "",
