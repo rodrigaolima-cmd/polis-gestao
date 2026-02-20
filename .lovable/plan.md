@@ -1,57 +1,30 @@
 
 
-## Correcoes e Melhorias nos KPI Cards
+## Relatorio Geral de Contratos
 
-### Problema: KPI "Contratos Ativos" mostrando 0 com dados importados
+### O que sera feito
 
-**Causa raiz**: A comparacao `c.contractStatus.trim().toLowerCase() === "ativo"` so reconhece o valor exato "ativo". Planilhas importadas podem trazer valores como "Vigente", "Em vigor", "Em andamento", "ATIVO", "Active" etc.
-
-**Solucao**: Ampliar a deteccao para aceitar multiplos termos que indicam contrato ativo:
-- Verificar se o status contem "ativ" (cobre "Ativo", "ATIVO", "Inativo" sera excluido com logica adicional)
-- Tambem aceitar "vigente", "em vigor", "em andamento", "active"
-- Excluir explicitamente termos negativos como "inativ", "cancel", "suspens", "encerr", "vencid"
-
-**Arquivo**: `src/components/dashboard/Dashboard.tsx` (linha 52)
-```typescript
-// De:
-const contratosAtivos = filteredContracts.filter(
-  (c) => c.contractStatus.trim().toLowerCase() === "ativo"
-).length;
-
-// Para:
-const contratosAtivos = filteredContracts.filter((c) => {
-  const s = c.contractStatus.trim().toLowerCase();
-  const negativos = ["inativ", "cancel", "suspens", "encerr", "vencid", "rescind"];
-  if (negativos.some(n => s.includes(n))) return false;
-  return s.includes("ativ") || s.includes("vigente") || s.includes("em vigor") || s === "active";
-}).length;
-```
-
----
-
-### Melhoria: Sparklines nos KPI Cards
-
-Adicionar mini graficos de tendencia (sparklines) dentro dos KPI cards usando Recharts (ja instalado). Os sparklines mostrarao a distribuicao mensal dos dados.
-
-**Arquivo**: `src/components/dashboard/KPICard.tsx`
-- Adicionar prop opcional `sparklineData?: number[]`
-- Quando presente, renderizar um mini `LineChart` do Recharts (40x20px) abaixo do valor
-- Linha fina na cor do variant, sem eixos nem labels
-- Area preenchida com opacidade baixa
-
-**Arquivo**: `src/components/dashboard/Dashboard.tsx`
-- Calcular dados de sparkline para cada KPI baseado nos meses de assinatura/vencimento dos contratos
-- Para KPIs de valor (Total Contratado, Faturado, Nao Faturado): soma mensal dos ultimos 6 meses
-- Para KPIs de contagem (Vencidos, Ativos): contagem mensal
-- Para KPIs de percentual: media mensal
-
-**Arquivo**: `src/utils/contractUtils.ts`
-- Criar funcao `getMonthlyTrend(contracts, field, months)` que retorna array de valores mensais para os ultimos N meses
+Um novo KPI card "Relatorio Geral" sera adicionado ao dashboard. Ao clicar, abrira um relatorio completo com todos os clientes, ordenados alfabeticamente, mostrando: Cliente, Tipo UG, Valor Contratado, Valor Faturado, Diferenca (Dinheiro na Mesa), Vencimento do Contrato e Status. O rodape totaliza quantidade de contratos e valores financeiros. Exportacao PDF via botao "Exportar PDF" (window.print).
 
 ### Alteracoes por Arquivo
 
-| Arquivo | Alteracao |
-|---------|-----------|
-| `KPICard.tsx` | Nova prop `sparklineData`, mini LineChart do Recharts |
-| `Dashboard.tsx` | Deteccao flexivel de "Ativo"; calculo de sparkline data para cada KPI |
-| `contractUtils.ts` | Nova funcao `getMonthlyTrend` para gerar dados de tendencia mensal |
+**1. `src/components/dashboard/SectionReportDialog.tsx`**
+- Adicionar `"general"` ao tipo `SectionReportType`
+- Adicionar titulo `"Relatorio Geral de Contratos"` no mapa `TITLES`
+- Renderizar `GeneralReport` quando `reportType === "general"`
+- Novo componente `GeneralReport`:
+  - Recebe `clients: ClientSummary[]`
+  - Ordena alfabeticamente por `clientName.localeCompare('pt-BR')`
+  - Colunas: Cliente, Tipo UG, Contratado, Faturado, Diferenca, Vencimento, Status
+  - Vencimento formatado com `formatDate(nextExpiration)`
+  - Rodape com: Total (N clientes), soma contratado, soma faturado, soma diferenca
+
+**2. `src/components/dashboard/Dashboard.tsx`**
+- Importar `FileText` do lucide-react
+- Adicionar novo KPI card na grid:
+  ```
+  <KPICard title="Relatorio Geral" value={String(clients.length)} 
+    subtitle="Clientes" icon={FileText} variant="info" 
+    onClick={() => setSectionReport("general")} />
+  ```
+
