@@ -2,6 +2,7 @@ import { useState, useMemo } from "react";
 import { mockContracts } from "@/data/mockContracts";
 import { ContractRow, DashboardFilters } from "@/types/contract";
 import { ChartReportDialog } from "@/components/dashboard/ChartReportDialog";
+import { SectionReportDialog, SectionReportType } from "@/components/dashboard/SectionReportDialog";
 import {
   applyFilters, consolidateByClient, defaultFilters,
   formatCurrency, formatPercent, getExpirationStatus,
@@ -14,7 +15,8 @@ import { ActionTables } from "@/components/dashboard/ActionTables";
 import { ImportDialog } from "@/components/dashboard/ImportDialog";
 import {
   DollarSign, TrendingUp, AlertTriangle, BarChart3,
-  CalendarX, Clock, AlertCircle, FileSpreadsheet, Printer, Upload
+  CalendarX, Clock, AlertCircle, FileSpreadsheet, Printer, Upload,
+  Target, ShieldAlert, CheckSquare
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -29,6 +31,7 @@ export default function Dashboard() {
   const [importOpen, setImportOpen] = useState(false);
   const [dataSource, setDataSource] = useState<"mock" | "imported">("mock");
   const [reportConfig, setReportConfig] = useState<ReportConfig | null>(null);
+  const [sectionReport, setSectionReport] = useState<SectionReportType | null>(null);
 
   const filteredContracts = useMemo(() => applyFilters(contracts, filters), [contracts, filters]);
   const clients = useMemo(() => consolidateByClient(filteredContracts), [filteredContracts]);
@@ -42,6 +45,11 @@ export default function Dashboard() {
   const expiredCount = clients.filter((c) => getExpirationStatus(c.daysToExpire) === "expired").length;
   const expiring90 = clients.filter((c) => c.daysToExpire >= 0 && c.daysToExpire <= 90).length;
   const expiring30 = clients.filter((c) => c.daysToExpire >= 0 && c.daysToExpire <= 30).length;
+
+  // New KPIs
+  const ticketMedio = clients.length > 0 ? totalContracted / clients.length : 0;
+  const inadimplencia = totalContracted > 0 ? (totalUnbilled / totalContracted) * 100 : 0;
+  const contratosAtivos = filteredContracts.filter((c) => c.contractStatus === "Ativo").length;
 
   // Chart data
   const billingByProduct = useMemo(() => getBillingByProduct(filteredContracts), [filteredContracts]);
@@ -79,7 +87,7 @@ export default function Dashboard() {
     URL.revokeObjectURL(url);
   };
 
-  // Report click handlers
+  // Report click handlers (individual item)
   const handleStatusClick = (status: string) => {
     setReportConfig({
       title: `Relatório — Contratos ${status}`,
@@ -156,7 +164,7 @@ export default function Dashboard() {
           onReset={() => setFilters(defaultFilters)}
         />
 
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-10 gap-4">
           <KPICard title="Total Contratado" value={formatCurrency(totalContracted)} icon={DollarSign} variant="info" animationDelay={0} />
           <KPICard title="Total Faturado" value={formatCurrency(totalBilled)} icon={TrendingUp} variant="success" animationDelay={50} />
           <KPICard title="Não Faturado" value={formatCurrency(totalUnbilled)} subtitle="Dinheiro na mesa" icon={AlertTriangle} variant="danger" animationDelay={100} />
@@ -164,6 +172,9 @@ export default function Dashboard() {
           <KPICard title="Vencidos" value={String(expiredCount)} icon={CalendarX} variant="danger" animationDelay={200} />
           <KPICard title="Vencer 90 dias" value={String(expiring90)} icon={Clock} variant="warning" animationDelay={250} />
           <KPICard title="Vencer 30 dias" value={String(expiring30)} icon={AlertCircle} variant="danger" animationDelay={300} />
+          <KPICard title="Ticket Médio" value={formatCurrency(ticketMedio)} subtitle="Por cliente" icon={Target} variant="info" animationDelay={350} />
+          <KPICard title="Inadimplência" value={formatPercent(inadimplencia)} subtitle="Não faturado" icon={ShieldAlert} variant="warning" animationDelay={400} />
+          <KPICard title="Contratos Ativos" value={String(contratosAtivos)} icon={CheckSquare} variant="success" animationDelay={450} />
         </div>
 
         <DashboardCharts
@@ -177,9 +188,20 @@ export default function Dashboard() {
           onProductClick={handleProductClick}
           onUGClick={handleUGClick}
           onMonthClick={handleMonthClick}
+          onTop10Report={() => setSectionReport("top10")}
+          onContractedVsBilledReport={() => setSectionReport("contractedVsBilled")}
+          onProductReport={() => setSectionReport("byProduct")}
+          onUGReport={() => setSectionReport("byUG")}
+          onStatusReport={() => setSectionReport("byStatus")}
+          onTimelineReport={() => setSectionReport("timeline")}
         />
 
-        <ActionTables clients={clients} onClientClick={handleClientClick} />
+        <ActionTables
+          clients={clients}
+          onClientClick={handleClientClick}
+          onRankingReport={() => setSectionReport("ranking")}
+          onCriticalReport={() => setSectionReport("critical")}
+        />
       </main>
 
       <ImportDialog open={importOpen} onOpenChange={setImportOpen} onImport={handleImport} />
@@ -188,6 +210,13 @@ export default function Dashboard() {
         contracts={reportConfig?.contracts ?? []}
         open={reportConfig !== null}
         onOpenChange={(open) => { if (!open) setReportConfig(null); }}
+      />
+      <SectionReportDialog
+        reportType={sectionReport ?? "top10"}
+        clients={clients}
+        contracts={filteredContracts}
+        open={sectionReport !== null}
+        onOpenChange={(open) => { if (!open) setSectionReport(null); }}
       />
     </div>
   );
