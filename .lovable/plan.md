@@ -1,51 +1,57 @@
 
 
-## Plano Consolidado: Todas as Correcoes Pendentes
+## Correcoes e Melhorias nos KPI Cards
 
-### 1. KPI "Contratos Ativos" mostrando 0
+### Problema: KPI "Contratos Ativos" mostrando 0 com dados importados
 
-**Arquivo**: `Dashboard.tsx`
-- Trocar comparacao case-sensitive `c.contractStatus === "Ativo"` para `c.contractStatus.trim().toLowerCase() === "ativo"`
+**Causa raiz**: A comparacao `c.contractStatus.trim().toLowerCase() === "ativo"` so reconhece o valor exato "ativo". Planilhas importadas podem trazer valores como "Vigente", "Em vigor", "Em andamento", "ATIVO", "Active" etc.
 
-### 2. KPIs de vencimento clicaveis com relatorio
+**Solucao**: Ampliar a deteccao para aceitar multiplos termos que indicam contrato ativo:
+- Verificar se o status contem "ativ" (cobre "Ativo", "ATIVO", "Inativo" sera excluido com logica adicional)
+- Tambem aceitar "vigente", "em vigor", "em andamento", "active"
+- Excluir explicitamente termos negativos como "inativ", "cancel", "suspens", "encerr", "vencid"
 
-**Arquivo**: `KPICard.tsx`
-- Adicionar prop `onClick?: () => void`
-- Quando presente, aplicar `cursor-pointer` e efeito hover
+**Arquivo**: `src/components/dashboard/Dashboard.tsx` (linha 52)
+```typescript
+// De:
+const contratosAtivos = filteredContracts.filter(
+  (c) => c.contractStatus.trim().toLowerCase() === "ativo"
+).length;
 
-**Arquivo**: `SectionReportDialog.tsx`
-- Adicionar 3 novos tipos de relatorio: `"expired"`, `"expiring30"`, `"expiring90"`
-- Cada um filtra clientes pelo criterio de dias e mostra tabela com totalizadores
-- Ordenacao alfabetica por nome do cliente
+// Para:
+const contratosAtivos = filteredContracts.filter((c) => {
+  const s = c.contractStatus.trim().toLowerCase();
+  const negativos = ["inativ", "cancel", "suspens", "encerr", "vencid", "rescind"];
+  if (negativos.some(n => s.includes(n))) return false;
+  return s.includes("ativ") || s.includes("vigente") || s.includes("em vigor") || s === "active";
+}).length;
+```
 
-**Arquivo**: `Dashboard.tsx`
-- Adicionar handlers onClick nos KPIs "Vencidos", "Vencer 30d" e "Vencer 90d"
-- Cada um abre o SectionReportDialog com o tipo correspondente
+---
 
-### 3. Ordenacao alfabetica (itens ainda pendentes)
+### Melhoria: Sparklines nos KPI Cards
 
-**Arquivo**: `SectionReportDialog.tsx`
-- `ContractedVsBilledReport` (linha 106): trocar sort por valor para sort alfabetico primario
-  - De: `.sort((a, b) => b.totalContracted - a.totalContracted || ...)`
-  - Para: `.sort((a, b) => a.clientName.localeCompare(b.clientName, 'pt-BR'))`
-- `ByProductReport` (linha 247): trocar sort por valor para sort alfabetico
-  - De: `.sort((a, b) => b.contracted - a.contracted)`
-  - Para: `.sort((a, b) => a.product.localeCompare(b.product, 'pt-BR'))`
-- `ByUGReport` (linha 300): trocar sort por valor para sort alfabetico
-  - De: `.sort((a, b) => b.contracted - a.contracted)`
-  - Para: `.sort((a, b) => a.ugType.localeCompare(b.ugType, 'pt-BR'))`
+Adicionar mini graficos de tendencia (sparklines) dentro dos KPI cards usando Recharts (ja instalado). Os sparklines mostrarao a distribuicao mensal dos dados.
 
-**Arquivo**: `contractUtils.ts`
-- `getBillingByProduct` (linha 120): trocar `.sort((a, b) => b.billed - a.billed)` para `.sort((a, b) => a.product.localeCompare(b.product, 'pt-BR'))`
-- `getContractsByStatus` (linha 129): adicionar `.sort((a, b) => a.status.localeCompare(b.status, 'pt-BR'))`
-- `getDistributionByUG` (linha 138): adicionar `.sort((a, b) => a.ugType.localeCompare(b.ugType, 'pt-BR'))`
+**Arquivo**: `src/components/dashboard/KPICard.tsx`
+- Adicionar prop opcional `sparklineData?: number[]`
+- Quando presente, renderizar um mini `LineChart` do Recharts (40x20px) abaixo do valor
+- Linha fina na cor do variant, sem eixos nem labels
+- Area preenchida com opacidade baixa
 
-### Resumo de Arquivos Alterados
+**Arquivo**: `src/components/dashboard/Dashboard.tsx`
+- Calcular dados de sparkline para cada KPI baseado nos meses de assinatura/vencimento dos contratos
+- Para KPIs de valor (Total Contratado, Faturado, Nao Faturado): soma mensal dos ultimos 6 meses
+- Para KPIs de contagem (Vencidos, Ativos): contagem mensal
+- Para KPIs de percentual: media mensal
 
-| Arquivo | Alteracoes |
+**Arquivo**: `src/utils/contractUtils.ts`
+- Criar funcao `getMonthlyTrend(contracts, field, months)` que retorna array de valores mensais para os ultimos N meses
+
+### Alteracoes por Arquivo
+
+| Arquivo | Alteracao |
 |---------|-----------|
-| `KPICard.tsx` | Nova prop onClick, cursor-pointer e hover |
-| `Dashboard.tsx` | Fix case-insensitive "Ativo"; 3 handlers onClick para KPIs de vencimento |
-| `SectionReportDialog.tsx` | 3 novos tipos de relatorio; sort alfabetico primario em ContractedVsBilled, ByProduct e ByUG |
-| `contractUtils.ts` | Sort alfabetico em getBillingByProduct, getContractsByStatus, getDistributionByUG |
-
+| `KPICard.tsx` | Nova prop `sparklineData`, mini LineChart do Recharts |
+| `Dashboard.tsx` | Deteccao flexivel de "Ativo"; calculo de sparkline data para cada KPI |
+| `contractUtils.ts` | Nova funcao `getMonthlyTrend` para gerar dados de tendencia mensal |
