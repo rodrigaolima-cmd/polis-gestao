@@ -179,7 +179,7 @@ export default function Dashboard() {
           onMonthClick={handleMonthClick}
         />
 
-        <ActionTables clients={clients} />
+        <ActionTables clients={clients} onClientClick={handleClientClick} />
       </main>
 
       <ImportDialog open={importOpen} onOpenChange={setImportOpen} onImport={handleImport} />
