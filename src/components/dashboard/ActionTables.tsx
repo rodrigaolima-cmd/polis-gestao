@@ -15,11 +15,11 @@ interface ActionTablesProps {
 export function ActionTables({ clients, onClientClick, onRankingReport, onCriticalReport }: ActionTablesProps) {
   const ranking = [...clients]
     .filter((c) => c.difference > 0)
-    .sort((a, b) => b.difference - a.difference);
+    .sort((a, b) => b.difference - a.difference || a.clientName.localeCompare(b.clientName, 'pt-BR'));
 
   const critical = [...clients]
     .filter((c) => c.daysToExpire <= 90)
-    .sort((a, b) => a.daysToExpire - b.daysToExpire);
+    .sort((a, b) => a.daysToExpire - b.daysToExpire || a.clientName.localeCompare(b.clientName, 'pt-BR'));
 
   return (
     <div className="grid grid-cols-1 xl:grid-cols-2 gap-5">
