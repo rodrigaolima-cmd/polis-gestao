@@ -1,30 +1,51 @@
 
 
-## Correcao: PDFs em Branco e Ordenacao Alfabetica
+## Plano Consolidado: Todas as Correcoes Pendentes
 
-### Problema 1: PDFs saindo em branco
+### 1. KPI "Contratos Ativos" mostrando 0
 
-**Causa raiz**: O CSS de impressao (em `src/index.css`) esconde TUDO na pagina (`body * { visibility: hidden !important }`) e so mostra elementos com a classe `.print-report`. O componente `ChartReportDialog` tem essa classe no `DialogContent`, mas o `SectionReportDialog` nao tem — por isso os relatorios de sessao saem em branco no PDF.
+**Arquivo**: `Dashboard.tsx`
+- Trocar comparacao case-sensitive `c.contractStatus === "Ativo"` para `c.contractStatus.trim().toLowerCase() === "ativo"`
 
-**Correcao**: Adicionar a classe `print-report` no `DialogContent` do `SectionReportDialog`.
+### 2. KPIs de vencimento clicaveis com relatorio
 
-### Problema 2: Clientes fora de ordem alfabetica
+**Arquivo**: `KPICard.tsx`
+- Adicionar prop `onClick?: () => void`
+- Quando presente, aplicar `cursor-pointer` e efeito hover
 
-**Correcao**: Ordenar clientes alfabeticamente nos seguintes locais:
-- `SectionReportDialog`: nos relatorios Top 10 (secundario por nome apos valor), Contratado vs Faturado, e Criticos
-- `ActionTables`: nas tabelas de Ranking e Contratos Criticos
-- `consolidateByClient` em `contractUtils.ts`: ordenar o resultado final por nome do cliente
+**Arquivo**: `SectionReportDialog.tsx`
+- Adicionar 3 novos tipos de relatorio: `"expired"`, `"expiring30"`, `"expiring90"`
+- Cada um filtra clientes pelo criterio de dias e mostra tabela com totalizadores
+- Ordenacao alfabetica por nome do cliente
 
-### Alteracoes Tecnicas
+**Arquivo**: `Dashboard.tsx`
+- Adicionar handlers onClick nos KPIs "Vencidos", "Vencer 30d" e "Vencer 90d"
+- Cada um abre o SectionReportDialog com o tipo correspondente
 
-**1. `src/components/dashboard/SectionReportDialog.tsx`** (linha 42)
-- Adicionar classe `print-report` ao `DialogContent`:
-  - De: `className="max-w-5xl max-h-[90vh] overflow-auto print:max-w-none..."`
-  - Para: `className="max-w-5xl max-h-[90vh] overflow-auto print-report"`
-- Nos sub-relatorios `ContractedVsBilledReport` e `RankingReport`, aplicar sort alfabetico como criterio secundario (apos o criterio principal de valor)
+### 3. Ordenacao alfabetica (itens ainda pendentes)
 
-**2. `src/utils/contractUtils.ts`** (funcao `consolidateByClient`)
-- Ordenar o array final por `clientName` em ordem alfabetica (locale pt-BR)
+**Arquivo**: `SectionReportDialog.tsx`
+- `ContractedVsBilledReport` (linha 106): trocar sort por valor para sort alfabetico primario
+  - De: `.sort((a, b) => b.totalContracted - a.totalContracted || ...)`
+  - Para: `.sort((a, b) => a.clientName.localeCompare(b.clientName, 'pt-BR'))`
+- `ByProductReport` (linha 247): trocar sort por valor para sort alfabetico
+  - De: `.sort((a, b) => b.contracted - a.contracted)`
+  - Para: `.sort((a, b) => a.product.localeCompare(b.product, 'pt-BR'))`
+- `ByUGReport` (linha 300): trocar sort por valor para sort alfabetico
+  - De: `.sort((a, b) => b.contracted - a.contracted)`
+  - Para: `.sort((a, b) => a.ugType.localeCompare(b.ugType, 'pt-BR'))`
 
-Essas duas alteracoes resolvem ambos os problemas de forma simples e direta.
+**Arquivo**: `contractUtils.ts`
+- `getBillingByProduct` (linha 120): trocar `.sort((a, b) => b.billed - a.billed)` para `.sort((a, b) => a.product.localeCompare(b.product, 'pt-BR'))`
+- `getContractsByStatus` (linha 129): adicionar `.sort((a, b) => a.status.localeCompare(b.status, 'pt-BR'))`
+- `getDistributionByUG` (linha 138): adicionar `.sort((a, b) => a.ugType.localeCompare(b.ugType, 'pt-BR'))`
+
+### Resumo de Arquivos Alterados
+
+| Arquivo | Alteracoes |
+|---------|-----------|
+| `KPICard.tsx` | Nova prop onClick, cursor-pointer e hover |
+| `Dashboard.tsx` | Fix case-insensitive "Ativo"; 3 handlers onClick para KPIs de vencimento |
+| `SectionReportDialog.tsx` | 3 novos tipos de relatorio; sort alfabetico primario em ContractedVsBilled, ByProduct e ByUG |
+| `contractUtils.ts` | Sort alfabetico em getBillingByProduct, getContractsByStatus, getDistributionByUG |
 
