@@ -49,7 +49,7 @@ export default function Dashboard() {
   // New KPIs
   const ticketMedio = clients.length > 0 ? totalContracted / clients.length : 0;
   const inadimplencia = totalContracted > 0 ? (totalUnbilled / totalContracted) * 100 : 0;
-  const contratosAtivos = filteredContracts.filter((c) => c.contractStatus === "Ativo").length;
+  const contratosAtivos = filteredContracts.filter((c) => c.contractStatus.trim().toLowerCase() === "ativo").length;
 
   // Chart data
   const billingByProduct = useMemo(() => getBillingByProduct(filteredContracts), [filteredContracts]);
@@ -169,9 +169,9 @@ export default function Dashboard() {
           <KPICard title="Total Faturado" value={formatCurrency(totalBilled)} icon={TrendingUp} variant="success" animationDelay={50} />
           <KPICard title="Não Faturado" value={formatCurrency(totalUnbilled)} subtitle="Dinheiro na mesa" icon={AlertTriangle} variant="danger" animationDelay={100} />
           <KPICard title="% Médio Faturado" value={formatPercent(avgBilledPct)} icon={BarChart3} variant="info" animationDelay={150} />
-          <KPICard title="Vencidos" value={String(expiredCount)} icon={CalendarX} variant="danger" animationDelay={200} />
-          <KPICard title="Vencer 90 dias" value={String(expiring90)} icon={Clock} variant="warning" animationDelay={250} />
-          <KPICard title="Vencer 30 dias" value={String(expiring30)} icon={AlertCircle} variant="danger" animationDelay={300} />
+          <KPICard title="Vencidos" value={String(expiredCount)} icon={CalendarX} variant="danger" animationDelay={200} onClick={() => setSectionReport("expired")} />
+          <KPICard title="Vencer 90 dias" value={String(expiring90)} icon={Clock} variant="warning" animationDelay={250} onClick={() => setSectionReport("expiring90")} />
+          <KPICard title="Vencer 30 dias" value={String(expiring30)} icon={AlertCircle} variant="danger" animationDelay={300} onClick={() => setSectionReport("expiring30")} />
           <KPICard title="Ticket Médio" value={formatCurrency(ticketMedio)} subtitle="Por cliente" icon={Target} variant="info" animationDelay={350} />
           <KPICard title="Inadimplência" value={formatPercent(inadimplencia)} subtitle="Não faturado" icon={ShieldAlert} variant="warning" animationDelay={400} />
           <KPICard title="Contratos Ativos" value={String(contratosAtivos)} icon={CheckSquare} variant="success" animationDelay={450} />

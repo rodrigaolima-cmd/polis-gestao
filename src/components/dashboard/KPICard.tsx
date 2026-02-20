@@ -8,6 +8,7 @@ interface KPICardProps {
   icon: LucideIcon;
   variant?: "default" | "success" | "danger" | "warning" | "info";
   animationDelay?: number;
+  onClick?: () => void;
 }
 
 const variantStyles = {
@@ -34,11 +35,12 @@ const iconColorStyles = {
   info: "text-info",
 };
 
-export function KPICard({ title, value, subtitle, icon: Icon, variant = "default", animationDelay = 0 }: KPICardProps) {
+export function KPICard({ title, value, subtitle, icon: Icon, variant = "default", animationDelay = 0, onClick }: KPICardProps) {
   return (
     <div
-      className={`glass-card rounded-xl p-5 ${variantStyles[variant]} animate-fade-in`}
+      className={`glass-card rounded-xl p-5 ${variantStyles[variant]} animate-fade-in ${onClick ? 'cursor-pointer hover:scale-[1.02] transition-transform' : ''}`}
       style={{ animationDelay: `${animationDelay}ms` }}
+      onClick={onClick}
     >
       <div className="flex items-start justify-between">
         <div className="space-y-1 min-w-0 flex-1">
