@@ -15,7 +15,10 @@ export type SectionReportType =
   | "byProduct"
   | "byUG"
   | "byStatus"
-  | "timeline";
+  | "timeline"
+  | "expired"
+  | "expiring30"
+  | "expiring90";
 
 interface SectionReportDialogProps {
   reportType: SectionReportType;
@@ -34,6 +37,9 @@ const TITLES: Record<SectionReportType, string> = {
   byUG: "Relatório — Distribuição por Tipo de UG",
   byStatus: "Relatório — Contratos por Status",
   timeline: "Relatório — Linha do Tempo de Vencimentos",
+  expired: "Relatório — Contratos Vencidos",
+  expiring30: "Relatório — Contratos a Vencer em 30 Dias",
+  expiring90: "Relatório — Contratos a Vencer em 90 Dias",
 };
 
 export function SectionReportDialog({ reportType, clients, contracts, open, onOpenChange }: SectionReportDialogProps) {
@@ -55,6 +61,9 @@ export function SectionReportDialog({ reportType, clients, contracts, open, onOp
           {reportType === "byUG" && <ByUGReport contracts={contracts} />}
           {reportType === "byStatus" && <ByStatusReport contracts={contracts} />}
           {reportType === "timeline" && <TimelineReport contracts={contracts} />}
+          {reportType === "expired" && <ExpirationReport clients={clients} type="expired" />}
+          {reportType === "expiring30" && <ExpirationReport clients={clients} type="expiring30" />}
+          {reportType === "expiring90" && <ExpirationReport clients={clients} type="expiring90" />}
         </div>
       </DialogContent>
     </Dialog>
@@ -103,7 +112,7 @@ function Top10Report({ clients }: { clients: ClientSummary[] }) {
 }
 
 function ContractedVsBilledReport({ clients }: { clients: ClientSummary[] }) {
-  const sorted = [...clients].sort((a, b) => b.totalContracted - a.totalContracted || a.clientName.localeCompare(b.clientName, 'pt-BR'));
+  const sorted = [...clients].sort((a, b) => a.clientName.localeCompare(b.clientName, 'pt-BR'));
   const totC = sorted.reduce((s, c) => s + c.totalContracted, 0);
   const totB = sorted.reduce((s, c) => s + c.totalBilled, 0);
   return (
@@ -244,7 +253,7 @@ function ByProductReport({ contracts }: { contracts: ContractRow[] }) {
   });
   const products = Array.from(map.entries())
     .map(([product, v]) => ({ product, ...v, difference: v.contracted - v.billed }))
-    .sort((a, b) => b.contracted - a.contracted);
+    .sort((a, b) => a.product.localeCompare(b.product, 'pt-BR'));
   const totC = products.reduce((s, p) => s + p.contracted, 0);
   const totB = products.reduce((s, p) => s + p.billed, 0);
 
@@ -297,7 +306,7 @@ function ByUGReport({ contracts }: { contracts: ContractRow[] }) {
   });
   const ugs = Array.from(map.entries())
     .map(([ugType, v]) => ({ ugType, ...v, unbilled: v.contracted - v.billed }))
-    .sort((a, b) => b.contracted - a.contracted);
+    .sort((a, b) => a.ugType.localeCompare(b.ugType, 'pt-BR'));
   const totC = ugs.reduce((s, u) => s + u.contracted, 0);
   const totU = ugs.reduce((s, u) => s + u.unbilled, 0);
   const totCount = ugs.reduce((s, u) => s + u.count, 0);
@@ -351,7 +360,7 @@ function ByStatusReport({ contracts }: { contracts: ContractRow[] }) {
   });
   const statuses = Array.from(map.entries())
     .map(([status, v]) => ({ status, ...v }))
-    .sort((a, b) => b.count - a.count);
+    .sort((a, b) => a.status.localeCompare(b.status, 'pt-BR'));
   const totCount = statuses.reduce((s, st) => s + st.count, 0);
   const totC = statuses.reduce((s, st) => s + st.contracted, 0);
   const totB = statuses.reduce((s, st) => s + st.billed, 0);
@@ -432,6 +441,59 @@ function TimelineReport({ contracts }: { contracts: ContractRow[] }) {
           <TableCell className="text-xs text-right mono">{totCount}</TableCell>
           <TableCell className="text-xs text-right mono">{formatCurrency(totC)}</TableCell>
           <TableCell className="text-xs text-right mono">100%</TableCell>
+        </TableRow>
+      </TableFooter>
+    </Table>
+  );
+}
+
+function ExpirationReport({ clients, type }: { clients: ClientSummary[]; type: "expired" | "expiring30" | "expiring90" }) {
+  const filtered = [...clients].filter((c) => {
+    if (type === "expired") return c.daysToExpire < 0;
+    if (type === "expiring30") return c.daysToExpire >= 0 && c.daysToExpire <= 30;
+    return c.daysToExpire >= 0 && c.daysToExpire <= 90;
+  }).sort((a, b) => a.clientName.localeCompare(b.clientName, 'pt-BR'));
+
+  const totC = filtered.reduce((s, c) => s + c.totalContracted, 0);
+  const totB = filtered.reduce((s, c) => s + c.totalBilled, 0);
+
+  return (
+    <Table>
+      <TableHeader>
+        <TableRow className="border-border/50">
+          <TableHead className="text-xs">Cliente</TableHead>
+          <TableHead className="text-xs">Tipo UG</TableHead>
+          <TableHead className="text-xs">Produtos</TableHead>
+          <TableHead className="text-xs text-right">Contratado</TableHead>
+          <TableHead className="text-xs text-right">Faturado</TableHead>
+          <TableHead className="text-xs text-center">Dias p/ Vencimento</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {filtered.map((c) => {
+          const expStatus = getExpirationStatus(c.daysToExpire);
+          return (
+            <TableRow key={c.clientName} className="border-border/30">
+              <TableCell className="text-sm font-medium">{c.clientName}</TableCell>
+              <TableCell className="text-xs">{c.ugType}</TableCell>
+              <TableCell className="text-xs">{c.products.join(", ")}</TableCell>
+              <TableCell className="text-xs text-right mono">{formatCurrency(c.totalContracted)}</TableCell>
+              <TableCell className="text-xs text-right mono text-success">{formatCurrency(c.totalBilled)}</TableCell>
+              <TableCell className="text-xs text-center mono">
+                <span className={expStatus === "expired" || expStatus === "critical" ? "text-danger font-bold" : "text-warning font-bold"}>
+                  {c.daysToExpire < 0 ? `${Math.abs(c.daysToExpire)}d atrás` : `${c.daysToExpire}d`}
+                </span>
+              </TableCell>
+            </TableRow>
+          );
+        })}
+      </TableBody>
+      <TableFooter>
+        <TableRow className="bg-muted/50 font-bold">
+          <TableCell colSpan={3} className="text-sm">Total ({filtered.length} contratos)</TableCell>
+          <TableCell className="text-xs text-right mono">{formatCurrency(totC)}</TableCell>
+          <TableCell className="text-xs text-right mono">{formatCurrency(totB)}</TableCell>
+          <TableCell></TableCell>
         </TableRow>
       </TableFooter>
     </Table>
