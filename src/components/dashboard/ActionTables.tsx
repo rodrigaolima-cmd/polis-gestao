@@ -6,9 +6,10 @@ import { ArrowDown, AlertTriangle, Clock, CheckCircle } from "lucide-react";
 
 interface ActionTablesProps {
   clients: ClientSummary[];
+  onClientClick?: (clientName: string) => void;
 }
 
-export function ActionTables({ clients }: ActionTablesProps) {
+export function ActionTables({ clients, onClientClick }: ActionTablesProps) {
   const ranking = [...clients]
     .filter((c) => c.difference > 0)
     .sort((a, b) => b.difference - a.difference);
@@ -38,7 +39,7 @@ export function ActionTables({ clients }: ActionTablesProps) {
             </TableHeader>
             <TableBody>
               {ranking.map((c, i) => (
-                <TableRow key={c.clientName} className="border-border/30">
+                <TableRow key={c.clientName} className="border-border/30 cursor-pointer hover:bg-muted/70 transition-colors" onClick={() => onClientClick?.(c.clientName)}>
                   <TableCell className="text-xs text-muted-foreground mono">{i + 1}</TableCell>
                   <TableCell className="text-sm font-medium">{c.clientName}</TableCell>
                   <TableCell className="text-xs text-right mono">{formatCurrency(c.totalContracted)}</TableCell>
@@ -75,7 +76,7 @@ export function ActionTables({ clients }: ActionTablesProps) {
               {critical.map((c) => {
                 const expStatus = getExpirationStatus(c.daysToExpire);
                 return (
-                  <TableRow key={c.clientName} className="border-border/30">
+                  <TableRow key={c.clientName} className="border-border/30 cursor-pointer hover:bg-muted/70 transition-colors" onClick={() => onClientClick?.(c.clientName)}>
                     <TableCell className="text-sm font-medium">{c.clientName}</TableCell>
                     <TableCell className="text-xs text-muted-foreground">{c.products.join(", ")}</TableCell>
                     <TableCell className="text-xs text-right mono">{formatCurrency(c.totalContracted)}</TableCell>
