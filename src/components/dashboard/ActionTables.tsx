@@ -1,15 +1,18 @@
 import { ClientSummary } from "@/types/contract";
-import { formatCurrency, getExpirationStatus, formatDate } from "@/utils/contractUtils";
+import { formatCurrency, getExpirationStatus } from "@/utils/contractUtils";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { ArrowDown, AlertTriangle, Clock, CheckCircle } from "lucide-react";
+import { ArrowDown, AlertTriangle, Clock, CheckCircle, Printer } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 interface ActionTablesProps {
   clients: ClientSummary[];
   onClientClick?: (clientName: string) => void;
+  onRankingReport?: () => void;
+  onCriticalReport?: () => void;
 }
 
-export function ActionTables({ clients, onClientClick }: ActionTablesProps) {
+export function ActionTables({ clients, onClientClick, onRankingReport, onCriticalReport }: ActionTablesProps) {
   const ranking = [...clients]
     .filter((c) => c.difference > 0)
     .sort((a, b) => b.difference - a.difference);
@@ -22,9 +25,16 @@ export function ActionTables({ clients, onClientClick }: ActionTablesProps) {
     <div className="grid grid-cols-1 xl:grid-cols-2 gap-5">
       {/* Ranking não faturado */}
       <div className="glass-card rounded-xl p-5 animate-fade-in">
-        <div className="flex items-center gap-2 mb-4">
-          <ArrowDown className="h-4 w-4 text-danger" />
-          <h3 className="text-sm font-semibold">Ranking – Dinheiro Não Faturado</h3>
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <ArrowDown className="h-4 w-4 text-danger" />
+            <h3 className="text-sm font-semibold">Ranking – Dinheiro Não Faturado</h3>
+          </div>
+          {onRankingReport && (
+            <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={onRankingReport} title="Relatório da seção">
+              <Printer className="h-3.5 w-3.5" />
+            </Button>
+          )}
         </div>
         <div className="overflow-auto max-h-[400px]">
           <Table>
@@ -57,9 +67,16 @@ export function ActionTables({ clients, onClientClick }: ActionTablesProps) {
 
       {/* Contratos Críticos */}
       <div className="glass-card rounded-xl p-5 animate-fade-in">
-        <div className="flex items-center gap-2 mb-4">
-          <AlertTriangle className="h-4 w-4 text-warning" />
-          <h3 className="text-sm font-semibold">Contratos Críticos</h3>
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="h-4 w-4 text-warning" />
+            <h3 className="text-sm font-semibold">Contratos Críticos</h3>
+          </div>
+          {onCriticalReport && (
+            <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={onCriticalReport} title="Relatório da seção">
+              <Printer className="h-3.5 w-3.5" />
+            </Button>
+          )}
         </div>
         <div className="overflow-auto max-h-[400px]">
           <Table>

@@ -4,6 +4,8 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, LineChart, Line, Legend
 } from "recharts";
+import { Button } from "@/components/ui/button";
+import { Printer } from "lucide-react";
 
 const COLORS = [
   "hsl(210, 100%, 56%)", "hsl(152, 69%, 45%)", "hsl(38, 92%, 50%)",
@@ -30,11 +32,18 @@ interface ChartsProps {
   onProductClick?: (product: string) => void;
   onUGClick?: (ugType: string) => void;
   onMonthClick?: (month: string) => void;
+  onTop10Report?: () => void;
+  onContractedVsBilledReport?: () => void;
+  onProductReport?: () => void;
+  onUGReport?: () => void;
+  onStatusReport?: () => void;
+  onTimelineReport?: () => void;
 }
 
 export function DashboardCharts({
   clients, billingByProduct, contractsByStatus, distributionByUG, expirationTimeline,
   onStatusClick, onClientClick, onProductClick, onUGClick, onMonthClick,
+  onTop10Report, onContractedVsBilledReport, onProductReport, onUGReport, onStatusReport, onTimelineReport,
 }: ChartsProps) {
   const top10 = [...clients].sort((a, b) => b.totalBilled - a.totalBilled).slice(0, 10);
 
@@ -56,8 +65,7 @@ export function DashboardCharts({
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-      {/* Top 10 Billing */}
-      <ChartCard title="Faturamento por Cliente (Top 10)">
+      <ChartCard title="Faturamento por Cliente (Top 10)" onReport={onTop10Report}>
         <ResponsiveContainer width="100%" height={300}>
           <BarChart data={top10Data} layout="vertical" margin={{ left: 10, right: 20 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="hsl(220, 18%, 22%)" />
@@ -69,8 +77,7 @@ export function DashboardCharts({
         </ResponsiveContainer>
       </ChartCard>
 
-      {/* Contracted vs Billed */}
-      <ChartCard title="Contratado vs Faturado">
+      <ChartCard title="Contratado vs Faturado" onReport={onContractedVsBilledReport}>
         <ResponsiveContainer width="100%" height={300}>
           <BarChart data={contractedVsBilled} layout="vertical" margin={{ left: 10, right: 20 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="hsl(220, 18%, 22%)" />
@@ -84,8 +91,7 @@ export function DashboardCharts({
         </ResponsiveContainer>
       </ChartCard>
 
-      {/* Billing by Product */}
-      <ChartCard title="Faturamento por Produto">
+      <ChartCard title="Faturamento por Produto" onReport={onProductReport}>
         <ResponsiveContainer width="100%" height={300}>
           <PieChart>
             <Pie
@@ -112,8 +118,7 @@ export function DashboardCharts({
         </ResponsiveContainer>
       </ChartCard>
 
-      {/* Distribution by UG */}
-      <ChartCard title="Distribuição por Tipo de UG">
+      <ChartCard title="Distribuição por Tipo de UG" onReport={onUGReport}>
         <ResponsiveContainer width="100%" height={300}>
           <PieChart>
             <Pie
@@ -140,8 +145,7 @@ export function DashboardCharts({
         </ResponsiveContainer>
       </ChartCard>
 
-      {/* Contracts by Status */}
-      <ChartCard title="Contratos por Status">
+      <ChartCard title="Contratos por Status" onReport={onStatusReport}>
         <ResponsiveContainer width="100%" height={300}>
           <BarChart data={contractsByStatus} margin={{ left: 10, right: 20 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="hsl(220, 18%, 22%)" />
@@ -165,8 +169,7 @@ export function DashboardCharts({
         </ResponsiveContainer>
       </ChartCard>
 
-      {/* Expiration Timeline */}
-      <ChartCard title="Linha do Tempo de Vencimentos">
+      <ChartCard title="Linha do Tempo de Vencimentos" onReport={onTimelineReport}>
         <ResponsiveContainer width="100%" height={300}>
           <LineChart data={expirationTimeline} margin={{ left: 10, right: 20 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="hsl(220, 18%, 22%)" />
@@ -189,10 +192,17 @@ export function DashboardCharts({
   );
 }
 
-function ChartCard({ title, children }: { title: string; children: React.ReactNode }) {
+function ChartCard({ title, children, onReport }: { title: string; children: React.ReactNode; onReport?: () => void }) {
   return (
     <div className="glass-card rounded-xl p-5 animate-fade-in">
-      <h3 className="text-sm font-semibold mb-4 text-foreground">{title}</h3>
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="text-sm font-semibold text-foreground">{title}</h3>
+        {onReport && (
+          <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={onReport} title="Relatório da seção">
+            <Printer className="h-3.5 w-3.5" />
+          </Button>
+        )}
+      </div>
       {children}
     </div>
   );
