@@ -7,6 +7,7 @@ import {
   applyFilters, consolidateByClient, defaultFilters,
   formatCurrency, formatPercent, getExpirationStatus,
   getBillingByProduct, getContractsByStatus, getDistributionByUG, getExpirationTimeline,
+  isActiveStatus, getMonthlyTrend,
 } from "@/utils/contractUtils";
 import { KPICard } from "@/components/dashboard/KPICard";
 import { FiltersBar } from "@/components/dashboard/FiltersBar";
@@ -49,7 +50,14 @@ export default function Dashboard() {
   // New KPIs
   const ticketMedio = clients.length > 0 ? totalContracted / clients.length : 0;
   const inadimplencia = totalContracted > 0 ? (totalUnbilled / totalContracted) * 100 : 0;
-  const contratosAtivos = filteredContracts.filter((c) => c.contractStatus.trim().toLowerCase() === "ativo").length;
+  const contratosAtivos = filteredContracts.filter((c) => isActiveStatus(c.contractStatus)).length;
+
+  // Sparkline trends
+  const sparkContracted = useMemo(() => getMonthlyTrend(filteredContracts, "contractedValue"), [filteredContracts]);
+  const sparkBilled = useMemo(() => getMonthlyTrend(filteredContracts, "billedValue"), [filteredContracts]);
+  const sparkUnbilled = useMemo(() => getMonthlyTrend(filteredContracts, "unbilled"), [filteredContracts]);
+  const sparkExpired = useMemo(() => getMonthlyTrend(filteredContracts, "expiredCount"), [filteredContracts]);
+  const sparkActive = useMemo(() => getMonthlyTrend(filteredContracts, "activeCount"), [filteredContracts]);
 
   // Chart data
   const billingByProduct = useMemo(() => getBillingByProduct(filteredContracts), [filteredContracts]);
@@ -165,16 +173,16 @@ export default function Dashboard() {
         />
 
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-10 gap-4">
-          <KPICard title="Total Contratado" value={formatCurrency(totalContracted)} icon={DollarSign} variant="info" animationDelay={0} />
-          <KPICard title="Total Faturado" value={formatCurrency(totalBilled)} icon={TrendingUp} variant="success" animationDelay={50} />
-          <KPICard title="Não Faturado" value={formatCurrency(totalUnbilled)} subtitle="Dinheiro na mesa" icon={AlertTriangle} variant="danger" animationDelay={100} />
+          <KPICard title="Total Contratado" value={formatCurrency(totalContracted)} icon={DollarSign} variant="info" animationDelay={0} sparklineData={sparkContracted} />
+          <KPICard title="Total Faturado" value={formatCurrency(totalBilled)} icon={TrendingUp} variant="success" animationDelay={50} sparklineData={sparkBilled} />
+          <KPICard title="Não Faturado" value={formatCurrency(totalUnbilled)} subtitle="Dinheiro na mesa" icon={AlertTriangle} variant="danger" animationDelay={100} sparklineData={sparkUnbilled} />
           <KPICard title="% Médio Faturado" value={formatPercent(avgBilledPct)} icon={BarChart3} variant="info" animationDelay={150} />
-          <KPICard title="Vencidos" value={String(expiredCount)} icon={CalendarX} variant="danger" animationDelay={200} onClick={() => setSectionReport("expired")} />
+          <KPICard title="Vencidos" value={String(expiredCount)} icon={CalendarX} variant="danger" animationDelay={200} onClick={() => setSectionReport("expired")} sparklineData={sparkExpired} />
           <KPICard title="Vencer 90 dias" value={String(expiring90)} icon={Clock} variant="warning" animationDelay={250} onClick={() => setSectionReport("expiring90")} />
           <KPICard title="Vencer 30 dias" value={String(expiring30)} icon={AlertCircle} variant="danger" animationDelay={300} onClick={() => setSectionReport("expiring30")} />
           <KPICard title="Ticket Médio" value={formatCurrency(ticketMedio)} subtitle="Por cliente" icon={Target} variant="info" animationDelay={350} />
           <KPICard title="Inadimplência" value={formatPercent(inadimplencia)} subtitle="Não faturado" icon={ShieldAlert} variant="warning" animationDelay={400} />
-          <KPICard title="Contratos Ativos" value={String(contratosAtivos)} icon={CheckSquare} variant="success" animationDelay={450} />
+          <KPICard title="Contratos Ativos" value={String(contratosAtivos)} icon={CheckSquare} variant="success" animationDelay={450} sparklineData={sparkActive} />
         </div>
 
         <DashboardCharts

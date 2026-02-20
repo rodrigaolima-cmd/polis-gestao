@@ -1,5 +1,5 @@
-import { ReactNode } from "react";
 import { LucideIcon } from "lucide-react";
+import { LineChart, Line, Area, AreaChart, ResponsiveContainer } from "recharts";
 
 interface KPICardProps {
   title: string;
@@ -9,6 +9,7 @@ interface KPICardProps {
   variant?: "default" | "success" | "danger" | "warning" | "info";
   animationDelay?: number;
   onClick?: () => void;
+  sparklineData?: number[];
 }
 
 const variantStyles = {
@@ -35,7 +36,18 @@ const iconColorStyles = {
   info: "text-info",
 };
 
-export function KPICard({ title, value, subtitle, icon: Icon, variant = "default", animationDelay = 0, onClick }: KPICardProps) {
+const sparklineColors: Record<string, string> = {
+  default: "hsl(var(--foreground))",
+  success: "hsl(var(--success))",
+  danger: "hsl(var(--danger))",
+  warning: "hsl(var(--warning))",
+  info: "hsl(var(--info))",
+};
+
+export function KPICard({ title, value, subtitle, icon: Icon, variant = "default", animationDelay = 0, onClick, sparklineData }: KPICardProps) {
+  const chartData = sparklineData?.map((v, i) => ({ v }));
+  const color = sparklineColors[variant];
+
   return (
     <div
       className={`glass-card rounded-xl p-5 ${variantStyles[variant]} animate-fade-in ${onClick ? 'cursor-pointer hover:scale-[1.02] transition-transform' : ''}`}
@@ -52,6 +64,29 @@ export function KPICard({ title, value, subtitle, icon: Icon, variant = "default
           <Icon className={`h-5 w-5 ${iconColorStyles[variant]}`} />
         </div>
       </div>
+      {chartData && chartData.length > 1 && (
+        <div className="mt-3 -mx-1">
+          <ResponsiveContainer width="100%" height={28}>
+            <AreaChart data={chartData}>
+              <defs>
+                <linearGradient id={`spark-${variant}`} x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor={color} stopOpacity={0.3} />
+                  <stop offset="100%" stopColor={color} stopOpacity={0.05} />
+                </linearGradient>
+              </defs>
+              <Area
+                type="monotone"
+                dataKey="v"
+                stroke={color}
+                strokeWidth={1.5}
+                fill={`url(#spark-${variant})`}
+                dot={false}
+                isAnimationActive={false}
+              />
+            </AreaChart>
+          </ResponsiveContainer>
+        </div>
+      )}
     </div>
   );
 }
