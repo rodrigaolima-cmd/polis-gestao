@@ -26,9 +26,16 @@ interface ChartsProps {
   distributionByUG: { ugType: string; count: number }[];
   expirationTimeline: { month: string; count: number }[];
   onStatusClick?: (status: string) => void;
+  onClientClick?: (clientName: string) => void;
+  onProductClick?: (product: string) => void;
+  onUGClick?: (ugType: string) => void;
+  onMonthClick?: (month: string) => void;
 }
 
-export function DashboardCharts({ clients, billingByProduct, contractsByStatus, distributionByUG, expirationTimeline, onStatusClick }: ChartsProps) {
+export function DashboardCharts({
+  clients, billingByProduct, contractsByStatus, distributionByUG, expirationTimeline,
+  onStatusClick, onClientClick, onProductClick, onUGClick, onMonthClick,
+}: ChartsProps) {
   const top10 = [...clients].sort((a, b) => b.totalBilled - a.totalBilled).slice(0, 10);
 
   const contractedVsBilled = [...clients]
@@ -36,12 +43,14 @@ export function DashboardCharts({ clients, billingByProduct, contractsByStatus, 
     .slice(0, 10)
     .map((c) => ({
       name: c.clientName.length > 20 ? c.clientName.substring(0, 18) + "…" : c.clientName,
+      fullName: c.clientName,
       contratado: c.totalContracted,
       faturado: c.totalBilled,
     }));
 
   const top10Data = top10.map((c) => ({
     name: c.clientName.length > 20 ? c.clientName.substring(0, 18) + "…" : c.clientName,
+    fullName: c.clientName,
     faturado: c.totalBilled,
   }));
 
@@ -55,7 +64,7 @@ export function DashboardCharts({ clients, billingByProduct, contractsByStatus, 
             <XAxis type="number" tickFormatter={(v) => `R$ ${(v / 1000).toFixed(0)}k`} stroke="hsl(215, 15%, 55%)" fontSize={11} />
             <YAxis type="category" dataKey="name" width={140} stroke="hsl(215, 15%, 55%)" fontSize={11} />
             <Tooltip contentStyle={tooltipStyle} formatter={(v: number) => formatCurrency(v)} />
-            <Bar dataKey="faturado" fill="hsl(152, 69%, 45%)" radius={[0, 4, 4, 0]} />
+            <Bar dataKey="faturado" fill="hsl(152, 69%, 45%)" radius={[0, 4, 4, 0]} cursor="pointer" onClick={(data: any) => onClientClick?.(data?.fullName)} />
           </BarChart>
         </ResponsiveContainer>
       </ChartCard>
@@ -68,8 +77,8 @@ export function DashboardCharts({ clients, billingByProduct, contractsByStatus, 
             <XAxis type="number" tickFormatter={(v) => `R$ ${(v / 1000).toFixed(0)}k`} stroke="hsl(215, 15%, 55%)" fontSize={11} />
             <YAxis type="category" dataKey="name" width={140} stroke="hsl(215, 15%, 55%)" fontSize={11} />
             <Tooltip contentStyle={tooltipStyle} formatter={(v: number) => formatCurrency(v)} />
-            <Bar dataKey="contratado" fill="hsl(210, 100%, 56%)" radius={[0, 4, 4, 0]} name="Contratado" />
-            <Bar dataKey="faturado" fill="hsl(152, 69%, 45%)" radius={[0, 4, 4, 0]} name="Faturado" />
+            <Bar dataKey="contratado" fill="hsl(210, 100%, 56%)" radius={[0, 4, 4, 0]} name="Contratado" cursor="pointer" onClick={(data: any) => onClientClick?.(data?.fullName)} />
+            <Bar dataKey="faturado" fill="hsl(152, 69%, 45%)" radius={[0, 4, 4, 0]} name="Faturado" cursor="pointer" onClick={(data: any) => onClientClick?.(data?.fullName)} />
             <Legend />
           </BarChart>
         </ResponsiveContainer>
@@ -91,6 +100,8 @@ export function DashboardCharts({ clients, billingByProduct, contractsByStatus, 
               label={({ product, percent }) => `${product} (${(percent * 100).toFixed(0)}%)`}
               labelLine={{ stroke: "hsl(215, 15%, 55%)" }}
               fontSize={11}
+              cursor="pointer"
+              onClick={(data: any) => onProductClick?.(data?.product)}
             >
               {billingByProduct.map((_, i) => (
                 <Cell key={i} fill={COLORS[i % COLORS.length]} />
@@ -117,6 +128,8 @@ export function DashboardCharts({ clients, billingByProduct, contractsByStatus, 
               label={({ ugType, count }) => `${ugType} (${count})`}
               labelLine={{ stroke: "hsl(215, 15%, 55%)" }}
               fontSize={11}
+              cursor="pointer"
+              onClick={(data: any) => onUGClick?.(data?.ugType)}
             >
               {distributionByUG.map((_, i) => (
                 <Cell key={i} fill={COLORS[i % COLORS.length]} />
@@ -166,6 +179,7 @@ export function DashboardCharts({ clients, billingByProduct, contractsByStatus, 
               stroke="hsl(210, 100%, 56%)"
               strokeWidth={2}
               dot={{ fill: "hsl(210, 100%, 56%)", r: 4 }}
+              activeDot={{ r: 6, cursor: "pointer", onClick: (_: any, payload: any) => onMonthClick?.(payload?.payload?.month) }}
               name="Vencimentos"
             />
           </LineChart>
