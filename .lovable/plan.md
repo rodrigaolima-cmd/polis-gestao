@@ -1,30 +1,29 @@
 
 
-## Relatorio Geral de Contratos
+## Remover KPIs "Inadimplencia" e "% Medio Faturado"
 
-### O que sera feito
+### Alteracoes
 
-Um novo KPI card "Relatorio Geral" sera adicionado ao dashboard. Ao clicar, abrira um relatorio completo com todos os clientes, ordenados alfabeticamente, mostrando: Cliente, Tipo UG, Valor Contratado, Valor Faturado, Diferenca (Dinheiro na Mesa), Vencimento do Contrato e Status. O rodape totaliza quantidade de contratos e valores financeiros. Exportacao PDF via botao "Exportar PDF" (window.print).
+**Arquivo: `src/components/dashboard/Dashboard.tsx`**
 
-### Alteracoes por Arquivo
+1. Remover o KPI card "Inadimplencia" da grid de renderizacao
+2. Remover o KPI card "% Medio Faturado" da grid de renderizacao
+3. Remover as variaveis nao mais utilizadas:
+   - `avgBilledPct` (media percentual faturado)
+   - `inadimplencia` (calculo de inadimplencia)
+4. Remover os imports nao mais utilizados:
+   - `ShieldAlert` do lucide-react (usado apenas no KPI Inadimplencia)
+   - `BarChart3` do lucide-react (usado apenas no KPI % Medio Faturado)
 
-**1. `src/components/dashboard/SectionReportDialog.tsx`**
-- Adicionar `"general"` ao tipo `SectionReportType`
-- Adicionar titulo `"Relatorio Geral de Contratos"` no mapa `TITLES`
-- Renderizar `GeneralReport` quando `reportType === "general"`
-- Novo componente `GeneralReport`:
-  - Recebe `clients: ClientSummary[]`
-  - Ordena alfabeticamente por `clientName.localeCompare('pt-BR')`
-  - Colunas: Cliente, Tipo UG, Contratado, Faturado, Diferenca, Vencimento, Status
-  - Vencimento formatado com `formatDate(nextExpiration)`
-  - Rodape com: Total (N clientes), soma contratado, soma faturado, soma diferenca
+Resultado: Dashboard ficara com 8 KPI cards, melhorando a visualizacao em tela cheia. A grid pode ser ajustada para `xl:grid-cols-8` para um encaixe perfeito.
 
-**2. `src/components/dashboard/Dashboard.tsx`**
-- Importar `FileText` do lucide-react
-- Adicionar novo KPI card na grid:
-  ```
-  <KPICard title="Relatorio Geral" value={String(clients.length)} 
-    subtitle="Clientes" icon={FileText} variant="info" 
-    onClick={() => setSectionReport("general")} />
-  ```
+KPIs restantes:
+- Total Contratado
+- Total Faturado
+- Nao Faturado
+- Vencidos
+- Vencer 90 dias
+- Vencer 30 dias
+- Ticket Medio
+- Relatorio Geral
 
