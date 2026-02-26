@@ -10,6 +10,8 @@ export interface ContractRow {
   billed: boolean;
   contractStatus: string;
   observations: string;
+  regiao: string;
+  consultor: string;
 }
 
 export interface ClientSummary {
@@ -25,6 +27,10 @@ export interface ClientSummary {
   daysToExpire: number;
   status: string;
   hasOverbilling: boolean;
+  regiao: string;
+  consultor: string;
+  regiaoConflict: boolean;
+  consultorConflict: boolean;
 }
 
 export interface DashboardFilters {
@@ -37,4 +43,6 @@ export interface DashboardFilters {
   onlyWithDifference: boolean;
   expireInDays: number | null;
   search: string;
+  regiao: string;
+  consultor: string;
 }

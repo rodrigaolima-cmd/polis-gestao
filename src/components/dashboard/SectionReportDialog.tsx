@@ -19,7 +19,8 @@ export type SectionReportType =
   | "expired"
   | "expiring30"
   | "expiring90"
-  | "general";
+  | "general"
+  | "dinheiroNaMesaDetalhado";
 
 interface SectionReportDialogProps {
   reportType: SectionReportType;
@@ -42,6 +43,7 @@ const TITLES: Record<SectionReportType, string> = {
   expiring30: "Relatório — Contratos a Vencer em 30 Dias",
   expiring90: "Relatório — Contratos a Vencer em 90 Dias",
   general: "Relatório Geral de Contratos",
+  dinheiroNaMesaDetalhado: "Dinheiro na Mesa — Detalhado por Sistema",
 };
 
 export function SectionReportDialog({ reportType, clients, contracts, open, onOpenChange }: SectionReportDialogProps) {
@@ -67,6 +69,7 @@ export function SectionReportDialog({ reportType, clients, contracts, open, onOp
           {reportType === "expiring30" && <ExpirationReport clients={clients} type="expiring30" />}
           {reportType === "expiring90" && <ExpirationReport clients={clients} type="expiring90" />}
           {reportType === "general" && <GeneralReport clients={clients} />}
+          {reportType === "dinheiroNaMesaDetalhado" && <DinheiroNaMesaDetalhadoReport contracts={contracts} />}
         </div>
       </DialogContent>
     </Dialog>
@@ -515,6 +518,8 @@ function GeneralReport({ clients }: { clients: ClientSummary[] }) {
         <TableRow className="border-border/50">
           <TableHead className="text-xs">Cliente</TableHead>
           <TableHead className="text-xs">Tipo UG</TableHead>
+          <TableHead className="text-xs">Região</TableHead>
+          <TableHead className="text-xs">Consultor</TableHead>
           <TableHead className="text-xs text-right">Contratado</TableHead>
           <TableHead className="text-xs text-right">Faturado</TableHead>
           <TableHead className="text-xs text-right">Diferença</TableHead>
@@ -527,6 +532,14 @@ function GeneralReport({ clients }: { clients: ClientSummary[] }) {
           <TableRow key={c.clientName} className="border-border/30">
             <TableCell className="text-sm font-medium">{c.clientName}</TableCell>
             <TableCell className="text-xs">{c.ugType}</TableCell>
+            <TableCell className="text-xs">
+              {c.regiao || "—"}
+              {c.regiaoConflict && <span className="ml-1 text-warning text-[10px]">⚠ Revisar</span>}
+            </TableCell>
+            <TableCell className="text-xs">
+              {c.consultor || "—"}
+              {c.consultorConflict && <span className="ml-1 text-warning text-[10px]">⚠ Revisar</span>}
+            </TableCell>
             <TableCell className="text-xs text-right mono">{formatCurrency(c.totalContracted)}</TableCell>
             <TableCell className="text-xs text-right mono text-success">{formatCurrency(c.totalBilled)}</TableCell>
             <TableCell className="text-xs text-right mono text-danger">{formatCurrency(c.difference)}</TableCell>
@@ -537,7 +550,7 @@ function GeneralReport({ clients }: { clients: ClientSummary[] }) {
       </TableBody>
       <TableFooter>
         <TableRow className="bg-muted/50 font-bold">
-          <TableCell colSpan={2} className="text-sm">Total ({sorted.length} clientes)</TableCell>
+          <TableCell colSpan={4} className="text-sm">Total ({sorted.length} clientes)</TableCell>
           <TableCell className="text-xs text-right mono">{formatCurrency(totC)}</TableCell>
           <TableCell className="text-xs text-right mono">{formatCurrency(totB)}</TableCell>
           <TableCell className="text-xs text-right mono">{formatCurrency(totD)}</TableCell>
@@ -545,5 +558,92 @@ function GeneralReport({ clients }: { clients: ClientSummary[] }) {
         </TableRow>
       </TableFooter>
     </Table>
+  );
+}
+
+function DinheiroNaMesaDetalhadoReport({ contracts }: { contracts: ContractRow[] }) {
+  const pending = contracts.filter((c) => c.contractedValue > c.billedValue);
+
+  // Group by client
+  const grouped = new Map<string, ContractRow[]>();
+  pending.forEach((c) => {
+    const existing = grouped.get(c.clientName) || [];
+    existing.push(c);
+    grouped.set(c.clientName, existing);
+  });
+
+  const sortedClients = Array.from(grouped.entries()).sort((a, b) =>
+    a[0].localeCompare(b[0], "pt-BR")
+  );
+
+  const grandContracted = pending.reduce((s, c) => s + c.contractedValue, 0);
+  const grandBilled = pending.reduce((s, c) => s + c.billedValue, 0);
+  const grandPendencia = pending.reduce((s, c) => s + Math.max(c.contractedValue - c.billedValue, 0), 0);
+
+  return (
+    <div className="space-y-1">
+      <Table>
+        <TableHeader>
+          <TableRow className="border-border/50">
+            <TableHead className="text-xs">Produto</TableHead>
+            <TableHead className="text-xs">Tipo UG</TableHead>
+            <TableHead className="text-xs">Região</TableHead>
+            <TableHead className="text-xs">Consultor</TableHead>
+            <TableHead className="text-xs text-right">Contratado</TableHead>
+            <TableHead className="text-xs text-right">Faturado</TableHead>
+            <TableHead className="text-xs text-right">Pendência</TableHead>
+            <TableHead className="text-xs text-center">Vencimento</TableHead>
+            <TableHead className="text-xs text-center">Status</TableHead>
+            <TableHead className="text-xs">OBS</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {sortedClients.map(([clientName, rows]) => {
+            const sortedRows = [...rows].sort((a, b) => a.product.localeCompare(b.product, "pt-BR"));
+            const subContracted = rows.reduce((s, r) => s + r.contractedValue, 0);
+            const subBilled = rows.reduce((s, r) => s + r.billedValue, 0);
+            const subPendencia = rows.reduce((s, r) => s + Math.max(r.contractedValue - r.billedValue, 0), 0);
+
+            return (
+              <>
+                <TableRow key={`header-${clientName}`} className="bg-muted/30 border-border/50">
+                  <TableCell colSpan={10} className="text-sm font-bold py-2">{clientName}</TableCell>
+                </TableRow>
+                {sortedRows.map((r) => (
+                  <TableRow key={r.id} className="border-border/30">
+                    <TableCell className="text-xs pl-6">{r.product}</TableCell>
+                    <TableCell className="text-xs">{r.ugType}</TableCell>
+                    <TableCell className="text-xs">{r.regiao || "—"}</TableCell>
+                    <TableCell className="text-xs">{r.consultor || "—"}</TableCell>
+                    <TableCell className="text-xs text-right mono">{formatCurrency(r.contractedValue)}</TableCell>
+                    <TableCell className="text-xs text-right mono text-success">{formatCurrency(r.billedValue)}</TableCell>
+                    <TableCell className="text-xs text-right mono text-danger font-bold">{formatCurrency(Math.max(r.contractedValue - r.billedValue, 0))}</TableCell>
+                    <TableCell className="text-xs text-center mono">{formatDate(r.expirationDate)}</TableCell>
+                    <TableCell className="text-xs text-center capitalize">{r.contractStatus}</TableCell>
+                    <TableCell className="text-xs text-muted-foreground max-w-[150px] truncate">{r.observations || "—"}</TableCell>
+                  </TableRow>
+                ))}
+                <TableRow key={`sub-${clientName}`} className="border-border/50 bg-muted/10">
+                  <TableCell colSpan={4} className="text-xs font-semibold text-right">Subtotal {clientName}</TableCell>
+                  <TableCell className="text-xs text-right mono font-semibold">{formatCurrency(subContracted)}</TableCell>
+                  <TableCell className="text-xs text-right mono font-semibold">{formatCurrency(subBilled)}</TableCell>
+                  <TableCell className="text-xs text-right mono font-semibold text-danger">{formatCurrency(subPendencia)}</TableCell>
+                  <TableCell colSpan={3}></TableCell>
+                </TableRow>
+              </>
+            );
+          })}
+        </TableBody>
+        <TableFooter>
+          <TableRow className="bg-muted/50 font-bold">
+            <TableCell colSpan={4} className="text-sm">Total ({sortedClients.length} clientes com pendência)</TableCell>
+            <TableCell className="text-xs text-right mono">{formatCurrency(grandContracted)}</TableCell>
+            <TableCell className="text-xs text-right mono">{formatCurrency(grandBilled)}</TableCell>
+            <TableCell className="text-xs text-right mono">{formatCurrency(grandPendencia)}</TableCell>
+            <TableCell colSpan={3}></TableCell>
+          </TableRow>
+        </TableFooter>
+      </Table>
+    </div>
   );
 }
