@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Upload, FileUp, CheckCircle, AlertTriangle, X } from "lucide-react";
 import { toast } from "sonner";
 
-const REQUIRED_FIELDS: { key: keyof Omit<ContractRow, "id">; label: string }[] = [
+const REQUIRED_FIELDS: { key: keyof Omit<ContractRow, "id">; label: string; optional?: boolean }[] = [
   { key: "clientName", label: "Nome do Cliente" },
   { key: "ugType", label: "Tipo de UG" },
   { key: "product", label: "Produto" },
@@ -19,6 +19,8 @@ const REQUIRED_FIELDS: { key: keyof Omit<ContractRow, "id">; label: string }[] =
   { key: "billed", label: "Faturado?" },
   { key: "contractStatus", label: "Status do Contrato" },
   { key: "observations", label: "Observações" },
+  { key: "regiao", label: "Região", optional: true },
+  { key: "consultor", label: "Consultor", optional: true },
 ];
 
 interface ImportDialogProps {
@@ -95,7 +97,7 @@ export function ImportDialog({ open, onOpenChange, onImport }: ImportDialogProps
     if (file) handleFile(file);
   }, [handleFile]);
 
-  const allMapped = REQUIRED_FIELDS.filter((f) => f.key !== "observations").every((f) => mapping[f.key]);
+  const allMapped = REQUIRED_FIELDS.filter((f) => f.key !== "observations" && !f.optional).every((f) => mapping[f.key]);
 
   const parseCurrency = (val: unknown): number => {
     if (typeof val === "number") return val;
@@ -138,6 +140,8 @@ export function ImportDialog({ open, onOpenChange, onImport }: ImportDialogProps
       billed: parseBool(row[mapping.billed]),
       contractStatus: String(row[mapping.contractStatus] ?? "").trim().substring(0, 50),
       observations: String(row[mapping.observations] ?? "").trim().substring(0, 500),
+      regiao: mapping.regiao ? String(row[mapping.regiao] ?? "").trim().substring(0, 100) : "",
+      consultor: mapping.consultor ? String(row[mapping.consultor] ?? "").trim().substring(0, 100) : "",
     }));
 
     const valid = contracts.filter((c) => c.clientName && c.product);
@@ -199,7 +203,7 @@ export function ImportDialog({ open, onOpenChange, onImport }: ImportDialogProps
                   <div key={field.key} className="space-y-1">
                     <Label className="text-xs text-muted-foreground">
                       {field.label}
-                      {field.key !== "observations" && <span className="text-danger ml-0.5">*</span>}
+                      {field.key !== "observations" && !field.optional && <span className="text-danger ml-0.5">*</span>}
                     </Label>
                     <Select
                       value={mapping[field.key] || "unmapped"}

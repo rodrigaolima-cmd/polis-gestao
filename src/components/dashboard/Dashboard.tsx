@@ -13,6 +13,7 @@ import { KPICard } from "@/components/dashboard/KPICard";
 import { FiltersBar } from "@/components/dashboard/FiltersBar";
 import { DashboardCharts } from "@/components/dashboard/DashboardCharts";
 import { ActionTables } from "@/components/dashboard/ActionTables";
+import { CommercialAnalysis } from "@/components/dashboard/CommercialAnalysis";
 import { ImportDialog } from "@/components/dashboard/ImportDialog";
 import {
   DollarSign, TrendingUp, AlertTriangle,
@@ -74,9 +75,9 @@ export default function Dashboard() {
   };
 
   const handleExport = () => {
-    const headers = ["Cliente", "Tipo UG", "Total Contratado", "Total Faturado", "Diferença", "% Faturado", "Produtos", "Próx. Vencimento"];
+    const headers = ["Cliente", "Tipo UG", "Região", "Consultor", "Total Contratado", "Total Faturado", "Diferença", "% Faturado", "Produtos", "Próx. Vencimento"];
     const rows = clients.map((c) => [
-      c.clientName, c.ugType,
+      c.clientName, c.ugType, c.regiao, c.consultor,
       c.totalContracted, c.totalBilled, c.difference,
       c.billedPercentage.toFixed(1) + "%",
       c.products.join("; "), c.nextExpiration,
@@ -171,7 +172,7 @@ export default function Dashboard() {
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-8 gap-4">
           <KPICard title="Total Contratado" value={formatCurrency(totalContracted)} icon={DollarSign} variant="info" animationDelay={0} sparklineData={sparkContracted} />
           <KPICard title="Total Faturado" value={formatCurrency(totalBilled)} icon={TrendingUp} variant="success" animationDelay={50} sparklineData={sparkBilled} />
-          <KPICard title="Não Faturado" value={formatCurrency(totalUnbilled)} subtitle="Dinheiro na mesa" icon={AlertTriangle} variant="danger" animationDelay={100} sparklineData={sparkUnbilled} />
+          <KPICard title="Não Faturado" value={formatCurrency(totalUnbilled)} subtitle="Dinheiro na mesa" icon={AlertTriangle} variant="danger" animationDelay={100} sparklineData={sparkUnbilled} onClick={() => setSectionReport("dinheiroNaMesaDetalhado")} />
           <KPICard title="Vencidos" value={String(expiredCount)} icon={CalendarX} variant="danger" animationDelay={150} onClick={() => setSectionReport("expired")} sparklineData={sparkExpired} />
           <KPICard title="Vencer 90 dias" value={String(expiring90)} icon={Clock} variant="warning" animationDelay={200} onClick={() => setSectionReport("expiring90")} />
           <KPICard title="Vencer 30 dias" value={String(expiring30)} icon={AlertCircle} variant="danger" animationDelay={250} onClick={() => setSectionReport("expiring30")} />
@@ -197,6 +198,8 @@ export default function Dashboard() {
           onStatusReport={() => setSectionReport("byStatus")}
           onTimelineReport={() => setSectionReport("timeline")}
         />
+
+        <CommercialAnalysis clients={clients} />
 
         <ActionTables
           clients={clients}

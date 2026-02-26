@@ -40,6 +40,10 @@ export function consolidateByClient(contracts: ContractRow[]): ClientSummary[] {
     const nextExpiration = dates[0];
     const daysToExpire = getDaysToExpire(nextExpiration);
 
+    // Extract regiao/consultor: first non-empty, detect conflicts
+    const regiaoValues = [...new Set(rows.map(r => r.regiao?.trim()).filter(Boolean))];
+    const consultorValues = [...new Set(rows.map(r => r.consultor?.trim()).filter(Boolean))];
+
     return {
       clientName,
       ugType: rows[0].ugType,
@@ -53,6 +57,10 @@ export function consolidateByClient(contracts: ContractRow[]): ClientSummary[] {
       daysToExpire,
       status: rows[0].contractStatus,
       hasOverbilling: totalBilled > totalContracted,
+      regiao: regiaoValues[0] || "",
+      consultor: consultorValues[0] || "",
+      regiaoConflict: regiaoValues.length > 1,
+      consultorConflict: consultorValues.length > 1,
     };
   });
   return result.sort((a, b) => a.clientName.localeCompare(b.clientName, 'pt-BR'));
@@ -66,6 +74,8 @@ export function applyFilters(contracts: ContractRow[], filters: DashboardFilters
     if (filters.signatureYear && !c.signatureDate.startsWith(filters.signatureYear)) return false;
     if (filters.expirationYear && !c.expirationDate.startsWith(filters.expirationYear)) return false;
     if (filters.client && c.clientName !== filters.client) return false;
+    if (filters.regiao && (c.regiao || "").trim() !== filters.regiao) return false;
+    if (filters.consultor && (c.consultor || "").trim() !== filters.consultor) return false;
     if (filters.search) {
       const q = filters.search.toLowerCase();
       if (!c.clientName.toLowerCase().includes(q) && !c.product.toLowerCase().includes(q)) return false;
@@ -219,4 +229,6 @@ export const defaultFilters: DashboardFilters = {
   onlyWithDifference: false,
   expireInDays: null,
   search: "",
+  regiao: "",
+  consultor: "",
 };

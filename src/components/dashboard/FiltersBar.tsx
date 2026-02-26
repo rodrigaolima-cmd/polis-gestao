@@ -28,9 +28,13 @@ export function FiltersBar({ filters, contracts, onFilterChange, onReset }: Filt
     onFilterChange({ ...filters, ...partial });
   };
 
+  const regioes = getUniqueValues(contracts, "regiao");
+  const consultores = getUniqueValues(contracts, "consultor");
+
   const activeCount = [
     filters.ugType, filters.product, filters.contractStatus,
     filters.signatureYear, filters.expirationYear, filters.client,
+    filters.regiao, filters.consultor,
   ].filter(Boolean).length
     + (filters.onlyWithDifference ? 1 : 0)
     + (filters.expireInDays !== null ? 1 : 0);
@@ -83,6 +87,8 @@ export function FiltersBar({ filters, contracts, onFilterChange, onReset }: Filt
           <FilterSelect label="Ano Assinatura" value={filters.signatureYear} options={sigYears} onChange={(v) => update({ signatureYear: v })} />
           <FilterSelect label="Ano Vencimento" value={filters.expirationYear} options={expYears} onChange={(v) => update({ expirationYear: v })} />
           <FilterSelect label="Cliente" value={filters.client} options={clients} onChange={(v) => update({ client: v })} />
+          <FilterSelect label="Região" value={filters.regiao} options={regioes} onChange={(v) => update({ regiao: v })} />
+          <FilterSelect label="Consultor" value={filters.consultor} options={consultores} onChange={(v) => update({ consultor: v })} />
 
           <div className="flex items-center gap-2 col-span-2 md:col-span-1">
             <Switch
