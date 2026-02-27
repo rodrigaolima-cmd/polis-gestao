@@ -1,36 +1,50 @@
 
 
-## Bugfix: Restaurar PDF — Relatórios em Branco
+## Bugfix: Relatórios imprimindo apenas 1 página
+
+### Causa Raiz
+O `[data-radix-dialog-overlay]` está com `position: fixed !important` no CSS de print. Elementos com `position: fixed` são renderizados em uma única "viewport" pelo navegador — o conteúdo que ultrapassa não flui para a próxima página. O mesmo ocorre com o portal e o content que herdam contexto fixo.
+
+### Solução
+Forçar **toda a cadeia** (portal → overlay → content) para `position: static` ou `relative` no print, permitindo que o conteúdo flua naturalmente entre páginas.
 
 ### Alterações
 
-#### 1. `src/index.css` — Corrigir seletor print (linha 142)
-Trocar `body > div > *` por `#root`:
-```css
-#root {
-  display: none !important;
-}
-```
-Manter `[data-radix-portal] { display: block !important; }` (já existe linha 147).
+#### 1. `src/index.css` — Corrigir posicionamento no `@media print`
 
-Adicionar regra para classes de altura fixa:
+Substituir as regras do overlay e dialog content (linhas 157-180) por:
+
 ```css
-.h-screen, .min-h-screen {
+/* Radix overlay: remove fixed positioning for multi-page flow */
+[data-radix-dialog-overlay] {
+  position: static !important;
+  background: white !important;
+}
+
+/* DialogContent: static position for page flow */
+[data-radix-dialog-content] {
+  position: static !important;
+  transform: none !important;
+  max-height: none !important;
+  overflow: visible !important;
   height: auto !important;
-  min-height: auto !important;
+  border: none !important;
+  box-shadow: none !important;
+  background: white !important;
+  color: black !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  padding: 0 !important;
 }
 ```
 
-Adicionar `break-inside: avoid` nas linhas de tabela (complementar ao existente):
+Também forçar o portal a `position: static`:
 ```css
-#print-area tr,
-#print-area td,
-#print-area th {
-  break-inside: avoid !important;
-  page-break-inside: avoid !important;
+[data-radix-portal] {
+  display: block !important;
+  position: static !important;
 }
 ```
 
-#### 2. `src/components/dashboard/ChartReportDialog.tsx`
-Envolver conteúdo do `DialogContent` em `<div id="print-area">` (header + contagem + tabela). Mesmo padrão do `SectionReportDialog`.
+Nenhuma outra alteração. Os componentes `SectionReportDialog` e `ChartReportDialog` permanecem inalterados.
 
