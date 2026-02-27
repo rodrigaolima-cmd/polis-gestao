@@ -1,10 +1,13 @@
 import { ClientSummary } from "@/types/contract";
 import { formatCurrency } from "@/utils/contractUtils";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Briefcase } from "lucide-react";
+import { Briefcase, Printer } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 interface CommercialAnalysisProps {
   clients: ClientSummary[];
+  onConsultorReport?: () => void;
+  onRegiaoReport?: () => void;
 }
 
 interface RankingRow {
@@ -31,7 +34,7 @@ function buildRanking(clients: ClientSummary[], key: "consultor" | "regiao"): Ra
     .sort((a, b) => b.pendencia - a.pendencia || a.label.localeCompare(b.label, "pt-BR"));
 }
 
-export function CommercialAnalysis({ clients }: CommercialAnalysisProps) {
+export function CommercialAnalysis({ clients, onConsultorReport, onRegiaoReport }: CommercialAnalysisProps) {
   const byConsultor = buildRanking(clients, "consultor");
   const byRegiao = buildRanking(clients, "regiao");
 
@@ -46,7 +49,14 @@ export function CommercialAnalysis({ clients }: CommercialAnalysisProps) {
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-5">
         {/* Por Consultor */}
         <div className="glass-card rounded-xl p-5">
-          <h3 className="text-xs font-semibold mb-3 text-muted-foreground uppercase tracking-wider">Dinheiro na Mesa por Consultor</h3>
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Dinheiro na Mesa por Consultor</h3>
+            {onConsultorReport && (
+              <Button variant="ghost" size="icon" className="h-6 w-6" onClick={onConsultorReport} title="Relatório">
+                <Printer className="h-3.5 w-3.5 text-muted-foreground" />
+              </Button>
+            )}
+          </div>
           <div className="overflow-auto max-h-[300px]">
             <Table>
               <TableHeader>
@@ -74,7 +84,14 @@ export function CommercialAnalysis({ clients }: CommercialAnalysisProps) {
 
         {/* Por Região */}
         <div className="glass-card rounded-xl p-5">
-          <h3 className="text-xs font-semibold mb-3 text-muted-foreground uppercase tracking-wider">Dinheiro na Mesa por Região</h3>
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Dinheiro na Mesa por Região</h3>
+            {onRegiaoReport && (
+              <Button variant="ghost" size="icon" className="h-6 w-6" onClick={onRegiaoReport} title="Relatório">
+                <Printer className="h-3.5 w-3.5 text-muted-foreground" />
+              </Button>
+            )}
+          </div>
           <div className="overflow-auto max-h-[300px]">
             <Table>
               <TableHeader>

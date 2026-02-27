@@ -17,7 +17,7 @@ import { CommercialAnalysis } from "@/components/dashboard/CommercialAnalysis";
 import { ImportDialog } from "@/components/dashboard/ImportDialog";
 import {
   DollarSign, TrendingUp, AlertTriangle,
-  CalendarX, Clock, AlertCircle, FileSpreadsheet, Printer, Upload,
+  CalendarX, Clock, AlertCircle, Printer, Upload,
   Target, FileText
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -74,23 +74,6 @@ export default function Dashboard() {
     setFilters(defaultFilters);
   };
 
-  const handleExport = () => {
-    const headers = ["Cliente", "Tipo UG", "Região", "Consultor", "Total Contratado", "Total Faturado", "Diferença", "% Faturado", "Produtos", "Próx. Vencimento"];
-    const rows = clients.map((c) => [
-      c.clientName, c.ugType, c.regiao, c.consultor,
-      c.totalContracted, c.totalBilled, c.difference,
-      c.billedPercentage.toFixed(1) + "%",
-      c.products.join("; "), c.nextExpiration,
-    ]);
-    const csv = [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "contratos_polis.csv";
-    a.click();
-    URL.revokeObjectURL(url);
-  };
 
   // Report click handlers (individual item)
   const handleStatusClick = (status: string) => {
@@ -151,9 +134,6 @@ export default function Dashboard() {
                 Dados demo
               </Button>
             )}
-            <Button variant="outline" size="sm" className="gap-2 text-xs" onClick={handleExport}>
-              <FileSpreadsheet className="h-3.5 w-3.5" /> Exportar
-            </Button>
             <Button variant="outline" size="sm" className="gap-2 text-xs" onClick={() => window.print()}>
               <Printer className="h-3.5 w-3.5" /> Imprimir
             </Button>
@@ -199,7 +179,11 @@ export default function Dashboard() {
           onTimelineReport={() => setSectionReport("timeline")}
         />
 
-        <CommercialAnalysis clients={clients} />
+        <CommercialAnalysis
+          clients={clients}
+          onConsultorReport={() => setSectionReport("byConsultor")}
+          onRegiaoReport={() => setSectionReport("byRegiao")}
+        />
 
         <ActionTables
           clients={clients}
