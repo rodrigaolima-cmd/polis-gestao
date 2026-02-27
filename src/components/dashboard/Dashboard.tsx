@@ -17,7 +17,7 @@ import { CommercialAnalysis } from "@/components/dashboard/CommercialAnalysis";
 import { ImportDialog } from "@/components/dashboard/ImportDialog";
 import {
   DollarSign, TrendingUp, AlertTriangle,
-  CalendarX, Clock, AlertCircle, Printer, Upload,
+  CalendarX, Clock, AlertCircle, Upload,
   Target, FileText
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -134,9 +134,6 @@ export default function Dashboard() {
                 Dados demo
               </Button>
             )}
-            <Button variant="outline" size="sm" className="gap-2 text-xs" onClick={() => window.print()}>
-              <Printer className="h-3.5 w-3.5" /> Imprimir
-            </Button>
           </div>
         </div>
       </header>
