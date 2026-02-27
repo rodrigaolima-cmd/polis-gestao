@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef } from "react";
 import * as XLSX from "xlsx";
+import { z } from "zod";
 import { ContractRow } from "@/types/contract";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -7,6 +8,30 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Label } from "@/components/ui/label";
 import { Upload, FileUp, CheckCircle, AlertTriangle, X } from "lucide-react";
 import { toast } from "sonner";
+
+const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+const MAX_ROWS = 10000;
+const VALID_MIME_TYPES = [
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  "application/vnd.ms-excel",
+  "text/csv",
+  "", // Some browsers don't set MIME for CSV
+];
+
+const ContractSchema = z.object({
+  clientName: z.string().min(1).max(200),
+  ugType: z.string().max(100),
+  product: z.string().min(1).max(200),
+  contractedValue: z.number().min(0).max(999999999),
+  billedValue: z.number().min(0).max(999999999),
+  signatureDate: z.string().max(20),
+  expirationDate: z.string().max(20),
+  billed: z.boolean(),
+  contractStatus: z.string().max(50),
+  observations: z.string().max(500),
+  regiao: z.string().max(100),
+  consultor: z.string().max(100),
+});
 
 const REQUIRED_FIELDS: { key: keyof Omit<ContractRow, "id">; label: string; optional?: boolean }[] = [
   { key: "clientName", label: "Nome do Cliente" },
@@ -47,6 +72,17 @@ export function ImportDialog({ open, onOpenChange, onImport }: ImportDialogProps
 
   const handleFile = useCallback((file: File) => {
     if (!file) return;
+
+    if (file.size > MAX_FILE_SIZE) {
+      toast.error("Arquivo muito grande. Tamanho máximo: 10MB");
+      return;
+    }
+
+    if (file.type && !VALID_MIME_TYPES.includes(file.type)) {
+      toast.error("Tipo de arquivo inválido. Use .xlsx, .xls ou .csv");
+      return;
+    }
+
     const name = file.name.toLowerCase();
     if (!name.endsWith(".xlsx") && !name.endsWith(".xls") && !name.endsWith(".csv")) {
       toast.error("Formato não suportado. Use .xlsx, .xls ou .csv");
@@ -65,6 +101,11 @@ export function ImportDialog({ open, onOpenChange, onImport }: ImportDialogProps
 
         if (json.length === 0) {
           toast.error("Planilha vazia");
+          return;
+        }
+
+        if (json.length > MAX_ROWS) {
+          toast.error(`Arquivo excede o limite de ${MAX_ROWS.toLocaleString("pt-BR")} linhas`);
           return;
         }
 
@@ -144,10 +185,19 @@ export function ImportDialog({ open, onOpenChange, onImport }: ImportDialogProps
       consultor: mapping.consultor ? String(row[mapping.consultor] ?? "").trim().substring(0, 100) : "",
     }));
 
-    const valid = contracts.filter((c) => c.clientName && c.product);
+    const valid = contracts.filter((c) => {
+      const result = ContractSchema.safeParse(c);
+      return result.success;
+    });
+
     if (valid.length === 0) {
       toast.error("Nenhum registro válido encontrado");
       return;
+    }
+
+    const skipped = contracts.length - valid.length;
+    if (skipped > 0) {
+      toast.warning(`${skipped} registro(s) ignorado(s) por dados inválidos`);
     }
 
     onImport(valid);
