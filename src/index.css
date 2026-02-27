@@ -139,8 +139,14 @@
   }
 
   /* Hide main app content */
-  body > div > * {
+  #root {
     display: none !important;
+  }
+
+  /* Avoid fixed heights generating blank pages */
+  .h-screen, .min-h-screen {
+    height: auto !important;
+    min-height: auto !important;
   }
 
   /* Keep Radix portal visible */
