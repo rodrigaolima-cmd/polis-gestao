@@ -20,7 +20,9 @@ export type SectionReportType =
   | "expiring30"
   | "expiring90"
   | "general"
-  | "dinheiroNaMesaDetalhado";
+  | "dinheiroNaMesaDetalhado"
+  | "byConsultor"
+  | "byRegiao";
 
 interface SectionReportDialogProps {
   reportType: SectionReportType;
@@ -44,6 +46,8 @@ const TITLES: Record<SectionReportType, string> = {
   expiring90: "Relatório — Contratos a Vencer em 90 Dias",
   general: "Relatório Geral de Contratos",
   dinheiroNaMesaDetalhado: "Dinheiro na Mesa — Detalhado por Sistema",
+  byConsultor: "Relatório — Dinheiro na Mesa por Consultor",
+  byRegiao: "Relatório — Dinheiro na Mesa por Região",
 };
 
 export function SectionReportDialog({ reportType, clients, contracts, open, onOpenChange }: SectionReportDialogProps) {
@@ -70,6 +74,8 @@ export function SectionReportDialog({ reportType, clients, contracts, open, onOp
           {reportType === "expiring90" && <ExpirationReport clients={clients} type="expiring90" />}
           {reportType === "general" && <GeneralReport clients={clients} />}
           {reportType === "dinheiroNaMesaDetalhado" && <DinheiroNaMesaDetalhadoReport contracts={contracts} />}
+          {reportType === "byConsultor" && <ByRankingReport clients={clients} rankingKey="consultor" label="Consultor" />}
+          {reportType === "byRegiao" && <ByRankingReport clients={clients} rankingKey="regiao" label="Região" />}
         </div>
       </DialogContent>
     </Dialog>
@@ -555,6 +561,56 @@ function GeneralReport({ clients }: { clients: ClientSummary[] }) {
           <TableCell className="text-xs text-right mono">{formatCurrency(totB)}</TableCell>
           <TableCell className="text-xs text-right mono">{formatCurrency(totD)}</TableCell>
           <TableCell colSpan={2}></TableCell>
+        </TableRow>
+      </TableFooter>
+    </Table>
+  );
+}
+
+function ByRankingReport({ clients, rankingKey, label }: { clients: ClientSummary[]; rankingKey: "consultor" | "regiao"; label: string }) {
+  const map = new Map<string, { pendencia: number; clientNames: Set<string> }>();
+  clients.forEach((c) => {
+    const val = c[rankingKey]?.trim();
+    if (!val) return;
+    const existing = map.get(val) || { pendencia: 0, clientNames: new Set<string>() };
+    if (c.difference > 0) existing.pendencia += c.difference;
+    existing.clientNames.add(c.clientName);
+    map.set(val, existing);
+  });
+  const rows = Array.from(map.entries())
+    .map(([name, v]) => ({ name, pendencia: v.pendencia, clientCount: v.clientNames.size }))
+    .filter((r) => r.pendencia > 0)
+    .sort((a, b) => b.pendencia - a.pendencia || a.name.localeCompare(b.name, "pt-BR"));
+
+  const totPendencia = rows.reduce((s, r) => s + r.pendencia, 0);
+  const totClients = rows.reduce((s, r) => s + r.clientCount, 0);
+
+  return (
+    <Table>
+      <TableHeader>
+        <TableRow className="border-border/50">
+          <TableHead className="text-xs">{label}</TableHead>
+          <TableHead className="text-xs text-right">Total Pendência</TableHead>
+          <TableHead className="text-xs text-right">Nº Clientes</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {rows.map((r) => (
+          <TableRow key={r.name} className="border-border/30">
+            <TableCell className="text-sm font-medium">{r.name}</TableCell>
+            <TableCell className="text-xs text-right mono text-danger font-bold">{formatCurrency(r.pendencia)}</TableCell>
+            <TableCell className="text-xs text-right mono">{r.clientCount}</TableCell>
+          </TableRow>
+        ))}
+        {rows.length === 0 && (
+          <TableRow><TableCell colSpan={3} className="text-center text-muted-foreground text-sm py-6">Sem dados</TableCell></TableRow>
+        )}
+      </TableBody>
+      <TableFooter>
+        <TableRow className="bg-muted/50 font-bold">
+          <TableCell className="text-sm">Total ({rows.length})</TableCell>
+          <TableCell className="text-xs text-right mono">{formatCurrency(totPendencia)}</TableCell>
+          <TableCell className="text-xs text-right mono">{totClients}</TableCell>
         </TableRow>
       </TableFooter>
     </Table>
