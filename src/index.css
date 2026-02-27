@@ -126,107 +126,50 @@
 
 /* Print styles for status report */
 @media print {
-  @page {
-    margin: 10mm;
+  body * {
+    visibility: hidden !important;
   }
-
-  body {
-    margin: 0 !important;
-    padding: 0 !important;
-    min-height: 0 !important;
-    height: auto !important;
-    background: white !important;
+  .print-report,
+  .print-report * {
+    visibility: visible !important;
   }
-
-  /* Hide main app content */
-  #root {
-    display: none !important;
-  }
-
-  /* Avoid fixed heights generating blank pages */
-  .h-screen, .min-h-screen {
-    height: auto !important;
-    min-height: auto !important;
-  }
-
-  /* Radix portal: static for multi-page flow */
-  [data-radix-portal] {
-    display: block !important;
-    position: static !important;
-  }
-
-  /* Radix overlay: static for multi-page flow */
-  [data-radix-dialog-overlay] {
-    position: static !important;
-    background: white !important;
-  }
-
-  /* DialogContent: static position for page flow */
-  [data-radix-dialog-content] {
-    position: static !important;
-    transform: none !important;
-    max-height: none !important;
-    overflow: visible !important;
-    height: auto !important;
-    border: none !important;
-    box-shadow: none !important;
-    background: white !important;
-    color: black !important;
+  .print-report {
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
     width: 100% !important;
     max-width: 100% !important;
-    padding: 0 !important;
-  }
-
-  /* Print area */
-  #print-area {
-    width: 100% !important;
-    height: auto !important;
     max-height: none !important;
     overflow: visible !important;
+    transform: none !important;
     background: white !important;
     color: black !important;
     padding: 20px !important;
+    border: none !important;
+    box-shadow: none !important;
   }
-
-  /* Table wrapper overflow fix */
-  #print-area .relative.overflow-auto,
-  #print-area [class*="overflow"] {
-    overflow: visible !important;
-    max-height: none !important;
-  }
-
-  /* Table styling */
-  #print-area table {
+  .print-report table {
     border-collapse: collapse !important;
-    page-break-inside: auto !important;
   }
-  #print-area tr,
-  #print-area td,
-  #print-area th {
-    page-break-inside: avoid !important;
+  .print-report th,
+  .print-report td {
     border: 1px solid #ccc !important;
     color: black !important;
     padding: 4px 8px !important;
   }
-  #print-area th {
+  .print-report th {
     background: #f0f0f0 !important;
     font-weight: 600 !important;
   }
-  #print-area tfoot {
-    page-break-inside: avoid !important;
-    break-inside: avoid !important;
-  }
-  #print-area tfoot td {
+  .print-report tfoot td {
     background: #f5f5f5 !important;
     font-weight: 600 !important;
   }
-  #print-area h2,
-  #print-area h3 {
+  .print-report h2, .print-report h3 {
     color: black !important;
   }
-
-  /* Hide export button */
-  .print\:hidden {
+  .print:hidden,
+  [data-radix-dialog-overlay] {
     display: none !important;
   }
 }

@@ -49,29 +49,27 @@ const TITLES: Record<SectionReportType, string> = {
 export function SectionReportDialog({ reportType, clients, contracts, open, onOpenChange }: SectionReportDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-5xl max-h-[90vh] overflow-auto">
-        <div id="print-area" className="print-report">
-          <DialogHeader className="flex flex-row items-center justify-between print:mb-4">
-            <DialogTitle className="text-lg">{TITLES[reportType]}</DialogTitle>
-            <Button variant="outline" size="sm" className="gap-2 print:hidden" onClick={() => window.print()}>
-              <Printer className="h-3.5 w-3.5" /> Exportar PDF
-            </Button>
-          </DialogHeader>
-          <div className="print:block">
-            {reportType === "top10" && <Top10Report clients={clients} />}
-            {reportType === "contractedVsBilled" && <ContractedVsBilledReport clients={clients} />}
-            {reportType === "ranking" && <RankingReport clients={clients} />}
-            {reportType === "critical" && <CriticalReport clients={clients} />}
-            {reportType === "byProduct" && <ByProductReport contracts={contracts} />}
-            {reportType === "byUG" && <ByUGReport contracts={contracts} />}
-            {reportType === "byStatus" && <ByStatusReport contracts={contracts} />}
-            {reportType === "timeline" && <TimelineReport contracts={contracts} />}
-            {reportType === "expired" && <ExpirationReport clients={clients} type="expired" />}
-            {reportType === "expiring30" && <ExpirationReport clients={clients} type="expiring30" />}
-            {reportType === "expiring90" && <ExpirationReport clients={clients} type="expiring90" />}
-            {reportType === "general" && <GeneralReport clients={clients} />}
-            {reportType === "dinheiroNaMesaDetalhado" && <DinheiroNaMesaDetalhadoReport contracts={contracts} />}
-          </div>
+      <DialogContent className="max-w-5xl max-h-[90vh] overflow-auto print-report">
+        <DialogHeader className="flex flex-row items-center justify-between print:mb-4">
+          <DialogTitle className="text-lg">{TITLES[reportType]}</DialogTitle>
+          <Button variant="outline" size="sm" className="gap-2 print:hidden" onClick={() => window.print()}>
+            <Printer className="h-3.5 w-3.5" /> Exportar PDF
+          </Button>
+        </DialogHeader>
+        <div className="print:block">
+          {reportType === "top10" && <Top10Report clients={clients} />}
+          {reportType === "contractedVsBilled" && <ContractedVsBilledReport clients={clients} />}
+          {reportType === "ranking" && <RankingReport clients={clients} />}
+          {reportType === "critical" && <CriticalReport clients={clients} />}
+          {reportType === "byProduct" && <ByProductReport contracts={contracts} />}
+          {reportType === "byUG" && <ByUGReport contracts={contracts} />}
+          {reportType === "byStatus" && <ByStatusReport contracts={contracts} />}
+          {reportType === "timeline" && <TimelineReport contracts={contracts} />}
+          {reportType === "expired" && <ExpirationReport clients={clients} type="expired" />}
+          {reportType === "expiring30" && <ExpirationReport clients={clients} type="expiring30" />}
+          {reportType === "expiring90" && <ExpirationReport clients={clients} type="expiring90" />}
+          {reportType === "general" && <GeneralReport clients={clients} />}
+          {reportType === "dinheiroNaMesaDetalhado" && <DinheiroNaMesaDetalhadoReport contracts={contracts} />}
         </div>
       </DialogContent>
     </Dialog>
