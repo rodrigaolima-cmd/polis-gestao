@@ -1,29 +1,25 @@
 
 
-## Bugfix: Restaurar PDF/Print dos Relatórios
+## Bugfix: Restaurar PDF — Relatórios em Branco
 
-### Problema
-O CSS `body * { visibility: hidden !important }` esconde os containers pai do `#print-area` (Radix Dialog portal, overlay, content). Mesmo com `#print-area` visível, o conteúdo não renderiza porque os elementos pai estão invisíveis e limitam o layout. Além disso, `DialogContent` tem `max-h-[90vh] overflow-auto` e o componente `Table` tem um wrapper com `overflow-auto` — ambos cortam o conteúdo na impressão.
+### Causa Raiz
+A regra CSS `body > div > * { display: none !important; }` esconde filhos de TODOS os `<div>` diretos do body — incluindo os portais Radix (`<div data-radix-portal>`). Isso esconde o conteúdo dos relatórios. A regra `[data-radix-portal] { display: block }` torna o portal visível, mas seus filhos continuam escondidos.
+
+Além disso, `ChartReportDialog` não tem o wrapper `#print-area`.
 
 ### Alterações
 
-#### 1. `src/index.css` — Reescrever `@media print` (linhas 128-189)
+#### 1. `src/index.css` — Corrigir seletor print (1 linha)
+Trocar `body > div > *` por `#root` para esconder apenas o app React, não os portais Radix:
 
-Substituir a abordagem `visibility: hidden` por `display: none` seletivo, mantendo toda a cadeia do dialog visível:
+```css
+#root {
+  display: none !important;
+}
+```
 
-- **Esconder dashboard**: `body > div > * { display: none !important; }` (esconde conteúdo principal)
-- **Manter portal Radix visível**: `[data-radix-portal] { display: block !important; }`
-- **Radix overlay**: `[data-radix-dialog-overlay] { background: white !important; position: fixed; }`
-- **DialogContent**: forçar `max-height: none !important; overflow: visible !important; height: auto !important; position: relative !important;` (remove scroll container)
-- **`#print-area`**: `width: 100%; height: auto; overflow: visible; background: white; color: black; padding: 20px;`
-- **Table wrapper** (`#print-area .relative.overflow-auto`): `overflow: visible !important;`
-- **Page break rules**: `table { page-break-inside: auto; }`, `tr, td, th { page-break-inside: avoid; }`, `tfoot { page-break-inside: avoid; }`
-- **Evitar páginas extras**: remover `min-height` do body, `@page { margin: 10mm; }`
-- Manter `print:hidden` para botão Exportar PDF
+Isso preserva os portais Radix (que são irmãos de `#root` no body).
 
-#### 2. `src/components/ui/table.tsx` — Nenhuma alteração
-O overflow do wrapper será tratado via CSS print.
-
-#### 3. `src/components/dashboard/SectionReportDialog.tsx` — Nenhuma alteração estrutural
-A estrutura com `<div id="print-area">` dentro do `DialogContent` já está correta (linhas 53-75).
+#### 2. `src/components/dashboard/ChartReportDialog.tsx`
+Envolver o conteúdo do `DialogContent` em `<div id="print-area">` (mesmo padrão do `SectionReportDialog`), movendo header e tabela para dentro.
 
