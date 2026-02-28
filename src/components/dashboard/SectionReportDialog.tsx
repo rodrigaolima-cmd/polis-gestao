@@ -22,7 +22,8 @@ export type SectionReportType =
   | "general"
   | "dinheiroNaMesaDetalhado"
   | "byConsultor"
-  | "byRegiao";
+  | "byRegiao"
+  | "byConsultorDetalhado";
 
 interface SectionReportDialogProps {
   reportType: SectionReportType;
@@ -48,6 +49,7 @@ const TITLES: Record<SectionReportType, string> = {
   dinheiroNaMesaDetalhado: "Dinheiro na Mesa — Detalhado por Sistema",
   byConsultor: "Relatório — Dinheiro na Mesa por Consultor",
   byRegiao: "Relatório — Dinheiro na Mesa por Região",
+  byConsultorDetalhado: "Relatório Detalhado — Dashboard por Consultor",
 };
 
 export function SectionReportDialog({ reportType, clients, contracts, open, onOpenChange }: SectionReportDialogProps) {
@@ -76,6 +78,7 @@ export function SectionReportDialog({ reportType, clients, contracts, open, onOp
           {reportType === "dinheiroNaMesaDetalhado" && <DinheiroNaMesaDetalhadoReport contracts={contracts} />}
           {reportType === "byConsultor" && <ByRankingReport clients={clients} rankingKey="consultor" label="Consultor" />}
           {reportType === "byRegiao" && <ByRankingReport clients={clients} rankingKey="regiao" label="Região" />}
+          {reportType === "byConsultorDetalhado" && <ByConsultorDetalhadoReport contracts={contracts} />}
         </div>
       </DialogContent>
     </Dialog>
@@ -700,6 +703,87 @@ function DinheiroNaMesaDetalhadoReport({ contracts }: { contracts: ContractRow[]
           </TableRow>
         </TableFooter>
       </Table>
+    </div>
+  );
+}
+
+function ByConsultorDetalhadoReport({ contracts }: { contracts: ContractRow[] }) {
+  // Group by consultor, then by client
+  const consultorMap = new Map<string, ContractRow[]>();
+  contracts.forEach((c) => {
+    const key = c.consultor || "(Sem Consultor)";
+    if (!consultorMap.has(key)) consultorMap.set(key, []);
+    consultorMap.get(key)!.push(c);
+  });
+  const consultores = Array.from(consultorMap.entries()).sort((a, b) => a[0].localeCompare(b[0], "pt-BR"));
+  const grandTotC = contracts.reduce((s, c) => s + c.contractedValue, 0);
+  const grandTotB = contracts.reduce((s, c) => s + c.billedValue, 0);
+
+  return (
+    <div className="space-y-6">
+      {consultores.map(([consultor, rows]) => {
+        const clientMap = new Map<string, ContractRow[]>();
+        rows.forEach((r) => {
+          if (!clientMap.has(r.clientName)) clientMap.set(r.clientName, []);
+          clientMap.get(r.clientName)!.push(r);
+        });
+        const clientEntries = Array.from(clientMap.entries()).sort((a, b) => a[0].localeCompare(b[0], "pt-BR"));
+        const subTotC = rows.reduce((s, r) => s + r.contractedValue, 0);
+        const subTotB = rows.reduce((s, r) => s + r.billedValue, 0);
+
+        return (
+          <div key={consultor}>
+            <h3 className="text-sm font-bold mb-2 px-1">🧑‍💼 {consultor} ({clientEntries.length} clientes)</h3>
+            <Table>
+              <TableHeader>
+                <TableRow className="border-border/50">
+                  <TableHead className="text-xs">Cliente</TableHead>
+                  <TableHead className="text-xs">Produto</TableHead>
+                  <TableHead className="text-xs">Tipo UG</TableHead>
+                  <TableHead className="text-xs text-right">Contratado</TableHead>
+                  <TableHead className="text-xs text-right">Faturado</TableHead>
+                  <TableHead className="text-xs text-right">Pendência</TableHead>
+                  <TableHead className="text-xs text-center">Vencimento</TableHead>
+                  <TableHead className="text-xs text-center">Status</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {clientEntries.map(([clientName, cRows]) =>
+                  cRows.map((r, i) => (
+                    <TableRow key={r.id} className="border-border/30">
+                      <TableCell className="text-xs font-medium">{i === 0 ? clientName : ""}</TableCell>
+                      <TableCell className="text-xs">{r.product}</TableCell>
+                      <TableCell className="text-xs">{r.ugType}</TableCell>
+                      <TableCell className="text-xs text-right mono">{formatCurrency(r.contractedValue)}</TableCell>
+                      <TableCell className="text-xs text-right mono text-success">{formatCurrency(r.billedValue)}</TableCell>
+                      <TableCell className="text-xs text-right mono text-danger">{formatCurrency(r.contractedValue - r.billedValue)}</TableCell>
+                      <TableCell className="text-xs text-center mono">{formatDate(r.expirationDate)}</TableCell>
+                      <TableCell className="text-xs text-center">{r.contractStatus}</TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+              <TableFooter>
+                <TableRow className="bg-muted/50 font-bold">
+                  <TableCell colSpan={3} className="text-xs">Subtotal — {consultor}</TableCell>
+                  <TableCell className="text-xs text-right mono">{formatCurrency(subTotC)}</TableCell>
+                  <TableCell className="text-xs text-right mono">{formatCurrency(subTotB)}</TableCell>
+                  <TableCell className="text-xs text-right mono">{formatCurrency(subTotC - subTotB)}</TableCell>
+                  <TableCell colSpan={2} />
+                </TableRow>
+              </TableFooter>
+            </Table>
+          </div>
+        );
+      })}
+      <div className="border-t-2 border-border pt-3 px-1 flex justify-between text-sm font-bold">
+        <span>Total Geral ({consultores.length} consultores)</span>
+        <span className="space-x-4">
+          <span>Contratado: {formatCurrency(grandTotC)}</span>
+          <span>Faturado: {formatCurrency(grandTotB)}</span>
+          <span className="text-danger">Pendência: {formatCurrency(grandTotC - grandTotB)}</span>
+        </span>
+      </div>
     </div>
   );
 }
