@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef } from "react";
-import * as XLSX from "xlsx";
+import ExcelJS from "exceljs";
 import { z } from "zod";
 import { ContractRow } from "@/types/contract";
 import { Button } from "@/components/ui/button";
@@ -91,25 +91,78 @@ export function ImportDialog({ open, onOpenChange, onImport }: ImportDialogProps
     setFileName(file.name);
 
     const reader = new FileReader();
-    reader.onload = (e) => {
+    reader.onload = async (e) => {
       try {
-        const data = new Uint8Array(e.target?.result as ArrayBuffer);
-        const workbook = XLSX.read(data, { type: "array" });
-        const sheetName = workbook.SheetNames[0];
-        const sheet = workbook.Sheets[sheetName];
-        const json = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: "" });
+        const buffer = e.target?.result as ArrayBuffer;
+        const workbook = new ExcelJS.Workbook();
+        const ext = file.name.toLowerCase();
+
+        if (ext.endsWith(".csv")) {
+          const text = new TextDecoder().decode(buffer);
+          const lines = text.split("\n");
+          // Parse CSV manually into worksheet
+          const csvWorkbook = new ExcelJS.Workbook();
+          const csvSheet = csvWorkbook.addWorksheet("CSV");
+          lines.forEach((line) => {
+            const cells = line.split(",").map((c) => c.replace(/^"|"$/g, "").trim());
+            csvSheet.addRow(cells);
+          });
+          workbook.addWorksheet("Data");
+          const targetSheet = workbook.getWorksheet("Data")!;
+          csvSheet.eachRow((row, rowNumber) => {
+            const targetRow = targetSheet.getRow(rowNumber);
+            row.eachCell((cell, colNumber) => {
+              targetRow.getCell(colNumber).value = cell.value;
+            });
+            targetRow.commit();
+          });
+        } else {
+          await workbook.xlsx.load(buffer);
+        }
+
+        const sheet = workbook.worksheets[0];
+        if (!sheet || sheet.rowCount < 2) {
+          toast.error("Planilha vazia");
+          return;
+        }
+
+        // Extract headers from first row
+        const headerRow = sheet.getRow(1);
+        const cols: string[] = [];
+        headerRow.eachCell((cell, colNumber) => {
+          const val = String(cell.value ?? "").trim();
+          if (val) cols.push(val);
+        });
+
+        if (cols.length === 0) {
+          toast.error("Nenhum cabeçalho encontrado");
+          return;
+        }
+
+        // Extract data rows
+        const json: Record<string, unknown>[] = [];
+        for (let r = 2; r <= sheet.rowCount; r++) {
+          if (json.length >= MAX_ROWS) {
+            toast.error(`Arquivo excede o limite de ${MAX_ROWS.toLocaleString("pt-BR")} linhas`);
+            return;
+          }
+          const row = sheet.getRow(r);
+          const obj: Record<string, unknown> = {};
+          let hasData = false;
+          cols.forEach((colName, idx) => {
+            const cell = row.getCell(idx + 1);
+            const val = cell.value;
+            obj[colName] = val ?? "";
+            if (val !== null && val !== undefined && val !== "") hasData = true;
+          });
+          if (hasData) json.push(obj);
+        }
 
         if (json.length === 0) {
           toast.error("Planilha vazia");
           return;
         }
 
-        if (json.length > MAX_ROWS) {
-          toast.error(`Arquivo excede o limite de ${MAX_ROWS.toLocaleString("pt-BR")} linhas`);
-          return;
-        }
-
-        const cols = Object.keys(json[0]).filter((c) => c.trim() !== "");
         setHeaders(cols);
         setRawRows(json);
 
@@ -149,10 +202,18 @@ export function ImportDialog({ open, onOpenChange, onImport }: ImportDialogProps
 
   const parseDate = (val: unknown): string => {
     if (!val) return "";
+    // ExcelJS returns Date objects for date cells
+    if (val instanceof Date) {
+      const y = val.getFullYear();
+      const m = String(val.getMonth() + 1).padStart(2, "0");
+      const d = String(val.getDate()).padStart(2, "0");
+      return `${y}-${m}-${d}`;
+    }
     // Excel serial number
     if (typeof val === "number") {
-      const date = XLSX.SSF.parse_date_code(val);
-      if (date) return `${date.y}-${String(date.m).padStart(2, "0")}-${String(date.d).padStart(2, "0")}`;
+      const epoch = new Date(1899, 11, 30);
+      const date = new Date(epoch.getTime() + val * 86400000);
+      return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
     }
     const str = String(val).trim();
     // DD/MM/YYYY
