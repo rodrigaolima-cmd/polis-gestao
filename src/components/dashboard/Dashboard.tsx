@@ -15,6 +15,7 @@ import { DashboardCharts } from "@/components/dashboard/DashboardCharts";
 import { ActionTables } from "@/components/dashboard/ActionTables";
 import { CommercialAnalysis } from "@/components/dashboard/CommercialAnalysis";
 import { ImportDialog } from "@/components/dashboard/ImportDialog";
+import { ConsultorDashboard } from "@/components/dashboard/ConsultorDashboard";
 import {
   DollarSign, TrendingUp, AlertTriangle,
   CalendarX, Clock, AlertCircle, Upload,
@@ -180,6 +181,12 @@ export default function Dashboard() {
           clients={clients}
           onConsultorReport={() => setSectionReport("byConsultor")}
           onRegiaoReport={() => setSectionReport("byRegiao")}
+        />
+
+        <ConsultorDashboard
+          clients={clients}
+          contracts={filteredContracts}
+          onReport={() => setSectionReport("byConsultorDetalhado")}
         />
 
         <ActionTables
