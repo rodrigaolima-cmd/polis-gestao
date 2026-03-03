@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { UserCheck, DollarSign, TrendingUp, AlertTriangle, Users, FileText, X } from "lucide-react";
+import { UserCheck, DollarSign, TrendingUp, AlertTriangle, Users, FileText } from "lucide-react";
 
 interface ConsultorDashboardProps {
   clients: ClientSummary[];
@@ -56,11 +56,6 @@ export function ConsultorDashboard({ clients, contracts, onReport }: ConsultorDa
                 ))}
               </SelectContent>
             </Select>
-            {selected && (
-              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setSelected("")} title="Limpar seleção">
-                <X className="h-4 w-4" />
-              </Button>
-            )}
             <Button variant="outline" size="sm" className="gap-1.5 text-xs" onClick={onReport}>
               <FileText className="h-3.5 w-3.5" /> Relatório
             </Button>

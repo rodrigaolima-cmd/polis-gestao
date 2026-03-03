@@ -127,7 +127,7 @@ export function getBillingByProduct(contracts: ContractRow[]): { product: string
   });
   return Array.from(map.entries())
     .map(([product, billed]) => ({ product, billed }))
-    .sort((a, b) => b.billed - a.billed);
+    .sort((a, b) => a.product.localeCompare(b.product, 'pt-BR'));
 }
 
 // Contracts by status
@@ -145,7 +145,7 @@ export function getDistributionByUG(contracts: ContractRow[]): { ugType: string;
   contracts.forEach((c) => {
     map.set(c.ugType, (map.get(c.ugType) || 0) + 1);
   });
-  return Array.from(map.entries()).map(([ugType, count]) => ({ ugType, count })).sort((a, b) => b.count - a.count);
+  return Array.from(map.entries()).map(([ugType, count]) => ({ ugType, count })).sort((a, b) => a.ugType.localeCompare(b.ugType, 'pt-BR'));
 }
 
 // Expiration timeline by month
