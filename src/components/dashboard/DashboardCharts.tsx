@@ -93,28 +93,13 @@ export function DashboardCharts({
 
       <ChartCard title="Faturamento por Produto" onReport={onProductReport}>
         <ResponsiveContainer width="100%" height={300}>
-          <PieChart>
-            <Pie
-              data={billingByProduct}
-              dataKey="billed"
-              nameKey="product"
-              cx="50%"
-              cy="50%"
-              outerRadius={100}
-              innerRadius={50}
-              paddingAngle={3}
-              label={({ product, percent }) => `${product} (${(percent * 100).toFixed(0)}%)`}
-              labelLine={{ stroke: "hsl(215, 15%, 55%)" }}
-              fontSize={11}
-              cursor="pointer"
-              onClick={(data: any) => onProductClick?.(data?.product)}
-            >
-              {billingByProduct.map((_, i) => (
-                <Cell key={i} fill={COLORS[i % COLORS.length]} />
-              ))}
-            </Pie>
+          <BarChart data={billingByProduct} layout="vertical" margin={{ left: 10, right: 20 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="hsl(220, 18%, 22%)" />
+            <XAxis type="number" tickFormatter={(v) => `R$ ${(v / 1000).toFixed(0)}k`} stroke="hsl(215, 15%, 55%)" fontSize={11} />
+            <YAxis type="category" dataKey="product" width={140} stroke="hsl(215, 15%, 55%)" fontSize={11} />
             <Tooltip contentStyle={tooltipStyle} formatter={(v: number) => formatCurrency(v)} />
-          </PieChart>
+            <Bar dataKey="billed" fill="hsl(38, 92%, 50%)" radius={[0, 4, 4, 0]} cursor="pointer" onClick={(data: any) => onProductClick?.(data?.product)} />
+          </BarChart>
         </ResponsiveContainer>
       </ChartCard>
 
