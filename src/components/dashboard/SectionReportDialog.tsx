@@ -268,7 +268,7 @@ function ByProductReport({ contracts }: { contracts: ContractRow[] }) {
   });
   const products = Array.from(map.entries())
     .map(([product, v]) => ({ product, ...v, difference: v.contracted - v.billed }))
-    .sort((a, b) => a.product.localeCompare(b.product, 'pt-BR'));
+    .sort((a, b) => b.billed - a.billed);
   const totC = products.reduce((s, p) => s + p.contracted, 0);
   const totB = products.reduce((s, p) => s + p.billed, 0);
 
@@ -321,7 +321,7 @@ function ByUGReport({ contracts }: { contracts: ContractRow[] }) {
   });
   const ugs = Array.from(map.entries())
     .map(([ugType, v]) => ({ ugType, ...v, unbilled: v.contracted - v.billed }))
-    .sort((a, b) => a.ugType.localeCompare(b.ugType, 'pt-BR'));
+    .sort((a, b) => b.contracted - a.contracted);
   const totC = ugs.reduce((s, u) => s + u.contracted, 0);
   const totU = ugs.reduce((s, u) => s + u.unbilled, 0);
   const totCount = ugs.reduce((s, u) => s + u.count, 0);
