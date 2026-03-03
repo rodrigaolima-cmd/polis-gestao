@@ -1,22 +1,19 @@
 
 
-## Plano: Ordenação por valor decrescente nos gráficos/relatórios + Limpar seleção no Dashboard por Consultor
+## Plano: Corrigir visualização de ordenação no gráfico "Faturamento por Produto"
 
-### 1. Ordenar dados por valor decrescente
+### Problema
+O gráfico de "Faturamento por Produto" usa um **PieChart** (gráfico de pizza), que não transmite visualmente a ordenação decrescente — as fatias são dispostas em círculo e as labels aparecem em posições variadas, dando a impressão de desordem mesmo com os dados corretamente ordenados.
 
-**`src/utils/contractUtils.ts`**
-- `getBillingByProduct`: alterar `.sort()` de alfabético para `b.billed - a.billed` (maior faturado primeiro)
-- `getDistributionByUG`: alterar `.sort()` de alfabético para `b.count - a.count` (maior quantidade primeiro)
+### Solução: Trocar PieChart por BarChart horizontal
 
-### 2. Ordenar relatórios PDF por valor decrescente
+**`src/components/dashboard/DashboardCharts.tsx`**
+- Substituir o `PieChart` do "Faturamento por Produto" por um `BarChart` horizontal (layout `"vertical"`), igual ao padrão do "Faturamento por Cliente (Top 10)"
+- Eixo Y: nome do produto
+- Eixo X: valor faturado formatado em R$
+- Barras coloridas com `radius` arredondado
+- Manter o `onClick` para abrir relatório do produto
+- Manter o `Tooltip` com `formatCurrency`
 
-**`src/components/dashboard/SectionReportDialog.tsx`**
-- `ByProductReport` (linha 271): alterar sort de `a.product.localeCompare(...)` para `b.billed - a.billed` (maior faturado primeiro)
-- `ByUGReport` (linha 324): alterar sort de `a.ugType.localeCompare(...)` para `b.contracted - a.contracted` (maior contratado primeiro)
-
-### 3. Limpar seleção no Dashboard por Consultor
-
-**`src/components/dashboard/ConsultorDashboard.tsx`**
-- Adicionar botão "Limpar" (ícone `X` ou `RotateCcw`) ao lado do `<Select>`, visível quando `selected` não é vazio
-- Ao clicar, executar `setSelected("")` para resetar a seleção
+Isso tornará a ordenação decrescente **visualmente clara**, com as barras de cima para baixo do maior para o menor valor.
 
