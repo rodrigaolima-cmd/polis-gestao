@@ -9,6 +9,17 @@ import { Label } from "@/components/ui/label";
 import { Upload, FileUp, CheckCircle, AlertTriangle, X } from "lucide-react";
 import { toast } from "sonner";
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const extractCellValue = (val: any): unknown => {
+  if (val === null || val === undefined) return "";
+  if (typeof val === "object" && val !== null) {
+    if ("result" in val) return val.result;
+    if ("richText" in val) return val.richText.map((rt: any) => rt.text).join("");
+    if ("error" in val) return "";
+  }
+  return val;
+};
+
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 const MAX_ROWS = 10000;
 const VALID_MIME_TYPES = [
@@ -151,7 +162,7 @@ export function ImportDialog({ open, onOpenChange, onImport }: ImportDialogProps
           let hasData = false;
           cols.forEach((colName, idx) => {
             const cell = row.getCell(idx + 1);
-            const val = cell.value;
+            const val = extractCellValue(cell.value);
             obj[colName] = val ?? "";
             if (val !== null && val !== undefined && val !== "") hasData = true;
           });
@@ -194,7 +205,12 @@ export function ImportDialog({ open, onOpenChange, onImport }: ImportDialogProps
   const allMapped = REQUIRED_FIELDS.filter((f) => f.key !== "observations" && !f.optional).every((f) => mapping[f.key]);
 
   const parseCurrency = (val: unknown): number => {
+    // Fallback: extract result from formula objects that slipped through
+    if (typeof val === "object" && val !== null && "result" in (val as Record<string, unknown>)) {
+      val = (val as Record<string, unknown>).result;
+    }
     if (typeof val === "number") return val;
+    if (val === null || val === undefined || val === "") return 0;
     const str = String(val).replace(/[R$\s.]/g, "").replace(",", ".");
     const num = parseFloat(str);
     return isNaN(num) ? 0 : num;
