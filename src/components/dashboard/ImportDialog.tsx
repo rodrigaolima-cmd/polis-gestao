@@ -246,6 +246,18 @@ export function ImportDialog({ open, onOpenChange, onImport }: ImportDialogProps
   };
 
   const handleConfirm = () => {
+    // Debug: log first 3 rows raw values for mapped fields
+    rawRows.slice(0, 3).forEach((row, i) => {
+      console.log(`[ImportDebug] Row ${i}:`, {
+        contractedValue_raw: row[mapping.contractedValue],
+        contractedValue_type: typeof row[mapping.contractedValue],
+        billedValue_raw: row[mapping.billedValue],
+        billedValue_type: typeof row[mapping.billedValue],
+        contractedValue_parsed: parseCurrency(row[mapping.contractedValue]),
+        billedValue_parsed: parseCurrency(row[mapping.billedValue]),
+      });
+    });
+
     const contracts: ContractRow[] = rawRows.map((row, i) => ({
       id: String(i + 1),
       clientName: String(row[mapping.clientName] ?? "").trim().substring(0, 200),
