@@ -179,8 +179,9 @@ export function ImportDialog({ open, onOpenChange, onImport }: ImportDialogProps
 
         // Auto-map by similarity
         const autoMap: Record<string, string> = {};
+        const colNames = cols.map(c => c.name);
         REQUIRED_FIELDS.forEach((field) => {
-          const match = cols.find((col) => {
+          const match = colNames.find((col) => {
             const c = col.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
             const l = field.label.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
             return c.includes(l) || l.includes(c) || c === field.key.toLowerCase();
