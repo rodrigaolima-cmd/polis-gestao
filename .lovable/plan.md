@@ -1,33 +1,41 @@
 
 
-## Diagnóstico
+## Plano: Dashboard por Consultor com Relatório Detalhado e Exportação PDF
 
-O erro é claro no console:
+### 1. Novo componente `src/components/dashboard/ConsultorDashboard.tsx`
 
-```
-Failed to resolve import "xlsx" from "src/components/dashboard/ImportDialog.tsx". Does the file exist?
-```
+Seção dedicada inserida no Dashboard principal (após CommercialAnalysis), com:
 
-O pacote `xlsx` está no `package.json`, mas o Vite não consegue resolvê-lo. Isso pode ocorrer após reversões quando as dependências não são reinstaladas corretamente. A solução é adicionar `dedupe` no `vite.config.ts` e garantir que o módulo seja resolvido, além de forçar a reinstalação.
+- **Header**: Título "Dashboard por Consultor" com ícone `UserCheck`
+- **Seletor de consultor**: Dropdown `<Select>` listando todos os consultores disponíveis nos `clients`
+- **KPIs do consultor selecionado** (grid 4 colunas):
+  - Total Contratado, Total Faturado, Pendência (Dinheiro na Mesa), Nº Clientes
+- **Tabela de clientes do consultor**: Lista os clientes do consultor selecionado com colunas: Cliente, Tipo UG, Contratado, Faturado, Diferença, % Faturado, Vencimento, Status
+- **Rodapé totalizador**
+- **Botão relatório** (ícone Printer) que abre o `SectionReportDialog` com tipo `"byConsultorDetalhado"`
 
-## Plano
+### 2. `src/components/dashboard/SectionReportDialog.tsx`
 
-### 1. `vite.config.ts` — Adicionar dedupe para resolver conflitos de módulos
+- Adicionar `"byConsultorDetalhado"` ao `SectionReportType`
+- Adicionar título: `byConsultorDetalhado: "Relatório Detalhado — Dashboard por Consultor"`
+- Novo componente `ByConsultorDetalhadoReport`:
+  - Recebe `clients` e `contracts`
+  - Agrupa contratos por consultor, depois por cliente dentro de cada consultor
+  - Para cada consultor: header com nome, subtabela com todos os contratos (Produto, Tipo UG, Contratado, Faturado, Pendência, Vencimento, Status)
+  - Subtotal por consultor
+  - Rodapé totalizador geral
+  - Exportação PDF via `window.print()` (mesmo padrão dos outros relatórios)
 
-Adicionar `dedupe` na configuração `resolve` para forçar resolução única de pacotes problemáticos:
+### 3. `src/components/dashboard/Dashboard.tsx`
 
-```typescript
-resolve: {
-  alias: {
-    "@": path.resolve(__dirname, "./src"),
-  },
-  dedupe: ["react", "react-dom", "react/jsx-runtime", "xlsx"],
-},
-```
+- Importar `ConsultorDashboard`
+- Inserir `<ConsultorDashboard>` entre `CommercialAnalysis` e `ActionTables`
+- Passar props: `clients`, `contracts: filteredContracts`, callback `onReport={() => setSectionReport("byConsultorDetalhado")}`
 
-### 2. Forçar reinstalação do pacote `xlsx`
+### Detalhes técnicos
 
-Reimportar o pacote `xlsx` no `package.json` (remover e re-adicionar) para garantir que está corretamente instalado no `node_modules`. Na prática, basta salvar o `vite.config.ts` editado — o Lovable reinstala dependências automaticamente ao detectar mudanças.
-
-Se persistir, uma alternativa seria trocar o import para um import dinâmico ou verificar se o pacote precisa ser re-adicionado explicitamente.
+- O `ConsultorDashboard` usa `useMemo` para filtrar clientes pelo consultor selecionado
+- A lista de consultores é extraída de `clients` com `new Set`, filtrando vazios
+- O relatório detalhado reutiliza o padrão visual existente (Table, TableFooter, formatCurrency, etc.)
+- A exportação PDF usa o mesmo mecanismo `window.print()` + classe `.print-report` já implementado
 
