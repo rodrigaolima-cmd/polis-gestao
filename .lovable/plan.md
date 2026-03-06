@@ -2,28 +2,62 @@
 
 ## Diagnóstico
 
-O problema foi introduzido na migração de `xlsx` (SheetJS) para `exceljs`. A diferença está em como cada biblioteca retorna valores de células:
+O bug está na extração de cabeçalhos (linhas 142-146). O método `eachCell` do ExcelJS **pula células vazias**. Se a planilha tem uma coluna vazia entre cabeçalhos (ex: coluna B vazia), o array `cols` fica com os nomes na ordem errada em relação às posições reais.
 
-- **SheetJS**: sempre retorna o valor final (número puro) para células numéricas e com fórmulas.
-- **ExcelJS**: retorna objetos complexos para células com fórmulas, como `{ formula: "=A1+B1", result: 1234.56 }`, e pode também retornar `{ sharedFormula: "...", result: ... }`.
+Depois, na leitura dos dados (linha 164), o código usa `row.getCell(idx + 1)` — que assume que as colunas são contíguas (1, 2, 3...). Mas como `eachCell` pulou colunas vazias, `idx + 1` não corresponde à coluna real do cabeçalho. Resultado: valores lidos da coluna errada → "00" para Valor Faturado.
 
-A função `parseCurrency` (linha 196-201) verifica `typeof val === "number"` — isso funciona para células numéricas simples, mas **falha para células com fórmulas**, pois o valor é um objeto. Nesse caso, cai no parsing de string via `String(val)`, que converte o objeto para `"[object Object]"` e retorna `0`.
+**Exemplo**: Se "Valor Faturado" está na coluna 7 da planilha mas é o 5º cabeçalho não-vazio, `getCell(5)` lê a coluna errada.
 
-Como "Valor Contratado" pode ser uma célula numérica simples e "Valor Faturado" pode conter fórmulas (ou vice-versa), isso explica por que um bate e o outro não.
+## Correção em `ImportDialog.tsx`
 
-## Plano de Correção
+1. **Trocar `cols: string[]` por `cols: { name: string; colNumber: number }[]`** — armazenar o nome E o número real da coluna retornado por `eachCell`.
 
-### `src/components/dashboard/ImportDialog.tsx`
+2. **Na leitura de dados**, usar `row.getCell(col.colNumber)` em vez de `row.getCell(idx + 1)`.
 
-1. **Criar função `extractCellValue`** que normaliza qualquer tipo de valor de célula ExcelJS para seu valor primitivo:
-   - Se `typeof val === "object"` e tem propriedade `result` → retorna `val.result`
-   - Se `typeof val === "object"` e tem propriedade `richText` → concatena os textos
-   - Se `typeof val === "object"` e tem propriedade `error` → retorna `""`
-   - Caso contrário → retorna o valor como está
+3. **Ajustar referências** a `cols` no resto do código (headers para mapeamento usam `cols.map(c => c.name)`).
 
-2. **Aplicar `extractCellValue` na extração de dados** (linha 154): ao ler cada célula, chamar `extractCellValue(cell.value)` antes de armazenar em `obj[colName]`, garantindo que `rawRows` sempre contenha valores primitivos.
+4. **Manter `parseCurrency` com locale brasileiro** — atualizar para usar parsing locale-aware conforme padrão sugerido, tratando `1.234,56` corretamente (ponto = milhar, vírgula = decimal).
 
-3. **Atualizar `parseCurrency`** para também tratar objetos com `result` como fallback de segurança, caso algum valor passe sem normalização.
+### Mudanças específicas
 
-Isso restaura o comportamento anterior onde todos os valores numéricos (inclusive de fórmulas) são lidos corretamente.
+```typescript
+// Header extraction — track real column numbers
+const cols: { name: string; colNumber: number }[] = [];
+headerRow.eachCell((cell, colNumber) => {
+  const val = String(extractCellValue(cell.value) ?? "").trim();
+  if (val) cols.push({ name: val, colNumber });
+});
+
+// Data extraction — use real column number
+cols.forEach((col) => {
+  const cell = row.getCell(col.colNumber);
+  const val = extractCellValue(cell.value);
+  obj[col.name] = val ?? "";
+});
+
+// Update headers state to string[] for mapping UI
+setHeaders(cols.map(c => c.name));
+```
+
+```typescript
+// Updated parseCurrency with locale-aware parsing
+const parseCurrency = (val: unknown): number => {
+  if (typeof val === "object" && val !== null && "result" in (val as any)) {
+    val = (val as any).result;
+  }
+  if (typeof val === "number") return val;
+  if (val === null || val === undefined || val === "") return 0;
+  let str = String(val).replace(/[R$\s]/g, "").trim();
+  // Brazilian format: 1.234,56 (dot=thousand, comma=decimal)
+  const lastComma = str.lastIndexOf(",");
+  const lastDot = str.lastIndexOf(".");
+  if (lastComma > lastDot) {
+    str = str.replace(/\./g, "").replace(",", ".");
+  } else {
+    str = str.replace(/,/g, "");
+  }
+  const num = parseFloat(str);
+  return isNaN(num) ? 0 : num;
+};
+```
 
