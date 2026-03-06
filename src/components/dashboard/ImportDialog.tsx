@@ -160,10 +160,10 @@ export function ImportDialog({ open, onOpenChange, onImport }: ImportDialogProps
           const row = sheet.getRow(r);
           const obj: Record<string, unknown> = {};
           let hasData = false;
-          cols.forEach((colName, idx) => {
-            const cell = row.getCell(idx + 1);
+          cols.forEach((col) => {
+            const cell = row.getCell(col.colNumber);
             const val = extractCellValue(cell.value);
-            obj[colName] = val ?? "";
+            obj[col.name] = val ?? "";
             if (val !== null && val !== undefined && val !== "") hasData = true;
           });
           if (hasData) json.push(obj);
