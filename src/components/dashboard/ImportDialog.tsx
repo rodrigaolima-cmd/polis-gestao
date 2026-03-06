@@ -139,10 +139,10 @@ export function ImportDialog({ open, onOpenChange, onImport }: ImportDialogProps
 
         // Extract headers from first row
         const headerRow = sheet.getRow(1);
-        const cols: string[] = [];
+        const cols: { name: string; colNumber: number }[] = [];
         headerRow.eachCell((cell, colNumber) => {
-          const val = String(cell.value ?? "").trim();
-          if (val) cols.push(val);
+          const val = String(extractCellValue(cell.value) ?? "").trim();
+          if (val) cols.push({ name: val, colNumber });
         });
 
         if (cols.length === 0) {
