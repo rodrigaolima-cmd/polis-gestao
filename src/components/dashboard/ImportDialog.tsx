@@ -206,13 +206,19 @@ export function ImportDialog({ open, onOpenChange, onImport }: ImportDialogProps
   const allMapped = REQUIRED_FIELDS.filter((f) => f.key !== "observations" && !f.optional).every((f) => mapping[f.key]);
 
   const parseCurrency = (val: unknown): number => {
-    // Fallback: extract result from formula objects that slipped through
     if (typeof val === "object" && val !== null && "result" in (val as Record<string, unknown>)) {
       val = (val as Record<string, unknown>).result;
     }
     if (typeof val === "number") return val;
     if (val === null || val === undefined || val === "") return 0;
-    const str = String(val).replace(/[R$\s.]/g, "").replace(",", ".");
+    let str = String(val).replace(/[R$\s]/g, "").trim();
+    const lastComma = str.lastIndexOf(",");
+    const lastDot = str.lastIndexOf(".");
+    if (lastComma > lastDot) {
+      str = str.replace(/\./g, "").replace(",", ".");
+    } else {
+      str = str.replace(/,/g, "");
+    }
     const num = parseFloat(str);
     return isNaN(num) ? 0 : num;
   };
