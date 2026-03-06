@@ -174,7 +174,7 @@ export function ImportDialog({ open, onOpenChange, onImport }: ImportDialogProps
           return;
         }
 
-        setHeaders(cols);
+        setHeaders(cols.map(c => c.name));
         setRawRows(json);
 
         // Auto-map by similarity
