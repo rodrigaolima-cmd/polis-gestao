@@ -139,10 +139,10 @@ export function ImportDialog({ open, onOpenChange, onImport }: ImportDialogProps
 
         // Extract headers from first row
         const headerRow = sheet.getRow(1);
-        const cols: string[] = [];
+        const cols: { name: string; colNumber: number }[] = [];
         headerRow.eachCell((cell, colNumber) => {
-          const val = String(cell.value ?? "").trim();
-          if (val) cols.push(val);
+          const val = String(extractCellValue(cell.value) ?? "").trim();
+          if (val) cols.push({ name: val, colNumber });
         });
 
         if (cols.length === 0) {
@@ -160,10 +160,10 @@ export function ImportDialog({ open, onOpenChange, onImport }: ImportDialogProps
           const row = sheet.getRow(r);
           const obj: Record<string, unknown> = {};
           let hasData = false;
-          cols.forEach((colName, idx) => {
-            const cell = row.getCell(idx + 1);
+          cols.forEach((col) => {
+            const cell = row.getCell(col.colNumber);
             const val = extractCellValue(cell.value);
-            obj[colName] = val ?? "";
+            obj[col.name] = val ?? "";
             if (val !== null && val !== undefined && val !== "") hasData = true;
           });
           if (hasData) json.push(obj);
@@ -174,13 +174,14 @@ export function ImportDialog({ open, onOpenChange, onImport }: ImportDialogProps
           return;
         }
 
-        setHeaders(cols);
+        setHeaders(cols.map(c => c.name));
         setRawRows(json);
 
         // Auto-map by similarity
         const autoMap: Record<string, string> = {};
+        const colNames = cols.map(c => c.name);
         REQUIRED_FIELDS.forEach((field) => {
-          const match = cols.find((col) => {
+          const match = colNames.find((col) => {
             const c = col.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
             const l = field.label.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
             return c.includes(l) || l.includes(c) || c === field.key.toLowerCase();
@@ -205,13 +206,19 @@ export function ImportDialog({ open, onOpenChange, onImport }: ImportDialogProps
   const allMapped = REQUIRED_FIELDS.filter((f) => f.key !== "observations" && !f.optional).every((f) => mapping[f.key]);
 
   const parseCurrency = (val: unknown): number => {
-    // Fallback: extract result from formula objects that slipped through
     if (typeof val === "object" && val !== null && "result" in (val as Record<string, unknown>)) {
       val = (val as Record<string, unknown>).result;
     }
     if (typeof val === "number") return val;
     if (val === null || val === undefined || val === "") return 0;
-    const str = String(val).replace(/[R$\s.]/g, "").replace(",", ".");
+    let str = String(val).replace(/[R$\s]/g, "").trim();
+    const lastComma = str.lastIndexOf(",");
+    const lastDot = str.lastIndexOf(".");
+    if (lastComma > lastDot) {
+      str = str.replace(/\./g, "").replace(",", ".");
+    } else {
+      str = str.replace(/,/g, "");
+    }
     const num = parseFloat(str);
     return isNaN(num) ? 0 : num;
   };
