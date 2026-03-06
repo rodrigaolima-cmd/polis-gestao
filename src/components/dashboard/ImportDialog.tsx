@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef } from "react";
-import ExcelJS from "exceljs";
+import * as XLSX from "xlsx";
 import { z } from "zod";
 import { ContractRow } from "@/types/contract";
 import { Button } from "@/components/ui/button";
@@ -8,17 +8,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Label } from "@/components/ui/label";
 import { Upload, FileUp, CheckCircle, AlertTriangle, X } from "lucide-react";
 import { toast } from "sonner";
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const extractCellValue = (val: any): unknown => {
-  if (val === null || val === undefined) return "";
-  if (typeof val === "object" && val !== null) {
-    if ("result" in val) return val.result;
-    if ("richText" in val) return val.richText.map((rt: any) => rt.text).join("");
-    if ("error" in val) return "";
-  }
-  return val;
-};
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 const MAX_ROWS = 10000;
@@ -102,86 +91,32 @@ export function ImportDialog({ open, onOpenChange, onImport }: ImportDialogProps
     setFileName(file.name);
 
     const reader = new FileReader();
-    reader.onload = async (e) => {
+    reader.onload = (e) => {
       try {
-        const buffer = e.target?.result as ArrayBuffer;
-        const workbook = new ExcelJS.Workbook();
-        const ext = file.name.toLowerCase();
-
-        if (ext.endsWith(".csv")) {
-          const text = new TextDecoder().decode(buffer);
-          const lines = text.split("\n");
-          // Parse CSV manually into worksheet
-          const csvWorkbook = new ExcelJS.Workbook();
-          const csvSheet = csvWorkbook.addWorksheet("CSV");
-          lines.forEach((line) => {
-            const cells = line.split(",").map((c) => c.replace(/^"|"$/g, "").trim());
-            csvSheet.addRow(cells);
-          });
-          workbook.addWorksheet("Data");
-          const targetSheet = workbook.getWorksheet("Data")!;
-          csvSheet.eachRow((row, rowNumber) => {
-            const targetRow = targetSheet.getRow(rowNumber);
-            row.eachCell((cell, colNumber) => {
-              targetRow.getCell(colNumber).value = cell.value;
-            });
-            targetRow.commit();
-          });
-        } else {
-          await workbook.xlsx.load(buffer);
-        }
-
-        const sheet = workbook.worksheets[0];
-        if (!sheet || sheet.rowCount < 2) {
-          toast.error("Planilha vazia");
-          return;
-        }
-
-        // Extract headers from first row
-        const headerRow = sheet.getRow(1);
-        const cols: { name: string; colNumber: number }[] = [];
-        headerRow.eachCell((cell, colNumber) => {
-          const val = String(extractCellValue(cell.value) ?? "").trim();
-          if (val) cols.push({ name: val, colNumber });
-        });
-
-        if (cols.length === 0) {
-          toast.error("Nenhum cabeçalho encontrado");
-          return;
-        }
-
-        // Extract data rows
-        const json: Record<string, unknown>[] = [];
-        for (let r = 2; r <= sheet.rowCount; r++) {
-          if (json.length >= MAX_ROWS) {
-            toast.error(`Arquivo excede o limite de ${MAX_ROWS.toLocaleString("pt-BR")} linhas`);
-            return;
-          }
-          const row = sheet.getRow(r);
-          const obj: Record<string, unknown> = {};
-          let hasData = false;
-          cols.forEach((col) => {
-            const cell = row.getCell(col.colNumber);
-            const val = extractCellValue(cell.value);
-            obj[col.name] = val ?? "";
-            if (val !== null && val !== undefined && val !== "") hasData = true;
-          });
-          if (hasData) json.push(obj);
-        }
+        const data = new Uint8Array(e.target?.result as ArrayBuffer);
+        const workbook = XLSX.read(data, { type: "array" });
+        const sheetName = workbook.SheetNames[0];
+        const sheet = workbook.Sheets[sheetName];
+        const json = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: "" });
 
         if (json.length === 0) {
           toast.error("Planilha vazia");
           return;
         }
 
-        setHeaders(cols.map(c => c.name));
+        if (json.length > MAX_ROWS) {
+          toast.error(`Arquivo excede o limite de ${MAX_ROWS.toLocaleString("pt-BR")} linhas`);
+          return;
+        }
+
+        const cols = Object.keys(json[0]).filter((c) => c.trim() !== "");
+        setHeaders(cols);
         setRawRows(json);
 
         // Auto-map by similarity
         const autoMap: Record<string, string> = {};
-        const colNames = cols.map(c => c.name);
         REQUIRED_FIELDS.forEach((field) => {
-          const match = colNames.find((col) => {
+          const match = cols.find((col) => {
             const c = col.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
             const l = field.label.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
             return c.includes(l) || l.includes(c) || c === field.key.toLowerCase();
@@ -206,37 +141,18 @@ export function ImportDialog({ open, onOpenChange, onImport }: ImportDialogProps
   const allMapped = REQUIRED_FIELDS.filter((f) => f.key !== "observations" && !f.optional).every((f) => mapping[f.key]);
 
   const parseCurrency = (val: unknown): number => {
-    if (typeof val === "object" && val !== null && "result" in (val as Record<string, unknown>)) {
-      val = (val as Record<string, unknown>).result;
-    }
     if (typeof val === "number") return val;
-    if (val === null || val === undefined || val === "") return 0;
-    let str = String(val).replace(/[R$\s]/g, "").trim();
-    const lastComma = str.lastIndexOf(",");
-    const lastDot = str.lastIndexOf(".");
-    if (lastComma > lastDot) {
-      str = str.replace(/\./g, "").replace(",", ".");
-    } else {
-      str = str.replace(/,/g, "");
-    }
+    const str = String(val).replace(/[R$\s.]/g, "").replace(",", ".");
     const num = parseFloat(str);
     return isNaN(num) ? 0 : num;
   };
 
   const parseDate = (val: unknown): string => {
     if (!val) return "";
-    // ExcelJS returns Date objects for date cells
-    if (val instanceof Date) {
-      const y = val.getFullYear();
-      const m = String(val.getMonth() + 1).padStart(2, "0");
-      const d = String(val.getDate()).padStart(2, "0");
-      return `${y}-${m}-${d}`;
-    }
     // Excel serial number
     if (typeof val === "number") {
-      const epoch = new Date(1899, 11, 30);
-      const date = new Date(epoch.getTime() + val * 86400000);
-      return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+      const date = XLSX.SSF.parse_date_code(val);
+      if (date) return `${date.y}-${String(date.m).padStart(2, "0")}-${String(date.d).padStart(2, "0")}`;
     }
     const str = String(val).trim();
     // DD/MM/YYYY
@@ -253,18 +169,6 @@ export function ImportDialog({ open, onOpenChange, onImport }: ImportDialogProps
   };
 
   const handleConfirm = () => {
-    // Debug: log first 3 rows raw values for mapped fields
-    rawRows.slice(0, 3).forEach((row, i) => {
-      console.log(`[ImportDebug] Row ${i}:`, {
-        contractedValue_raw: row[mapping.contractedValue],
-        contractedValue_type: typeof row[mapping.contractedValue],
-        billedValue_raw: row[mapping.billedValue],
-        billedValue_type: typeof row[mapping.billedValue],
-        contractedValue_parsed: parseCurrency(row[mapping.contractedValue]),
-        billedValue_parsed: parseCurrency(row[mapping.billedValue]),
-      });
-    });
-
     const contracts: ContractRow[] = rawRows.map((row, i) => ({
       id: String(i + 1),
       clientName: String(row[mapping.clientName] ?? "").trim().substring(0, 200),
