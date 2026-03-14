@@ -368,8 +368,14 @@ export function ImportDialog({ open, onOpenChange, onImport, onImportToDatabase 
               </div>
               {importResult.skipped > 0 && (
                 <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Registros ignorados</span>
+                  <span className="text-muted-foreground">Registros ignorados (validação)</span>
                   <span className="font-medium text-warning">{importResult.skipped}</span>
+                </div>
+              )}
+              {importResult.failed > 0 && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Registros com erro no banco</span>
+                  <span className="font-medium text-destructive">{importResult.failed}</span>
                 </div>
               )}
             </div>
