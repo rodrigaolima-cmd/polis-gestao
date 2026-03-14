@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-import { Upload, FileUp, CheckCircle, AlertTriangle, X } from "lucide-react";
+import { Upload, FileUp, CheckCircle, AlertTriangle, Database } from "lucide-react";
 import { toast } from "sonner";
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
@@ -52,14 +52,16 @@ interface ImportDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onImport: (data: ContractRow[]) => void;
+  onImportToDatabase?: (data: ContractRow[]) => Promise<void>;
 }
 
-export function ImportDialog({ open, onOpenChange, onImport }: ImportDialogProps) {
+export function ImportDialog({ open, onOpenChange, onImport, onImportToDatabase }: ImportDialogProps) {
   const [headers, setHeaders] = useState<string[]>([]);
   const [rawRows, setRawRows] = useState<Record<string, unknown>[]>([]);
   const [mapping, setMapping] = useState<Record<string, string>>({});
   const [step, setStep] = useState<"upload" | "map" | "preview">("upload");
   const [fileName, setFileName] = useState("");
+  const [importing, setImporting] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const reset = () => {
@@ -68,6 +70,7 @@ export function ImportDialog({ open, onOpenChange, onImport }: ImportDialogProps
     setMapping({});
     setStep("upload");
     setFileName("");
+    setImporting(false);
   };
 
   const handleFile = useCallback((file: File) => {
@@ -168,7 +171,7 @@ export function ImportDialog({ open, onOpenChange, onImport }: ImportDialogProps
     return s === "sim" || s === "yes" || s === "true" || s === "1" || s === "s";
   };
 
-  const handleConfirm = () => {
+  const parseContracts = (): ContractRow[] => {
     const contracts: ContractRow[] = rawRows.map((row, i) => ({
       id: String(i + 1),
       clientName: String(row[mapping.clientName] ?? "").trim().substring(0, 200),
@@ -185,25 +188,43 @@ export function ImportDialog({ open, onOpenChange, onImport }: ImportDialogProps
       consultor: mapping.consultor ? String(row[mapping.consultor] ?? "").trim().substring(0, 100) : "",
     }));
 
-    const valid = contracts.filter((c) => {
-      const result = ContractSchema.safeParse(c);
-      return result.success;
-    });
+    return contracts.filter((c) => ContractSchema.safeParse(c).success);
+  };
 
+  const handleConfirmMemory = () => {
+    const valid = parseContracts();
     if (valid.length === 0) {
       toast.error("Nenhum registro válido encontrado");
       return;
     }
 
-    const skipped = contracts.length - valid.length;
-    if (skipped > 0) {
-      toast.warning(`${skipped} registro(s) ignorado(s) por dados inválidos`);
-    }
+    const skipped = rawRows.length - valid.length;
+    if (skipped > 0) toast.warning(`${skipped} registro(s) ignorado(s) por dados inválidos`);
 
     onImport(valid);
     toast.success(`${valid.length} registros importados com sucesso!`);
     reset();
     onOpenChange(false);
+  };
+
+  const handleConfirmDatabase = async () => {
+    if (!onImportToDatabase) return;
+    const valid = parseContracts();
+    if (valid.length === 0) {
+      toast.error("Nenhum registro válido encontrado");
+      return;
+    }
+
+    setImporting(true);
+    try {
+      await onImportToDatabase(valid);
+      reset();
+      onOpenChange(false);
+    } catch {
+      toast.error("Erro ao importar para o banco");
+    } finally {
+      setImporting(false);
+    }
   };
 
   return (
@@ -253,7 +274,7 @@ export function ImportDialog({ open, onOpenChange, onImport }: ImportDialogProps
                   <div key={field.key} className="space-y-1">
                     <Label className="text-xs text-muted-foreground">
                       {field.label}
-                      {field.key !== "observations" && !field.optional && <span className="text-danger ml-0.5">*</span>}
+                      {field.key !== "observations" && !field.optional && <span className="text-destructive ml-0.5">*</span>}
                     </Label>
                     <Select
                       value={mapping[field.key] || "unmapped"}
@@ -283,8 +304,13 @@ export function ImportDialog({ open, onOpenChange, onImport }: ImportDialogProps
 
             <div className="flex justify-end gap-2 pt-2">
               <Button variant="outline" size="sm" onClick={reset}>Voltar</Button>
-              <Button size="sm" disabled={!allMapped} onClick={handleConfirm} className="gap-1">
-                <CheckCircle className="h-3.5 w-3.5" /> Importar {rawRows.length} registros
+              {onImportToDatabase && (
+                <Button size="sm" disabled={!allMapped || importing} onClick={handleConfirmDatabase} className="gap-1" variant="default">
+                  <Database className="h-3.5 w-3.5" /> {importing ? "Importando..." : "Salvar no banco"}
+                </Button>
+              )}
+              <Button size="sm" disabled={!allMapped} onClick={handleConfirmMemory} className="gap-1" variant="outline">
+                <CheckCircle className="h-3.5 w-3.5" /> Importar em memória
               </Button>
             </div>
           </div>

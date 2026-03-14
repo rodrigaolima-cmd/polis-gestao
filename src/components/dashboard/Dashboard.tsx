@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react";
-import { mockContracts } from "@/data/mockContracts";
+import { useNavigate } from "react-router-dom";
 import { ContractRow, DashboardFilters } from "@/types/contract";
+import { useContracts } from "@/hooks/useContracts";
 import { ChartReportDialog } from "@/components/dashboard/ChartReportDialog";
 import { SectionReportDialog, SectionReportType } from "@/components/dashboard/SectionReportDialog";
 import {
@@ -19,7 +20,7 @@ import { ConsultorDashboard } from "@/components/dashboard/ConsultorDashboard";
 import {
   DollarSign, TrendingUp, AlertTriangle,
   CalendarX, Clock, AlertCircle, Upload,
-  Target, FileText
+  Target, FileText, Users
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -29,10 +30,10 @@ interface ReportConfig {
 }
 
 export default function Dashboard() {
+  const navigate = useNavigate();
+  const { contracts, setContracts, dataSource, importToDatabase, resetToMock, loading } = useContracts();
   const [filters, setFilters] = useState<DashboardFilters>(defaultFilters);
-  const [contracts, setContracts] = useState<ContractRow[]>(mockContracts);
   const [importOpen, setImportOpen] = useState(false);
-  const [dataSource, setDataSource] = useState<"mock" | "imported">("mock");
   const [reportConfig, setReportConfig] = useState<ReportConfig | null>(null);
   const [sectionReport, setSectionReport] = useState<SectionReportType | null>(null);
 
@@ -65,13 +66,11 @@ export default function Dashboard() {
 
   const handleImport = (data: ContractRow[]) => {
     setContracts(data);
-    setDataSource("imported");
     setFilters(defaultFilters);
   };
 
   const handleResetToMock = () => {
-    setContracts(mockContracts);
-    setDataSource("mock");
+    resetToMock();
     setFilters(defaultFilters);
   };
 
@@ -121,16 +120,19 @@ export default function Dashboard() {
             <h1 className="text-xl font-bold tracking-tight">Gestão de Contratos</h1>
             <p className="text-xs text-muted-foreground">
               Polis Gestão • Painel Executivo
-              {dataSource === "imported" && (
-                <span className="ml-2 text-success">• Dados importados ({contracts.length} registros)</span>
+              {dataSource === "database" && (
+                <span className="ml-2 text-success">• Dados do banco ({contracts.length} registros)</span>
               )}
             </p>
           </div>
           <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" className="gap-2 text-xs" onClick={() => navigate("/clientes")}>
+              <Users className="h-3.5 w-3.5" /> Clientes
+            </Button>
             <Button variant="default" size="sm" className="gap-2 text-xs" onClick={() => setImportOpen(true)}>
               <Upload className="h-3.5 w-3.5" /> Importar
             </Button>
-            {dataSource === "imported" && (
+            {dataSource === "database" && (
               <Button variant="ghost" size="sm" className="gap-2 text-xs text-muted-foreground" onClick={handleResetToMock}>
                 Dados demo
               </Button>
@@ -197,7 +199,7 @@ export default function Dashboard() {
         />
       </main>
 
-      <ImportDialog open={importOpen} onOpenChange={setImportOpen} onImport={handleImport} />
+      <ImportDialog open={importOpen} onOpenChange={setImportOpen} onImport={handleImport} onImportToDatabase={importToDatabase} />
       <ChartReportDialog
         title={reportConfig?.title ?? ""}
         contracts={reportConfig?.contracts ?? []}
