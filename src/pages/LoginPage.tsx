@@ -1,6 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,35 +13,29 @@ type Mode = "login" | "forgot";
 
 export default function LoginPage() {
   const navigate = useNavigate();
+  const { user, isActive, loading, profileLoaded } = useAuth();
   const [mode, setMode] = useState<Mode>("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const navigatedRef = useRef(false);
 
+  // Redirect when fully authenticated
   useEffect(() => {
-    // Redirect if already authenticated
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) navigate("/", { replace: true });
-    });
-
-    // Listen for auth changes — navigate only when SIGNED_IN is confirmed
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
-      if (event === "SIGNED_IN") {
-        navigate("/", { replace: true });
-      }
-    });
-
-    return () => subscription.unsubscribe();
-  }, [navigate]);
+    if (!loading && profileLoaded && user && isActive && !navigatedRef.current) {
+      navigatedRef.current = true;
+      navigate("/", { replace: true });
+    }
+  }, [loading, profileLoaded, user, isActive, navigate]);
 
   const handleLogin = async () => {
-    setLoading(true);
+    setSubmitting(true);
     const { error } = await supabase.auth.signInWithPassword({ email, password });
-    setLoading(false);
+    setSubmitting(false);
     if (error) {
       toast.error(error.message);
-      // Do NOT navigate here — the onAuthStateChange listener will handle it
     }
+    // Navigation will happen via the useEffect above when AuthContext updates
   };
 
   const handleForgotPassword = async () => {
@@ -48,11 +43,11 @@ export default function LoginPage() {
       toast.error("Informe seu e-mail");
       return;
     }
-    setLoading(true);
+    setSubmitting(true);
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
       redirectTo: `${window.location.origin}/reset-password`,
     });
-    setLoading(false);
+    setSubmitting(false);
     if (error) {
       toast.error(error.message);
     } else {
@@ -111,8 +106,8 @@ export default function LoginPage() {
                 />
               </div>
             )}
-            <Button type="submit" className="w-full gap-2" disabled={loading}>
-              {loading ? (
+            <Button type="submit" className="w-full gap-2" disabled={submitting}>
+              {submitting ? (
                 <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary-foreground" />
               ) : mode === "login" ? (
                 <LogIn className="h-4 w-4" />
