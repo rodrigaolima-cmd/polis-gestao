@@ -1,0 +1,1 @@
+ALTER TABLE public.client_modules DROP CONSTRAINT IF EXISTS client_modules_client_id_modulo_id_key;

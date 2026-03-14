@@ -193,7 +193,7 @@ export function useContracts() {
         created += batch.length;
       }
 
-      toast.success(`Importação concluída: ${created} criados, ${updated} atualizados`);
+      toast.success(`Importação concluída: ${created} registros importados`);
       await loadFromDatabase();
     } catch (err) {
       console.error("Import error:", err);
