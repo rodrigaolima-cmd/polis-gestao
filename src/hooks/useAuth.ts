@@ -16,19 +16,29 @@ export function useAuth() {
   const initialized = useRef(false);
 
   const fetchProfile = useCallback(async (userId: string) => {
-    const { data } = await supabase
-      .from("profiles")
-      .select("id, full_name, is_active")
-      .eq("id", userId)
-      .single();
-    setProfile(data);
+    try {
+      const { data } = await supabase
+        .from("profiles")
+        .select("id, full_name, is_active")
+        .eq("id", userId)
+        .single();
+      setProfile(data);
+    } catch (e) {
+      console.error("Error fetching profile:", e);
+      setProfile(null);
+    }
 
-    const { data: roleData } = await supabase
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", userId)
-      .maybeSingle();
-    setRole(roleData?.role ?? null);
+    try {
+      const { data: roleData } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", userId)
+        .maybeSingle();
+      setRole(roleData?.role ?? null);
+    } catch (e) {
+      console.error("Error fetching role:", e);
+      setRole(null);
+    }
   }, []);
 
   useEffect(() => {
