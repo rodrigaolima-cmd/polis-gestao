@@ -35,6 +35,7 @@ export default function ClientesPage() {
   const [filterStatus, setFilterStatus] = useState("");
   const [formOpen, setFormOpen] = useState(false);
   const [editingClient, setEditingClient] = useState<ClientRow | null>(null);
+  const [loadError, setLoadError] = useState(false);
 
   const loadClients = async () => {
     setLoading(true);
