@@ -1,60 +1,41 @@
 
-Diagnóstico confirmado (com base em código + logs + replay):
-- O login no backend está OK (200 e token válido).
-- O usuário tem `profile` ativo e `role=admin` no banco.
-- O loop “/login -> entrar -> volta /login após ~5s” indica falha na inicialização de sessão no client.
-- Causa mais provável no código atual: `onAuthStateChange` está com callback `async` e faz chamadas Supabase dentro do callback (`await fetchProfile(...)`). Isso pode travar/hangar chamadas seguintes do client (deadlock conhecido), e o app cai no timeout de 5s, mantendo `user=null` e redirecionando para `/login`.
 
-Plano de correção (focado em resolver agora, com mínimo retrabalho):
+## Plano: Dashboard por Consultor com Relatório Detalhado e Exportação PDF
 
-1) Reescrever a inicialização de auth no `useAuth` para fluxo determinístico
-- Arquivo: `src/hooks/useAuth.ts`
-- Mudanças:
-  - Remover padrão atual com `initialized` + callback `async`.
-  - Criar função interna `applySession(session)` que:
-    - seta `user`
-    - busca profile/role (fora do callback do listener)
-    - encerra `loading` sempre em `finally`.
-  - Fazer bootstrap com `supabase.auth.getSession()` ao montar.
-  - Registrar `onAuthStateChange` com callback **não async** e delegar processamento via `setTimeout(..., 0)` (ou `queueMicrotask`) para evitar deadlock.
-  - Remover timeout “cego” de 5s como lógica principal (se mantiver, deixar apenas como última rede de segurança, sem dirigir fluxo de auth).
+### 1. Novo componente `src/components/dashboard/ConsultorDashboard.tsx`
 
-2) Corrigir leitura de erro nas queries de profile/role
-- Arquivo: `src/hooks/useAuth.ts`
-- Mudanças:
-  - Hoje usa `try/catch`, mas Supabase retorna erro em `{ error }` (nem sempre lança exceção).
-  - Ajustar `fetchProfile` para tratar explicitamente `{ data, error }`:
-    - se `error`, logar e setar estado coerente
-    - setar `profileLoaded=true` em `finally`.
-  - Isso evita estado “carregando”/estado inconsistente quando a query falha semanticamente.
+Seção dedicada inserida no Dashboard principal (após CommercialAnalysis), com:
 
-3) Tornar o `ProtectedRoute` explícito para “sessão ok, perfil ausente/inacessível”
-- Arquivo: `src/components/ProtectedRoute.tsx`
-- Mudanças:
-  - Manter spinner só para estado realmente pendente: `loading` ou `(user && !profileLoaded)`.
-  - Se `user` existe e `profileLoaded=true` mas `profile` é `null`, não deixar parecer “login inválido”:
-    - exibir mensagem clara (ex.: perfil não encontrado/sem acesso)
-    - executar `signOut()` e redirecionar para `/login`.
-  - Mantém regra atual de conta inativa (`is_active=false`) com mensagem apropriada.
+- **Header**: Título "Dashboard por Consultor" com ícone `UserCheck`
+- **Seletor de consultor**: Dropdown `<Select>` listando todos os consultores disponíveis nos `clients`
+- **KPIs do consultor selecionado** (grid 4 colunas):
+  - Total Contratado, Total Faturado, Pendência (Dinheiro na Mesa), Nº Clientes
+- **Tabela de clientes do consultor**: Lista os clientes do consultor selecionado com colunas: Cliente, Tipo UG, Contratado, Faturado, Diferença, % Faturado, Vencimento, Status
+- **Rodapé totalizador**
+- **Botão relatório** (ícone Printer) que abre o `SectionReportDialog` com tipo `"byConsultorDetalhado"`
 
-4) Melhorar UX do Login para sessão já existente
-- Arquivo: `src/pages/LoginPage.tsx`
-- Mudanças:
-  - No mount, se já houver sessão válida, redirecionar para `/`.
-  - Evita usuário autenticado ficar preso visualmente na tela de login em cenários de corrida.
+### 2. `src/components/dashboard/SectionReportDialog.tsx`
 
-Arquivos que serão alterados:
-- `src/hooks/useAuth.ts` (principal)
-- `src/components/ProtectedRoute.tsx`
-- `src/pages/LoginPage.tsx`
+- Adicionar `"byConsultorDetalhado"` ao `SectionReportType`
+- Adicionar título: `byConsultorDetalhado: "Relatório Detalhado — Dashboard por Consultor"`
+- Novo componente `ByConsultorDetalhadoReport`:
+  - Recebe `clients` e `contracts`
+  - Agrupa contratos por consultor, depois por cliente dentro de cada consultor
+  - Para cada consultor: header com nome, subtabela com todos os contratos (Produto, Tipo UG, Contratado, Faturado, Pendência, Vencimento, Status)
+  - Subtotal por consultor
+  - Rodapé totalizador geral
+  - Exportação PDF via `window.print()` (mesmo padrão dos outros relatórios)
 
-Sem mudanças de banco nesta rodada:
-- Não precisa migration agora; dados do usuário testado estão corretos no backend.
+### 3. `src/components/dashboard/Dashboard.tsx`
 
-Validação rápida após implementar:
-1. Abrir `/login`, autenticar com usuário ativo: deve entrar no `/` sem voltar ao login.
-2. Recarregar página já logado: deve permanecer autenticado.
-3. Testar usuário inativo: deve receber mensagem e voltar ao login.
-4. Testar caso sem profile: deve mostrar erro claro (não loop silencioso).
+- Importar `ConsultorDashboard`
+- Inserir `<ConsultorDashboard>` entre `CommercialAnalysis` e `ActionTables`
+- Passar props: `clients`, `contracts: filteredContracts`, callback `onReport={() => setSectionReport("byConsultorDetalhado")}`
 
-Objetivo: eliminar o loop imediatamente e reduzir novas tentativas (economizar seus créditos) com um fluxo de auth robusto e previsível.
+### Detalhes técnicos
+
+- O `ConsultorDashboard` usa `useMemo` para filtrar clientes pelo consultor selecionado
+- A lista de consultores é extraída de `clients` com `new Set`, filtrando vazios
+- O relatório detalhado reutiliza o padrão visual existente (Table, TableFooter, formatCurrency, etc.)
+- A exportação PDF usa o mesmo mecanismo `window.print()` + classe `.print-report` já implementado
+

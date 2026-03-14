@@ -1,6 +1,6 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import type { User } from "@supabase/supabase-js";
+import type { User, Session } from "@supabase/supabase-js";
 
 interface Profile {
   id: string;
@@ -14,90 +14,92 @@ export function useAuth() {
   const [role, setRole] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [profileLoaded, setProfileLoaded] = useState(false);
-  const initialized = useRef(false);
 
-  const fetchProfile = useCallback(async (userId: string) => {
+  const applySession = useCallback(async (session: Session | null, isInitial: boolean) => {
+    const currentUser = session?.user ?? null;
+    setUser(currentUser);
+
+    if (!currentUser) {
+      setProfile(null);
+      setRole(null);
+      setProfileLoaded(true);
+      if (isInitial) setLoading(false);
+      return;
+    }
+
     try {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("profiles")
         .select("id, full_name, is_active")
-        .eq("id", userId)
+        .eq("id", currentUser.id)
         .single();
-      setProfile(data);
+
+      if (error) {
+        console.error("Error fetching profile:", error.message);
+        setProfile(null);
+      } else {
+        setProfile(data);
+      }
     } catch (e) {
-      console.error("Error fetching profile:", e);
+      console.error("Exception fetching profile:", e);
       setProfile(null);
     }
 
     try {
-      const { data: roleData } = await supabase
+      const { data: roleData, error: roleError } = await supabase
         .from("user_roles")
         .select("role")
-        .eq("user_id", userId)
+        .eq("user_id", currentUser.id)
         .maybeSingle();
-      setRole(roleData?.role ?? null);
+
+      if (roleError) {
+        console.error("Error fetching role:", roleError.message);
+        setRole(null);
+      } else {
+        setRole(roleData?.role ?? null);
+      }
     } catch (e) {
-      console.error("Error fetching role:", e);
+      console.error("Exception fetching role:", e);
       setRole(null);
     }
 
     setProfileLoaded(true);
+    if (isInitial) setLoading(false);
   }, []);
 
   useEffect(() => {
-    // 1. Registrar listener
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
-        if (initialized.current) {
-          setUser(session?.user ?? null);
-          if (session?.user) {
-            await fetchProfile(session.user.id);
-          } else {
-            setProfile(null);
-            setRole(null);
-            setProfileLoaded(true);
-          }
-          return;
-        }
-        initialized.current = true;
-        setUser(session?.user ?? null);
-        if (session?.user) {
-          await fetchProfile(session.user.id);
-        } else {
-          setProfile(null);
-          setRole(null);
-          setProfileLoaded(true);
-        }
-        setLoading(false);
-      }
-    );
+    let mounted = true;
 
-    // 2. Fallback: getSession() caso onAuthStateChange não dispare
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      if (!initialized.current) {
-        initialized.current = true;
-        setUser(session?.user ?? null);
-        if (session?.user) {
-          await fetchProfile(session.user.id);
-        } else {
-          setProfile(null);
-          setRole(null);
-          setProfileLoaded(true);
-        }
-        setLoading(false);
+    // 1. Bootstrap with getSession
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (mounted) {
+        applySession(session, true);
       }
     });
 
-    // 3. Timeout de segurança absoluto (5s)
+    // 2. Listen for changes with NON-ASYNC callback to avoid deadlock
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (_event, session) => {
+        // Delegate async work outside the callback
+        setTimeout(() => {
+          if (mounted) {
+            applySession(session, false);
+          }
+        }, 0);
+      }
+    );
+
+    // 3. Safety timeout (10s)
     const timeout = setTimeout(() => {
-      setLoading(false);
-    }, 5000);
+      if (mounted) setLoading(false);
+    }, 10000);
 
     return () => {
+      mounted = false;
       subscription.unsubscribe();
       clearTimeout(timeout);
     };
-  }, [fetchProfile]);
+  }, [applySession]);
 
   const signOut = useCallback(async () => {
     setProfileLoaded(false);
