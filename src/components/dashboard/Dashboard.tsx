@@ -72,6 +72,7 @@ export default function Dashboard() {
   const handleImport = (data: ContractRow[]) => {
     setContracts(data);
     setFilters(defaultFilters);
+    logAction("Importação de planilha", "contracts", undefined, { count: data.length });
   };
 
   const handleResetToMock = () => {
