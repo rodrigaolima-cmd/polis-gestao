@@ -29,6 +29,7 @@ interface ReportConfig {
   contracts: ContractRow[];
 }
 
+// Dashboard component
 export default function Dashboard() {
   const navigate = useNavigate();
   const { contracts, setContracts, dataSource, importToDatabase, resetToMock, loading } = useContracts();
