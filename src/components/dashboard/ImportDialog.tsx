@@ -53,12 +53,13 @@ interface ImportDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onImport: (data: ContractRow[]) => void;
-  onImportToDatabase?: (data: ContractRow[], onProgress?: (stage: string, percent: number) => void) => Promise<void>;
+  onImportToDatabase?: (data: ContractRow[], onProgress?: (stage: string, percent: number) => void) => Promise<{ created: number; failed: number }>;
 }
 
 interface ImportResult {
   total: number;
   skipped: number;
+  failed: number;
 }
 
 export function ImportDialog({ open, onOpenChange, onImport, onImportToDatabase }: ImportDialogProps) {
