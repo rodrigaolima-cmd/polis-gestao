@@ -14,7 +14,135 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      client_modules: {
+        Row: {
+          ativo_no_cliente: boolean | null
+          client_id: string
+          created_at: string
+          data_assinatura: string | null
+          faturado_flag: boolean | null
+          id: string
+          modulo_id: string
+          observacoes: string | null
+          status_contrato: string | null
+          updated_at: string
+          valor_contratado: number | null
+          valor_faturado: number | null
+          vencimento_contrato: string | null
+        }
+        Insert: {
+          ativo_no_cliente?: boolean | null
+          client_id: string
+          created_at?: string
+          data_assinatura?: string | null
+          faturado_flag?: boolean | null
+          id?: string
+          modulo_id: string
+          observacoes?: string | null
+          status_contrato?: string | null
+          updated_at?: string
+          valor_contratado?: number | null
+          valor_faturado?: number | null
+          vencimento_contrato?: string | null
+        }
+        Update: {
+          ativo_no_cliente?: boolean | null
+          client_id?: string
+          created_at?: string
+          data_assinatura?: string | null
+          faturado_flag?: boolean | null
+          id?: string
+          modulo_id?: string
+          observacoes?: string | null
+          status_contrato?: string | null
+          updated_at?: string
+          valor_contratado?: number | null
+          valor_faturado?: number | null
+          vencimento_contrato?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_modules_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_modules_modulo_id_fkey"
+            columns: ["modulo_id"]
+            isOneToOne: false
+            referencedRelation: "modules"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      clients: {
+        Row: {
+          consultor: string | null
+          created_at: string
+          id: string
+          nome_cliente: string
+          observacoes_cliente: string | null
+          regiao: string | null
+          status_cliente: string | null
+          tipo_ug: string | null
+          updated_at: string
+        }
+        Insert: {
+          consultor?: string | null
+          created_at?: string
+          id?: string
+          nome_cliente: string
+          observacoes_cliente?: string | null
+          regiao?: string | null
+          status_cliente?: string | null
+          tipo_ug?: string | null
+          updated_at?: string
+        }
+        Update: {
+          consultor?: string | null
+          created_at?: string
+          id?: string
+          nome_cliente?: string
+          observacoes_cliente?: string | null
+          regiao?: string | null
+          status_cliente?: string | null
+          tipo_ug?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      modules: {
+        Row: {
+          categoria_modulo: string | null
+          created_at: string
+          descricao: string | null
+          id: string
+          nome_modulo: string
+          status_modulo: string | null
+          updated_at: string
+        }
+        Insert: {
+          categoria_modulo?: string | null
+          created_at?: string
+          descricao?: string | null
+          id?: string
+          nome_modulo: string
+          status_modulo?: string | null
+          updated_at?: string
+        }
+        Update: {
+          categoria_modulo?: string | null
+          created_at?: string
+          descricao?: string | null
+          id?: string
+          nome_modulo?: string
+          status_modulo?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
