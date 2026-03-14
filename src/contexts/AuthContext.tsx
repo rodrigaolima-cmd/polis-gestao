@@ -107,8 +107,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     try {
       const [profileData, roleData] = await Promise.all([
-        fetchProfileREST(currentUser.id, accessToken, controller.signal),
-        fetchRoleREST(currentUser.id, accessToken, controller.signal),
+        fetchProfileREST(currentUser.id, token, controller.signal),
+        fetchRoleREST(currentUser.id, token, controller.signal),
       ]);
 
       clearTimeout(timeout);
