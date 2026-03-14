@@ -84,10 +84,7 @@ export function useAuth() {
 
     // 3. Timeout de segurança absoluto (5s)
     const timeout = setTimeout(() => {
-      if (!initialized.current) {
-        initialized.current = true;
-        setLoading(false);
-      }
+      setLoading(false);
     }, 5000);
 
     return () => {
