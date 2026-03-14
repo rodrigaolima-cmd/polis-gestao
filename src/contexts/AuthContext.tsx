@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback, useRef, type ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import type { User, Session } from "@supabase/supabase-js";
+import type { User } from "@supabase/supabase-js";
 
 interface Profile {
   id: string;
@@ -16,10 +16,25 @@ interface AuthState {
   profileLoaded: boolean;
   isAdmin: boolean;
   isActive: boolean;
+  authError: string | null;
   signOut: () => Promise<void>;
+  refreshAuth: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthState | null>(null);
+
+async function fetchProfileWithRetry(userId: string, retries = 2) {
+  for (let i = 0; i <= retries; i++) {
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("id, full_name, is_active")
+      .eq("id", userId)
+      .single();
+    if (!error && data) return { data, error: null };
+    if (i < retries) await new Promise(r => setTimeout(r, 500 * (i + 1)));
+  }
+  return { data: null, error: "Profile fetch failed after retries" };
+}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -27,15 +42,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [role, setRole] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [profileLoaded, setProfileLoaded] = useState(false);
-  
-  // "Last write wins" pattern — avoids stale concurrent fetches
+  const [authError, setAuthError] = useState<string | null>(null);
+
   const requestIdRef = useRef(0);
 
-  const fetchUserData = useCallback(async (currentUser: User | null) => {
+  const applyAuthSession = useCallback(async (currentUser: User | null) => {
     const thisRequest = ++requestIdRef.current;
+    setAuthError(null);
 
     if (!currentUser) {
-      // Only apply if still the latest request
       if (thisRequest === requestIdRef.current) {
         setUser(null);
         setProfile(null);
@@ -46,15 +61,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
 
+    // Set user immediately, mark loading
     setUser(currentUser);
+    setLoading(true);
+    setProfileLoaded(false);
 
     try {
       const [profileResult, roleResult] = await Promise.allSettled([
-        supabase
-          .from("profiles")
-          .select("id, full_name, is_active")
-          .eq("id", currentUser.id)
-          .single(),
+        fetchProfileWithRetry(currentUser.id),
         supabase
           .from("user_roles")
           .select("role")
@@ -62,27 +76,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           .maybeSingle(),
       ]);
 
-      // Abort if a newer request has been issued
       if (thisRequest !== requestIdRef.current) return;
 
-      if (profileResult.status === "fulfilled" && !profileResult.value.error) {
-        setProfile(profileResult.value.data);
+      let profileData: Profile | null = null;
+      let roleData: string | null = null;
+      let error: string | null = null;
+
+      if (profileResult.status === "fulfilled" && profileResult.value.data) {
+        profileData = profileResult.value.data as Profile;
       } else {
-        console.error("Profile fetch failed:", profileResult.status === "fulfilled" ? profileResult.value.error?.message : profileResult.reason);
-        setProfile(null);
+        const reason = profileResult.status === "fulfilled"
+          ? profileResult.value.error
+          : String(profileResult.reason);
+        console.error("Profile fetch failed:", reason);
+        error = "Não foi possível carregar o perfil. Tente novamente.";
       }
 
       if (roleResult.status === "fulfilled" && !roleResult.value.error) {
-        setRole(roleResult.value.data?.role ?? null);
+        roleData = roleResult.value.data?.role ?? null;
       } else {
         console.error("Role fetch failed:", roleResult.status === "fulfilled" ? roleResult.value.error?.message : roleResult.reason);
-        setRole(null);
       }
+
+      setProfile(profileData);
+      setRole(roleData);
+      setAuthError(error);
     } catch (e) {
       if (thisRequest !== requestIdRef.current) return;
       console.error("Exception fetching user data:", e);
       setProfile(null);
       setRole(null);
+      setAuthError("Erro ao carregar dados do usuário.");
     } finally {
       if (thisRequest === requestIdRef.current) {
         setProfileLoaded(true);
@@ -91,30 +115,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const refreshAuth = useCallback(async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    await applyAuthSession(session?.user ?? null);
+  }, [applyAuthSession]);
+
   useEffect(() => {
     let mounted = true;
 
-    // 1. Register listener FIRST (sync callback, delegate async work)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (_event, session) => {
         if (!mounted) return;
-        // Delegate to avoid Supabase internal deadlock
         setTimeout(() => {
-          if (mounted) fetchUserData(session?.user ?? null);
+          if (mounted) applyAuthSession(session?.user ?? null);
         }, 0);
       }
     );
 
-    // 2. Bootstrap with getSession
     supabase.auth.getSession()
       .then(({ data: { session } }) => {
-        if (mounted) fetchUserData(session?.user ?? null);
+        if (mounted) applyAuthSession(session?.user ?? null);
       })
       .catch((err) => {
         console.error("getSession failed:", err);
         if (mounted) {
           setLoading(false);
           setProfileLoaded(true);
+          setAuthError("Falha ao inicializar sessão.");
         }
       });
 
@@ -122,14 +149,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       mounted = false;
       subscription.unsubscribe();
     };
-  }, [fetchUserData]);
+  }, [applyAuthSession]);
 
   const handleSignOut = useCallback(async () => {
-    requestIdRef.current++; // Invalidate any in-flight fetches
+    requestIdRef.current++;
     setUser(null);
     setProfile(null);
     setRole(null);
     setProfileLoaded(false);
+    setAuthError(null);
     await supabase.auth.signOut();
   }, []);
 
@@ -138,7 +166,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   return (
     <AuthContext.Provider
-      value={{ user, profile, role, loading, profileLoaded, isAdmin, isActive, signOut: handleSignOut }}
+      value={{ user, profile, role, loading, profileLoaded, isAdmin, isActive, authError, signOut: handleSignOut, refreshAuth }}
     >
       {children}
     </AuthContext.Provider>

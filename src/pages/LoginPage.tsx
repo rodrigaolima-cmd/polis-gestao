@@ -31,11 +31,12 @@ export default function LoginPage() {
   const handleLogin = async () => {
     setSubmitting(true);
     const { error } = await supabase.auth.signInWithPassword({ email, password });
-    setSubmitting(false);
     if (error) {
       toast.error(error.message);
+      setSubmitting(false);
     }
-    // Navigation will happen via the useEffect above when AuthContext updates
+    // Keep submitting=true until the auth context redirects us via the useEffect above.
+    // This prevents double-clicks and shows the user that login is in progress.
   };
 
   const handleForgotPassword = async () => {
