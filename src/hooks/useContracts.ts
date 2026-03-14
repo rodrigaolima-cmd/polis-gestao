@@ -207,7 +207,7 @@ export function useContracts() {
             observacoes: row.observations || "",
           };
         })
-        .filter(Boolean) as Record<string, unknown>[];
+        .filter((x): x is NonNullable<typeof x> => x !== null);
 
       const batchSize = 100;
       let created = 0;
