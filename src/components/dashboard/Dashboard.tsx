@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react";
-import { mockContracts } from "@/data/mockContracts";
+import { useNavigate } from "react-router-dom";
 import { ContractRow, DashboardFilters } from "@/types/contract";
+import { useContracts } from "@/hooks/useContracts";
 import { ChartReportDialog } from "@/components/dashboard/ChartReportDialog";
 import { SectionReportDialog, SectionReportType } from "@/components/dashboard/SectionReportDialog";
 import {
