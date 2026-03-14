@@ -55,6 +55,7 @@ export function useAuth() {
           } else {
             setProfile(null);
             setRole(null);
+            setProfileLoaded(true);
           }
           return;
         }
