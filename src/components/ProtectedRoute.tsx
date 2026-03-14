@@ -1,8 +1,17 @@
 import { Navigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
+import { useEffect } from "react";
+import { toast } from "sonner";
 
-export function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { user, loading } = useAuth();
+export function ProtectedRoute({ children, requireAdmin = false }: { children: React.ReactNode; requireAdmin?: boolean }) {
+  const { user, loading, isActive, isAdmin, signOut } = useAuth();
+
+  useEffect(() => {
+    if (!loading && user && !isActive) {
+      toast.error("Conta inativa. Contate o administrador.");
+      signOut();
+    }
+  }, [loading, user, isActive, signOut]);
 
   if (loading) {
     return (
@@ -12,8 +21,12 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
     );
   }
 
-  if (!user) {
+  if (!user || !isActive) {
     return <Navigate to="/login" replace />;
+  }
+
+  if (requireAdmin && !isAdmin) {
+    return <Navigate to="/" replace />;
   }
 
   return <>{children}</>;

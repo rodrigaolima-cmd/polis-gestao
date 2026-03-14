@@ -6,47 +6,42 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
-import { LogIn, UserPlus, KeyRound } from "lucide-react";
+import { LogIn, KeyRound } from "lucide-react";
 
-type Mode = "login" | "signup" | "forgot";
+type Mode = "login" | "forgot";
 
 export default function LoginPage() {
   const navigate = useNavigate();
   const [mode, setMode] = useState<Mode>("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [fullName, setFullName] = useState("");
   const [loading, setLoading] = useState(false);
 
   const handleLogin = async () => {
     setLoading(true);
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    setLoading(false);
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) {
+      setLoading(false);
       toast.error(error.message);
-    } else {
-      navigate("/", { replace: true });
-    }
-  };
-
-  const handleSignup = async () => {
-    if (!fullName.trim()) {
-      toast.error("Informe seu nome completo");
       return;
     }
-    setLoading(true);
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: { data: { full_name: fullName } },
-    });
-    setLoading(false);
-    if (error) {
-      toast.error(error.message);
-    } else {
-      toast.success("Cadastro realizado! Verifique seu e-mail para confirmar a conta.");
-      setMode("login");
+
+    // Check if user is active
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("is_active")
+      .eq("id", data.user.id)
+      .single();
+
+    if (!profile?.is_active) {
+      await supabase.auth.signOut();
+      setLoading(false);
+      toast.error("Conta inativa. Contate o administrador.");
+      return;
     }
+
+    setLoading(false);
+    navigate("/", { replace: true });
   };
 
   const handleForgotPassword = async () => {
@@ -70,19 +65,16 @@ export default function LoginPage() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (mode === "login") handleLogin();
-    else if (mode === "signup") handleSignup();
     else handleForgotPassword();
   };
 
   const titles: Record<Mode, string> = {
     login: "Entrar",
-    signup: "Criar Conta",
     forgot: "Recuperar Senha",
   };
 
   const descriptions: Record<Mode, string> = {
     login: "Acesse o painel de gestão de contratos",
-    signup: "Preencha os dados para criar sua conta",
     forgot: "Informe seu e-mail para redefinir a senha",
   };
 
@@ -95,18 +87,6 @@ export default function LoginPage() {
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
-            {mode === "signup" && (
-              <div className="space-y-2">
-                <Label htmlFor="fullName">Nome Completo</Label>
-                <Input
-                  id="fullName"
-                  value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
-                  placeholder="Seu nome"
-                  required
-                />
-              </div>
-            )}
             <div className="space-y-2">
               <Label htmlFor="email">E-mail</Label>
               <Input
@@ -118,7 +98,7 @@ export default function LoginPage() {
                 required
               />
             </div>
-            {mode !== "forgot" && (
+            {mode === "login" && (
               <div className="space-y-2">
                 <Label htmlFor="password">Senha</Label>
                 <Input
@@ -137,8 +117,6 @@ export default function LoginPage() {
                 <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary-foreground" />
               ) : mode === "login" ? (
                 <LogIn className="h-4 w-4" />
-              ) : mode === "signup" ? (
-                <UserPlus className="h-4 w-4" />
               ) : (
                 <KeyRound className="h-4 w-4" />
               )}
@@ -147,28 +125,15 @@ export default function LoginPage() {
           </form>
 
           <div className="mt-4 text-center text-sm space-y-2">
-            {mode === "login" && (
-              <>
-                <button
-                  type="button"
-                  onClick={() => setMode("forgot")}
-                  className="text-muted-foreground hover:text-primary transition-colors"
-                >
-                  Esqueci minha senha
-                </button>
-                <div>
-                  <span className="text-muted-foreground">Não tem conta? </span>
-                  <button
-                    type="button"
-                    onClick={() => setMode("signup")}
-                    className="text-primary hover:underline font-medium"
-                  >
-                    Cadastre-se
-                  </button>
-                </div>
-              </>
-            )}
-            {mode !== "login" && (
+            {mode === "login" ? (
+              <button
+                type="button"
+                onClick={() => setMode("forgot")}
+                className="text-muted-foreground hover:text-primary transition-colors"
+              >
+                Esqueci minha senha
+              </button>
+            ) : (
               <button
                 type="button"
                 onClick={() => setMode("login")}

@@ -34,7 +34,7 @@ interface ReportConfig {
 // Dashboard component
 export default function Dashboard() {
   const navigate = useNavigate();
-  const { profile, signOut } = useAuth();
+  const { profile, signOut, isAdmin } = useAuth();
   const { logAction } = useAuditLog();
   const { contracts, setContracts, dataSource, importToDatabase, resetToMock, loading } = useContracts();
   const [filters, setFilters] = useState<DashboardFilters>(defaultFilters);
