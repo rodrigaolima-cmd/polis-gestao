@@ -1,41 +1,65 @@
 
 
-## Plano: Dashboard por Consultor com Relatório Detalhado e Exportação PDF
+# Fix: fetchProfile error causes infinite spinner
 
-### 1. Novo componente `src/components/dashboard/ConsultorDashboard.tsx`
+## Root Cause
 
-Seção dedicada inserida no Dashboard principal (após CommercialAnalysis), com:
+In `useAuth.ts`, the initialization sets `initialized.current = true` **before** calling `await fetchProfile()`. If `fetchProfile` throws (network error, RLS error, etc.), execution stops before reaching `setLoading(false)`. The safety timeout can't help either because it checks `!initialized.current`, which is already `true`.
 
-- **Header**: Título "Dashboard por Consultor" com ícone `UserCheck`
-- **Seletor de consultor**: Dropdown `<Select>` listando todos os consultores disponíveis nos `clients`
-- **KPIs do consultor selecionado** (grid 4 colunas):
-  - Total Contratado, Total Faturado, Pendência (Dinheiro na Mesa), Nº Clientes
-- **Tabela de clientes do consultor**: Lista os clientes do consultor selecionado com colunas: Cliente, Tipo UG, Contratado, Faturado, Diferença, % Faturado, Vencimento, Status
-- **Rodapé totalizador**
-- **Botão relatório** (ícone Printer) que abre o `SectionReportDialog` com tipo `"byConsultorDetalhado"`
+```text
+initialized.current = true   ← set here
+await fetchProfile(...)       ← if this throws...
+setLoading(false)             ← ...this never runs
 
-### 2. `src/components/dashboard/SectionReportDialog.tsx`
+timeout checks !initialized.current → false → does nothing
+```
 
-- Adicionar `"byConsultorDetalhado"` ao `SectionReportType`
-- Adicionar título: `byConsultorDetalhado: "Relatório Detalhado — Dashboard por Consultor"`
-- Novo componente `ByConsultorDetalhadoReport`:
-  - Recebe `clients` e `contracts`
-  - Agrupa contratos por consultor, depois por cliente dentro de cada consultor
-  - Para cada consultor: header com nome, subtabela com todos os contratos (Produto, Tipo UG, Contratado, Faturado, Pendência, Vencimento, Status)
-  - Subtotal por consultor
-  - Rodapé totalizador geral
-  - Exportação PDF via `window.print()` (mesmo padrão dos outros relatórios)
+## Solution
 
-### 3. `src/components/dashboard/Dashboard.tsx`
+Wrap `fetchProfile` calls in try/catch so `setLoading(false)` **always** executes regardless of errors.
 
-- Importar `ConsultorDashboard`
-- Inserir `<ConsultorDashboard>` entre `CommercialAnalysis` e `ActionTables`
-- Passar props: `clients`, `contracts: filteredContracts`, callback `onReport={() => setSectionReport("byConsultorDetalhado")}`
+### `src/hooks/useAuth.ts`
 
-### Detalhes técnicos
+Refactor the `fetchProfile` function itself to be error-safe (catch internally), so callers don't need try/catch:
 
-- O `ConsultorDashboard` usa `useMemo` para filtrar clientes pelo consultor selecionado
-- A lista de consultores é extraída de `clients` com `new Set`, filtrando vazios
-- O relatório detalhado reutiliza o padrão visual existente (Table, TableFooter, formatCurrency, etc.)
-- A exportação PDF usa o mesmo mecanismo `window.print()` + classe `.print-report` já implementado
+```typescript
+const fetchProfile = useCallback(async (userId: string) => {
+  try {
+    const { data } = await supabase
+      .from("profiles")
+      .select("id, full_name, is_active")
+      .eq("id", userId)
+      .single();
+    setProfile(data);
+  } catch (e) {
+    console.error("Error fetching profile:", e);
+    setProfile(null);
+  }
+
+  try {
+    const { data: roleData } = await supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", userId)
+      .maybeSingle();
+    setRole(roleData?.role ?? null);
+  } catch (e) {
+    console.error("Error fetching role:", e);
+    setRole(null);
+  }
+}, []);
+```
+
+Additionally, add a **secondary safety net** in the timeout: change it to check `loading` state instead of just `initialized.current`, so even if initialization ran but `setLoading` was somehow skipped, the timeout still clears it.
+
+```typescript
+const timeout = setTimeout(() => {
+  // Force loading=false regardless — absolute safety net
+  setLoading(false);
+}, 5000);
+```
+
+| Action | File |
+|--------|------|
+| Modify | `src/hooks/useAuth.ts` |
 
