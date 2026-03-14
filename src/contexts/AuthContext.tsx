@@ -80,7 +80,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const requestIdRef = useRef(0);
 
-  const hydrateUser = useCallback(async (currentUser: User | null, accessToken: string | null) => {
+  const hydrateUser = useCallback(async (currentUser: User | null, token: string | null) => {
     const thisRequest = ++requestIdRef.current;
     console.log("[Auth] hydrateUser requestId:", thisRequest, "user:", currentUser?.id ?? "null");
     setAuthError(null);
