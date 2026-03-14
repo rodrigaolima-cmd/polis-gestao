@@ -161,42 +161,36 @@ export function useContracts() {
         }
       }
 
-      // 4. Upsert client_modules
+      // 4. Clear existing client_modules and insert all rows fresh
+      await supabase.from("client_modules").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+
+      // Insert in batches of 100
+      const payloads = rows
+        .map((row) => {
+          const clientId = clientMap.get(row.clientName.trim().toLowerCase());
+          const moduleId = moduleMap.get(row.product.trim().toLowerCase());
+          if (!clientId || !moduleId) return null;
+          return {
+            client_id: clientId,
+            modulo_id: moduleId,
+            valor_contratado: row.contractedValue,
+            valor_faturado: row.billedValue,
+            data_assinatura: row.signatureDate || null,
+            vencimento_contrato: row.expirationDate || null,
+            faturado_flag: row.billed,
+            status_contrato: row.contractStatus || "Ativo",
+            observacoes: row.observations || "",
+          };
+        })
+        .filter(Boolean);
+
+      const batchSize = 100;
       let created = 0;
-      let updated = 0;
-
-      for (const row of rows) {
-        const clientId = clientMap.get(row.clientName.trim().toLowerCase());
-        const moduleId = moduleMap.get(row.product.trim().toLowerCase());
-        if (!clientId || !moduleId) continue;
-
-        const payload = {
-          client_id: clientId,
-          modulo_id: moduleId,
-          valor_contratado: row.contractedValue,
-          valor_faturado: row.billedValue,
-          data_assinatura: row.signatureDate || null,
-          vencimento_contrato: row.expirationDate || null,
-          faturado_flag: row.billed,
-          status_contrato: row.contractStatus || "Ativo",
-          observacoes: row.observations || "",
-        };
-
-        // Check if exists
-        const { data: existing } = await supabase
-          .from("client_modules")
-          .select("id")
-          .eq("client_id", clientId)
-          .eq("modulo_id", moduleId)
-          .limit(1);
-
-        if (existing && existing.length > 0) {
-          await supabase.from("client_modules").update(payload).eq("id", existing[0].id);
-          updated++;
-        } else {
-          await supabase.from("client_modules").insert(payload);
-          created++;
-        }
+      for (let i = 0; i < payloads.length; i += batchSize) {
+        const batch = payloads.slice(i, i + batchSize);
+        const { error: insertError } = await supabase.from("client_modules").insert(batch);
+        if (insertError) throw insertError;
+        created += batch.length;
       }
 
       toast.success(`Importação concluída: ${created} criados, ${updated} atualizados`);
