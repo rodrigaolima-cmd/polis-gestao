@@ -217,12 +217,12 @@ export function useContracts() {
         const batchNum = Math.floor(i / batchSize) + 1;
         onProgress?.(`Inserindo contratos... lote ${batchNum}/${totalBatches}`, 55 + Math.round((batchNum / totalBatches) * 40));
         const batch = payloads.slice(i, i + batchSize);
-        const { error: insertError } = await supabase.from("client_modules").insert(batch);
+        const { error: insertError } = await supabase.from("client_modules").insert(batch as any);
         if (insertError) {
           console.warn(`Batch ${batchNum} failed, inserting individually...`, insertError);
           // Fallback: insert one by one
           for (const record of batch) {
-            const { error: singleError } = await supabase.from("client_modules").insert(record);
+            const { error: singleError } = await supabase.from("client_modules").insert(record as any);
             if (singleError) {
               console.warn("Record failed:", singleError, record);
               failed++;
