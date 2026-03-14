@@ -1,41 +1,68 @@
 
 
-## Plano: Dashboard por Consultor com Relatório Detalhado e Exportação PDF
+# Fix: Spinner infinito — profile null mantém ProtectedRoute travado
 
-### 1. Novo componente `src/components/dashboard/ConsultorDashboard.tsx`
+## Diagnóstico
 
-Seção dedicada inserida no Dashboard principal (após CommercialAnalysis), com:
+Identifiquei a causa raiz real. O problema **não é** o `fetchProfile` falhando — o banco confirma que o usuário `rodrigo.lima@polisgestao.com.br` tem perfil ativo e role admin. O problema está na lógica do `ProtectedRoute`:
 
-- **Header**: Título "Dashboard por Consultor" com ícone `UserCheck`
-- **Seletor de consultor**: Dropdown `<Select>` listando todos os consultores disponíveis nos `clients`
-- **KPIs do consultor selecionado** (grid 4 colunas):
-  - Total Contratado, Total Faturado, Pendência (Dinheiro na Mesa), Nº Clientes
-- **Tabela de clientes do consultor**: Lista os clientes do consultor selecionado com colunas: Cliente, Tipo UG, Contratado, Faturado, Diferença, % Faturado, Vencimento, Status
-- **Rodapé totalizador**
-- **Botão relatório** (ícone Printer) que abre o `SectionReportDialog` com tipo `"byConsultorDetalhado"`
+```text
+Fluxo atual:
+1. Timeout 5s dispara → setLoading(false)
+2. Mas se onAuthStateChange/getSession ainda não resolveu,
+   user pode estar null e profile null
+3. loading=false, user=null → redireciona para /login ✓ (funciona)
 
-### 2. `src/components/dashboard/SectionReportDialog.tsx`
+MAS se o user TEM sessão válida:
+1. onAuthStateChange dispara → initialized=true, fetchProfile inicia
+2. fetchProfile usa supabase.from().select() — NÃO lança exceção em erro
+3. Se retorna { data: null, error: {...} }, setProfile(null) é chamado
+4. setLoading(false)
+5. ProtectedRoute vê: loading=false, user=truthy, profile=null
+6. Condição: user && !profile → TRUE → spinner infinito!
+```
 
-- Adicionar `"byConsultorDetalhado"` ao `SectionReportType`
-- Adicionar título: `byConsultorDetalhado: "Relatório Detalhado — Dashboard por Consultor"`
-- Novo componente `ByConsultorDetalhadoReport`:
-  - Recebe `clients` e `contracts`
-  - Agrupa contratos por consultor, depois por cliente dentro de cada consultor
-  - Para cada consultor: header com nome, subtabela com todos os contratos (Produto, Tipo UG, Contratado, Faturado, Pendência, Vencimento, Status)
-  - Subtotal por consultor
-  - Rodapé totalizador geral
-  - Exportação PDF via `window.print()` (mesmo padrão dos outros relatórios)
+O `try/catch` no `fetchProfile` não captura erros do Supabase JS client porque eles são retornados como `{ error }` no objeto de resposta, não como exceções thrown. Então `data` pode ser `null` sem nenhuma exceção.
 
-### 3. `src/components/dashboard/Dashboard.tsx`
+A condição `user && !profile` no ProtectedRoute foi adicionada como "espere o perfil carregar", mas quando o perfil **falha** ao carregar, vira um deadlock.
 
-- Importar `ConsultorDashboard`
-- Inserir `<ConsultorDashboard>` entre `CommercialAnalysis` e `ActionTables`
-- Passar props: `clients`, `contracts: filteredContracts`, callback `onReport={() => setSectionReport("byConsultorDetalhado")}`
+## Solução
 
-### Detalhes técnicos
+Duas mudanças simples:
 
-- O `ConsultorDashboard` usa `useMemo` para filtrar clientes pelo consultor selecionado
-- A lista de consultores é extraída de `clients` com `new Set`, filtrando vazios
-- O relatório detalhado reutiliza o padrão visual existente (Table, TableFooter, formatCurrency, etc.)
-- A exportação PDF usa o mesmo mecanismo `window.print()` + classe `.print-report` já implementado
+### 1. `src/hooks/useAuth.ts`
+Adicionar um estado `profileLoaded` (boolean) que fica `true` após `fetchProfile` completar, independente de sucesso ou falha. Isso diferencia "perfil ainda não buscado" de "perfil buscado mas não encontrado".
+
+```typescript
+const [profileLoaded, setProfileLoaded] = useState(false);
+
+const fetchProfile = useCallback(async (userId: string) => {
+  // ... existing try/catch logic ...
+  setProfileLoaded(true);  // sempre executa no final
+}, []);
+```
+
+Resetar `profileLoaded` no signOut e quando user fica null.
+
+Retornar `profileLoaded` no hook.
+
+### 2. `src/components/ProtectedRoute.tsx`
+Usar `profileLoaded` em vez de checar `profile !== null`:
+
+```typescript
+const { user, profile, loading, isActive, isAdmin, signOut, profileLoaded } = useAuth();
+
+// Antes: loading || (user && !profile) — deadlock quando profile falha
+// Depois: loading || (user && !profileLoaded) — resolve quando fetch completa
+if (loading || (user && !profileLoaded)) {
+  return <spinner />;
+}
+```
+
+## Arquivos
+
+| Ação | Arquivo |
+|------|---------|
+| Modificar | `src/hooks/useAuth.ts` |
+| Modificar | `src/components/ProtectedRoute.tsx` |
 
