@@ -1,41 +1,48 @@
 
+Objetivo: parar o travamento no login (spinner infinito) e eliminar o retorno para /login após autenticação bem-sucedida.
 
-## Plano: Dashboard por Consultor com Relatório Detalhado e Exportação PDF
+Diagnóstico (com base no replay + logs + rede):
+- O login (`/auth/v1/token`) retorna 200 com token válido.
+- O `AuthContext` entra em `applyAuthSession` (log visto), mas não conclui o fluxo.
+- Não há chamadas de rede para `profiles`/`user_roles` após o login.
+- Do I know what the issue is? Sim: o bootstrap de sessão está ficando preso em chamadas do client durante a hidratação de perfil/role (comportamento compatível com travamento intermitente do client auth lock), então `profileLoaded` não fecha e o fluxo não finaliza.
 
-### 1. Novo componente `src/components/dashboard/ConsultorDashboard.tsx`
+Plano de implementação (cirúrgico):
 
-Seção dedicada inserida no Dashboard principal (após CommercialAnalysis), com:
+1) Tornar o pós-login independente de `getSession()` pendente
+- Arquivo: `src/pages/LoginPage.tsx`
+- Trocar o fluxo para usar o `data.session` retornado por `signInWithPassword` imediatamente.
+- Chamar um novo método do contexto (ex.: `hydrateFromSession(session)`) em vez de depender de `refreshAuth()` após login.
+- Colocar `setSubmitting(false)` em `finally` para nunca deixar botão preso.
 
-- **Header**: Título "Dashboard por Consultor" com ícone `UserCheck`
-- **Seletor de consultor**: Dropdown `<Select>` listando todos os consultores disponíveis nos `clients`
-- **KPIs do consultor selecionado** (grid 4 colunas):
-  - Total Contratado, Total Faturado, Pendência (Dinheiro na Mesa), Nº Clientes
-- **Tabela de clientes do consultor**: Lista os clientes do consultor selecionado com colunas: Cliente, Tipo UG, Contratado, Faturado, Diferença, % Faturado, Vencimento, Status
-- **Rodapé totalizador**
-- **Botão relatório** (ícone Printer) que abre o `SectionReportDialog` com tipo `"byConsultorDetalhado"`
+2) Hidratação de perfil/role sem depender de `supabase.from(...)` no bootstrap crítico
+- Arquivo: `src/contexts/AuthContext.tsx`
+- Criar função de leitura de perfil/role via `fetch` REST com `Authorization: Bearer <access_token>` + `apikey`, usando:
+  - `/rest/v1/profiles?...`
+  - `/rest/v1/user_roles?...`
+- Usar `AbortController` + timeout (ex.: 6–8s) para impedir await infinito.
+- Manter `requestId` (“última atualização vence”) para evitar sobrescrita por resposta antiga.
+- Garantir finalização de estado em todos os caminhos (`loading=false`, `profileLoaded=true`), inclusive timeout/erro.
 
-### 2. `src/components/dashboard/SectionReportDialog.tsx`
+3) Preservar fallback de recuperação sem loop
+- Arquivo: `src/components/ProtectedRoute.tsx`
+- Manter comportamento atual de erro claro quando `user` existe e `profile` falha.
+- Ajustar `refreshAuth` para também usar timeout/finalização garantida (sem spinner eterno).
+- Nunca redirecionar silenciosamente para `/login` em erro de hidratação.
 
-- Adicionar `"byConsultorDetalhado"` ao `SectionReportType`
-- Adicionar título: `byConsultorDetalhado: "Relatório Detalhado — Dashboard por Consultor"`
-- Novo componente `ByConsultorDetalhadoReport`:
-  - Recebe `clients` e `contracts`
-  - Agrupa contratos por consultor, depois por cliente dentro de cada consultor
-  - Para cada consultor: header com nome, subtabela com todos os contratos (Produto, Tipo UG, Contratado, Faturado, Pendência, Vencimento, Status)
-  - Subtotal por consultor
-  - Rodapé totalizador geral
-  - Exportação PDF via `window.print()` (mesmo padrão dos outros relatórios)
+4) Ajuste de contrato do hook/contexto
+- Arquivo: `src/hooks/useAuth.ts` (se necessário por tipagem exposta)
+- Expor o novo método `hydrateFromSession` e manter `refreshAuth` para retry manual.
 
-### 3. `src/components/dashboard/Dashboard.tsx`
+Arquivos previstos:
+- `src/contexts/AuthContext.tsx`
+- `src/pages/LoginPage.tsx`
+- `src/components/ProtectedRoute.tsx` (ajuste pequeno)
+- `src/hooks/useAuth.ts` (tipos/export)
 
-- Importar `ConsultorDashboard`
-- Inserir `<ConsultorDashboard>` entre `CommercialAnalysis` e `ActionTables`
-- Passar props: `clients`, `contracts: filteredContracts`, callback `onReport={() => setSectionReport("byConsultorDetalhado")}`
-
-### Detalhes técnicos
-
-- O `ConsultorDashboard` usa `useMemo` para filtrar clientes pelo consultor selecionado
-- A lista de consultores é extraída de `clients` com `new Set`, filtrando vazios
-- O relatório detalhado reutiliza o padrão visual existente (Table, TableFooter, formatCurrency, etc.)
-- A exportação PDF usa o mesmo mecanismo `window.print()` + classe `.print-report` já implementado
-
+Validação pós-fix:
+1. Login em Preview: entra no `/` sem spinner infinito.
+2. Login no Published: mesmo comportamento (sem bounce para `/login`).
+3. Recarregar já logado: sessão continua e perfil carrega.
+4. Em falha de perfil, mostrar tela de erro com “Tentar novamente”/“Sair” (sem loop).
+5. Verificar no Network que `profiles` e `user_roles` são chamados após login.
