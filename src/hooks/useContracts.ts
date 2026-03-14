@@ -138,9 +138,13 @@ export function useContracts() {
       }
 
       // 3. Find or create modules
-      const moduleMap = new Map<string, string>(); // name -> id
+      const moduleMap = new Map<string, string>();
+      let modIdx = 0;
+      const totalMods = uniqueModules.size;
 
       for (const moduleName of uniqueModules) {
+        modIdx++;
+        onProgress?.(`Processando módulos... ${modIdx}/${totalMods}`, 30 + Math.round((modIdx / totalMods) * 20));
         const { data: existing } = await supabase
           .from("modules")
           .select("id")
