@@ -143,8 +143,8 @@ function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise
 }
 
 export function useContracts() {
-  const [contracts, setContracts] = useState<ContractRow[]>(mockContracts);
-  const [loading, setLoading] = useState(false);
+  const [contracts, setContracts] = useState<ContractRow[]>([]);
+  const [loading, setLoading] = useState(true);
   const [dataSource, setDataSource] = useState<"mock" | "database">("mock");
   const { accessToken } = useAuth();
 

@@ -160,6 +160,14 @@ export default function Dashboard() {
         </div>
       </header>
 
+      {loading && contracts.length === 0 ? (
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <div className="text-center space-y-4">
+            <div className="h-8 w-8 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto" />
+            <p className="text-sm text-muted-foreground">Carregando dados...</p>
+          </div>
+        </div>
+      ) : (
       <main className="max-w-[1600px] mx-auto px-6 py-6 space-y-6">
         <FiltersBar
           filters={filters}
@@ -217,6 +225,7 @@ export default function Dashboard() {
           onCriticalReport={() => setSectionReport("critical")}
         />
       </main>
+      )}
 
       <ImportDialog open={importOpen} onOpenChange={setImportOpen} onImport={handleImport} onImportToDatabase={importToDatabase} />
       <ChartReportDialog

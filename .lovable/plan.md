@@ -1,22 +1,41 @@
 
 
-## Problema
+## Plano: Dashboard por Consultor com Relatório Detalhado e Exportação PDF
 
-O estado inicial de `useContracts` é `useState<ContractRow[]>(mockContracts)` — dados de teste. Quando o usuário navega para o dashboard, esses dados mock aparecem por um instante antes da query ao banco retornar os dados reais.
+### 1. Novo componente `src/components/dashboard/ConsultorDashboard.tsx`
 
-## Solução
+Seção dedicada inserida no Dashboard principal (após CommercialAnalysis), com:
 
-Inicializar o hook com array vazio e `loading=true`, e mostrar um skeleton/loading no dashboard enquanto os dados reais carregam. Assim, nunca se vê dados antigos.
+- **Header**: Título "Dashboard por Consultor" com ícone `UserCheck`
+- **Seletor de consultor**: Dropdown `<Select>` listando todos os consultores disponíveis nos `clients`
+- **KPIs do consultor selecionado** (grid 4 colunas):
+  - Total Contratado, Total Faturado, Pendência (Dinheiro na Mesa), Nº Clientes
+- **Tabela de clientes do consultor**: Lista os clientes do consultor selecionado com colunas: Cliente, Tipo UG, Contratado, Faturado, Diferença, % Faturado, Vencimento, Status
+- **Rodapé totalizador**
+- **Botão relatório** (ícone Printer) que abre o `SectionReportDialog` com tipo `"byConsultorDetalhado"`
 
-### Alterações:
+### 2. `src/components/dashboard/SectionReportDialog.tsx`
 
-**1. `src/hooks/useContracts.ts`**
-- Trocar `useState<ContractRow[]>(mockContracts)` por `useState<ContractRow[]>([])`.
-- Trocar `useState(false)` do loading por `useState(true)` (já começa carregando).
-- No fallback de erro em `loadFromDatabase`, manter `mockContracts` como fallback mas só se o banco não tiver dados.
+- Adicionar `"byConsultorDetalhado"` ao `SectionReportType`
+- Adicionar título: `byConsultorDetalhado: "Relatório Detalhado — Dashboard por Consultor"`
+- Novo componente `ByConsultorDetalhadoReport`:
+  - Recebe `clients` e `contracts`
+  - Agrupa contratos por consultor, depois por cliente dentro de cada consultor
+  - Para cada consultor: header com nome, subtabela com todos os contratos (Produto, Tipo UG, Contratado, Faturado, Pendência, Vencimento, Status)
+  - Subtotal por consultor
+  - Rodapé totalizador geral
+  - Exportação PDF via `window.print()` (mesmo padrão dos outros relatórios)
 
-**2. `src/components/dashboard/Dashboard.tsx`**
-- Mostrar um estado de carregamento (spinner ou skeleton) enquanto `loading === true` e `contracts.length === 0`, em vez de renderizar KPIs e gráficos com dados vazios/mock.
+### 3. `src/components/dashboard/Dashboard.tsx`
 
-Isso elimina o flash de dados antigos em qualquer navegação.
+- Importar `ConsultorDashboard`
+- Inserir `<ConsultorDashboard>` entre `CommercialAnalysis` e `ActionTables`
+- Passar props: `clients`, `contracts: filteredContracts`, callback `onReport={() => setSectionReport("byConsultorDetalhado")}`
+
+### Detalhes técnicos
+
+- O `ConsultorDashboard` usa `useMemo` para filtrar clientes pelo consultor selecionado
+- A lista de consultores é extraída de `clients` com `new Set`, filtrando vazios
+- O relatório detalhado reutiliza o padrão visual existente (Table, TableFooter, formatCurrency, etc.)
+- A exportação PDF usa o mesmo mecanismo `window.print()` + classe `.print-report` já implementado
 
