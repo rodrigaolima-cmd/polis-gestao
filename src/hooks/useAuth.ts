@@ -32,30 +32,18 @@ export function useAuth() {
   }, []);
 
   useEffect(() => {
-    // Initial load via getSession
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      if (initialized.current) return;
-      initialized.current = true;
-
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        await fetchProfile(session.user.id);
-      }
-      setLoading(false);
-    });
-
-    // Subsequent auth events only
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        // Skip initial session event — handled above
-        if (!initialized.current) return;
-
+      async (_event, session) => {
         setUser(session?.user ?? null);
         if (session?.user) {
           await fetchProfile(session.user.id);
         } else {
           setProfile(null);
           setRole(null);
+        }
+        if (!initialized.current) {
+          initialized.current = true;
+          setLoading(false);
         }
       }
     );
