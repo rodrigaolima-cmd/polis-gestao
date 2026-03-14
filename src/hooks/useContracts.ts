@@ -89,7 +89,10 @@ export function useContracts() {
     loadFromDatabase();
   }, [loadFromDatabase]);
 
-  const importToDatabase = useCallback(async (rows: ContractRow[]) => {
+  const importToDatabase = useCallback(async (
+    rows: ContractRow[],
+    onProgress?: (stage: string, percent: number) => void
+  ) => {
     setLoading(true);
     try {
       // 1. Collect unique clients and modules
@@ -103,9 +106,13 @@ export function useContracts() {
       });
 
       // 2. Find or create clients
-      const clientMap = new Map<string, string>(); // name_lower -> id
+      const clientMap = new Map<string, string>();
+      let clientIdx = 0;
+      const totalClients = uniqueClients.size;
 
       for (const [key, row] of uniqueClients) {
+        clientIdx++;
+        onProgress?.(`Processando clientes... ${clientIdx}/${totalClients}`, Math.round((clientIdx / totalClients) * 30));
         const { data: existing } = await supabase
           .from("clients")
           .select("id")
@@ -138,9 +145,13 @@ export function useContracts() {
       }
 
       // 3. Find or create modules
-      const moduleMap = new Map<string, string>(); // name -> id
+      const moduleMap = new Map<string, string>();
+      let modIdx = 0;
+      const totalMods = uniqueModules.size;
 
       for (const moduleName of uniqueModules) {
+        modIdx++;
+        onProgress?.(`Processando módulos... ${modIdx}/${totalMods}`, 30 + Math.round((modIdx / totalMods) * 20));
         const { data: existing } = await supabase
           .from("modules")
           .select("id")
@@ -162,6 +173,7 @@ export function useContracts() {
       }
 
       // 4. Clear existing client_modules and insert all rows fresh
+      onProgress?.("Limpando dados anteriores...", 52);
       await supabase.from("client_modules").delete().neq("id", "00000000-0000-0000-0000-000000000000");
 
       // Insert in batches of 100
@@ -186,13 +198,17 @@ export function useContracts() {
 
       const batchSize = 100;
       let created = 0;
+      const totalBatches = Math.ceil(payloads.length / batchSize);
       for (let i = 0; i < payloads.length; i += batchSize) {
+        const batchNum = Math.floor(i / batchSize) + 1;
+        onProgress?.(`Inserindo contratos... lote ${batchNum}/${totalBatches}`, 55 + Math.round((batchNum / totalBatches) * 40));
         const batch = payloads.slice(i, i + batchSize);
         const { error: insertError } = await supabase.from("client_modules").insert(batch);
         if (insertError) throw insertError;
         created += batch.length;
       }
 
+      onProgress?.("Finalizando...", 98);
       toast.success(`Importação concluída: ${created} registros importados`);
       await loadFromDatabase();
     } catch (err) {

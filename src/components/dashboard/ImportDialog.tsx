@@ -3,10 +3,11 @@ import * as XLSX from "xlsx";
 import { z } from "zod";
 import { ContractRow } from "@/types/contract";
 import { Button } from "@/components/ui/button";
+import { Progress } from "@/components/ui/progress";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-import { Upload, FileUp, CheckCircle, AlertTriangle, Database } from "lucide-react";
+import { Upload, FileUp, CheckCircle, AlertTriangle, Database, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
@@ -52,16 +53,24 @@ interface ImportDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onImport: (data: ContractRow[]) => void;
-  onImportToDatabase?: (data: ContractRow[]) => Promise<void>;
+  onImportToDatabase?: (data: ContractRow[], onProgress?: (stage: string, percent: number) => void) => Promise<void>;
+}
+
+interface ImportResult {
+  total: number;
+  skipped: number;
 }
 
 export function ImportDialog({ open, onOpenChange, onImport, onImportToDatabase }: ImportDialogProps) {
   const [headers, setHeaders] = useState<string[]>([]);
   const [rawRows, setRawRows] = useState<Record<string, unknown>[]>([]);
   const [mapping, setMapping] = useState<Record<string, string>>({});
-  const [step, setStep] = useState<"upload" | "map" | "preview">("upload");
+  const [step, setStep] = useState<"upload" | "map" | "importing" | "done">("upload");
   const [fileName, setFileName] = useState("");
   const [importing, setImporting] = useState(false);
+  const [progressStage, setProgressStage] = useState("");
+  const [progressPercent, setProgressPercent] = useState(0);
+  const [importResult, setImportResult] = useState<ImportResult | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const reset = () => {
@@ -71,6 +80,9 @@ export function ImportDialog({ open, onOpenChange, onImport, onImportToDatabase 
     setStep("upload");
     setFileName("");
     setImporting(false);
+    setProgressStage("");
+    setProgressPercent(0);
+    setImportResult(null);
   };
 
   const handleFile = useCallback((file: File) => {
@@ -215,13 +227,23 @@ export function ImportDialog({ open, onOpenChange, onImport, onImportToDatabase 
       return;
     }
 
+    const skipped = rawRows.length - valid.length;
     setImporting(true);
+    setStep("importing");
+    setProgressStage("Iniciando...");
+    setProgressPercent(0);
+
     try {
-      await onImportToDatabase(valid);
-      reset();
-      onOpenChange(false);
+      await onImportToDatabase(valid, (stage, percent) => {
+        setProgressStage(stage);
+        setProgressPercent(percent);
+      });
+      setImportResult({ total: valid.length, skipped });
+      setProgressPercent(100);
+      setStep("done");
     } catch {
       toast.error("Erro ao importar para o banco");
+      setStep("map");
     } finally {
       setImporting(false);
     }
@@ -311,6 +333,48 @@ export function ImportDialog({ open, onOpenChange, onImport, onImportToDatabase 
               )}
               <Button size="sm" disabled={!allMapped} onClick={handleConfirmMemory} className="gap-1" variant="outline">
                 <CheckCircle className="h-3.5 w-3.5" /> Importar em memória
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {step === "importing" && (
+          <div className="space-y-6 py-8">
+            <div className="flex flex-col items-center gap-4">
+              <Loader2 className="h-10 w-10 text-primary animate-spin" />
+              <p className="text-sm font-medium text-foreground">Importando dados...</p>
+            </div>
+            <div className="space-y-2">
+              <Progress value={progressPercent} className="h-3" />
+              <div className="flex justify-between text-xs text-muted-foreground">
+                <span>{progressStage}</span>
+                <span>{progressPercent}%</span>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {step === "done" && importResult && (
+          <div className="space-y-6 py-8">
+            <div className="flex flex-col items-center gap-3">
+              <CheckCircle className="h-12 w-12 text-success" />
+              <p className="text-lg font-semibold text-foreground">Importação concluída!</p>
+            </div>
+            <div className="bg-muted/50 rounded-lg p-4 space-y-2">
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Registros importados</span>
+                <span className="font-medium text-foreground">{importResult.total}</span>
+              </div>
+              {importResult.skipped > 0 && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Registros ignorados</span>
+                  <span className="font-medium text-warning">{importResult.skipped}</span>
+                </div>
+              )}
+            </div>
+            <div className="flex justify-center">
+              <Button onClick={() => { reset(); onOpenChange(false); }} className="gap-1">
+                <CheckCircle className="h-3.5 w-3.5" /> Fechar
               </Button>
             </div>
           </div>
