@@ -109,6 +109,9 @@ export function useContracts() {
   ) => {
     setLoading(true);
     try {
+      // Ensure auth session is resolved before making DB calls
+      await supabase.auth.getSession();
+      
       // 1. Collect unique clients and modules
       const uniqueClients = new Map<string, ContractRow>();
       const uniqueModules = new Set<string>();
