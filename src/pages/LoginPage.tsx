@@ -13,7 +13,7 @@ type Mode = "login" | "forgot";
 
 export default function LoginPage() {
   const navigate = useNavigate();
-  const { user, isActive, loading, profileLoaded } = useAuth();
+  const { user, isActive, loading, profileLoaded, refreshAuth } = useAuth();
   const [mode, setMode] = useState<Mode>("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -34,9 +34,13 @@ export default function LoginPage() {
     if (error) {
       toast.error(error.message);
       setSubmitting(false);
+      return;
     }
-    // Keep submitting=true until the auth context redirects us via the useEffect above.
-    // This prevents double-clicks and shows the user that login is in progress.
+    // Forçar carregamento de perfil/role sem depender do onAuthStateChange
+    await refreshAuth();
+    // useEffect fará a navegação quando user + profileLoaded + isActive
+    // Se não navegou, liberar o botão
+    setSubmitting(false);
   };
 
   const handleForgotPassword = async () => {

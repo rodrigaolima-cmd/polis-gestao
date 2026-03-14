@@ -48,10 +48,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const applyAuthSession = useCallback(async (currentUser: User | null) => {
     const thisRequest = ++requestIdRef.current;
+    console.log("[Auth] applyAuthSession called, requestId:", thisRequest, "user:", currentUser?.id ?? "null");
     setAuthError(null);
 
     if (!currentUser) {
       if (thisRequest === requestIdRef.current) {
+        console.log("[Auth] No user, clearing state");
         setUser(null);
         setProfile(null);
         setRole(null);
