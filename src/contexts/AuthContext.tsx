@@ -85,11 +85,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     console.log("[Auth] hydrateUser requestId:", thisRequest, "user:", currentUser?.id ?? "null");
     setAuthError(null);
 
-    if (!currentUser || !accessToken) {
+    if (!currentUser || !token) {
       if (thisRequest === requestIdRef.current) {
         setUser(null);
         setProfile(null);
         setRole(null);
+        setAccessToken(null);
         setProfileLoaded(true);
         setLoading(false);
       }
@@ -97,6 +98,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     setUser(currentUser);
+    setAccessToken(token);
     setLoading(true);
     setProfileLoaded(false);
 
