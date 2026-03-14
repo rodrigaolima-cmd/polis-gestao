@@ -66,6 +66,7 @@ export function useAuth() {
         } else {
           setProfile(null);
           setRole(null);
+          setProfileLoaded(true);
         }
         setLoading(false);
       }
@@ -81,6 +82,7 @@ export function useAuth() {
         } else {
           setProfile(null);
           setRole(null);
+          setProfileLoaded(true);
         }
         setLoading(false);
       }
