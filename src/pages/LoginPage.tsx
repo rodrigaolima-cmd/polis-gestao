@@ -19,28 +19,12 @@ export default function LoginPage() {
 
   const handleLogin = async () => {
     setLoading(true);
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    setLoading(false);
     if (error) {
-      setLoading(false);
       toast.error(error.message);
       return;
     }
-
-    // Check if user is active
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("is_active")
-      .eq("id", data.user.id)
-      .single();
-
-    if (!profile?.is_active) {
-      await supabase.auth.signOut();
-      setLoading(false);
-      toast.error("Conta inativa. Contate o administrador.");
-      return;
-    }
-
-    setLoading(false);
     navigate("/", { replace: true });
   };
 
