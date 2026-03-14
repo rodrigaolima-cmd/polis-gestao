@@ -13,7 +13,7 @@ type Mode = "login" | "forgot";
 
 export default function LoginPage() {
   const navigate = useNavigate();
-  const { user, isActive, loading, profileLoaded, refreshAuth } = useAuth();
+  const { user, isActive, loading, profileLoaded, hydrateFromSession } = useAuth();
   const [mode, setMode] = useState<Mode>("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -30,17 +30,20 @@ export default function LoginPage() {
 
   const handleLogin = async () => {
     setSubmitting(true);
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) {
-      toast.error(error.message);
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) {
+        toast.error(error.message);
+        return;
+      }
+      // Use the session returned directly - don't wait for onAuthStateChange
+      if (data.session) {
+        await hydrateFromSession(data.session);
+      }
+      // useEffect will navigate when user + profileLoaded + isActive
+    } finally {
       setSubmitting(false);
-      return;
     }
-    // Forçar carregamento de perfil/role sem depender do onAuthStateChange
-    await refreshAuth();
-    // useEffect fará a navegação quando user + profileLoaded + isActive
-    // Se não navegou, liberar o botão
-    setSubmitting(false);
   };
 
   const handleForgotPassword = async () => {

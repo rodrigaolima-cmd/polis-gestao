@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback, useRef, type ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import type { User } from "@supabase/supabase-js";
+import type { User, Session } from "@supabase/supabase-js";
 
 interface Profile {
   id: string;
@@ -19,21 +19,53 @@ interface AuthState {
   authError: string | null;
   signOut: () => Promise<void>;
   refreshAuth: () => Promise<void>;
+  hydrateFromSession: (session: Session) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthState | null>(null);
 
-async function fetchProfileWithRetry(userId: string, retries = 2) {
-  for (let i = 0; i <= retries; i++) {
-    const { data, error } = await supabase
-      .from("profiles")
-      .select("id, full_name, is_active")
-      .eq("id", userId)
-      .single();
-    if (!error && data) return { data, error: null };
-    if (i < retries) await new Promise(r => setTimeout(r, 500 * (i + 1)));
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+
+// Direct REST fetch - bypasses supabase client internal locks
+async function fetchProfileREST(userId: string, accessToken: string, signal: AbortSignal): Promise<Profile | null> {
+  const res = await fetch(
+    `${SUPABASE_URL}/rest/v1/profiles?id=eq.${userId}&select=id,full_name,is_active`,
+    {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        apikey: SUPABASE_ANON_KEY,
+        Accept: "application/json",
+      },
+      signal,
+    }
+  );
+  if (!res.ok) {
+    console.error("[Auth] REST profile fetch failed:", res.status);
+    return null;
   }
-  return { data: null, error: "Profile fetch failed after retries" };
+  const rows = await res.json();
+  return rows?.[0] ?? null;
+}
+
+async function fetchRoleREST(userId: string, accessToken: string, signal: AbortSignal): Promise<string | null> {
+  const res = await fetch(
+    `${SUPABASE_URL}/rest/v1/user_roles?user_id=eq.${userId}&select=role`,
+    {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        apikey: SUPABASE_ANON_KEY,
+        Accept: "application/json",
+      },
+      signal,
+    }
+  );
+  if (!res.ok) {
+    console.error("[Auth] REST role fetch failed:", res.status);
+    return null;
+  }
+  const rows = await res.json();
+  return rows?.[0]?.role ?? null;
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -46,14 +78,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const requestIdRef = useRef(0);
 
-  const applyAuthSession = useCallback(async (currentUser: User | null) => {
+  const hydrateUser = useCallback(async (currentUser: User | null, accessToken: string | null) => {
     const thisRequest = ++requestIdRef.current;
-    console.log("[Auth] applyAuthSession called, requestId:", thisRequest, "user:", currentUser?.id ?? "null");
+    console.log("[Auth] hydrateUser requestId:", thisRequest, "user:", currentUser?.id ?? "null");
     setAuthError(null);
 
-    if (!currentUser) {
+    if (!currentUser || !accessToken) {
       if (thisRequest === requestIdRef.current) {
-        console.log("[Auth] No user, clearing state");
         setUser(null);
         setProfile(null);
         setRole(null);
@@ -63,69 +94,57 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    // Set user immediately, mark loading
     setUser(currentUser);
     setLoading(true);
     setProfileLoaded(false);
 
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 7000);
+
     try {
-      const [profileResult, roleResult] = await Promise.allSettled([
-        fetchProfileWithRetry(currentUser.id),
-        supabase
-          .from("user_roles")
-          .select("role")
-          .eq("user_id", currentUser.id)
-          .maybeSingle(),
+      const [profileData, roleData] = await Promise.all([
+        fetchProfileREST(currentUser.id, accessToken, controller.signal),
+        fetchRoleREST(currentUser.id, accessToken, controller.signal),
       ]);
 
+      clearTimeout(timeout);
+
       if (thisRequest !== requestIdRef.current) {
-        console.log("[Auth] Stale request", thisRequest, "current:", requestIdRef.current);
+        console.log("[Auth] Stale request", thisRequest);
         return;
       }
 
-      let profileData: Profile | null = null;
-      let roleData: string | null = null;
-      let error: string | null = null;
-
-      if (profileResult.status === "fulfilled" && profileResult.value.data) {
-        profileData = profileResult.value.data as Profile;
-      } else {
-        const reason = profileResult.status === "fulfilled"
-          ? profileResult.value.error
-          : String(profileResult.reason);
-        console.error("[Auth] Profile fetch failed:", reason);
-        error = "Não foi possível carregar o perfil. Tente novamente.";
-      }
-
-      if (roleResult.status === "fulfilled" && !roleResult.value.error) {
-        roleData = roleResult.value.data?.role ?? null;
-      } else {
-        console.error("[Auth] Role fetch failed:", roleResult.status === "fulfilled" ? roleResult.value.error?.message : roleResult.reason);
-      }
-
-      console.log("[Auth] Setting state - profile:", !!profileData, "role:", roleData, "active:", profileData?.is_active);
+      console.log("[Auth] Hydrated - profile:", !!profileData, "role:", roleData, "active:", profileData?.is_active);
       setProfile(profileData);
       setRole(roleData);
-      setAuthError(error);
-    } catch (e) {
+      if (!profileData) {
+        setAuthError("Não foi possível carregar o perfil. Tente novamente.");
+      }
+    } catch (e: any) {
+      clearTimeout(timeout);
       if (thisRequest !== requestIdRef.current) return;
-      console.error("[Auth] Exception fetching user data:", e);
+      console.error("[Auth] Hydration error:", e?.name === "AbortError" ? "timeout" : e);
       setProfile(null);
       setRole(null);
       setAuthError("Erro ao carregar dados do usuário.");
     } finally {
       if (thisRequest === requestIdRef.current) {
-        console.log("[Auth] Final state - profileLoaded=true, loading=false");
         setProfileLoaded(true);
         setLoading(false);
       }
     }
   }, []);
 
+  const hydrateFromSession = useCallback(async (session: Session) => {
+    console.log("[Auth] hydrateFromSession called");
+    await hydrateUser(session.user, session.access_token);
+  }, [hydrateUser]);
+
   const refreshAuth = useCallback(async () => {
+    console.log("[Auth] refreshAuth called");
     const { data: { session } } = await supabase.auth.getSession();
-    await applyAuthSession(session?.user ?? null);
-  }, [applyAuthSession]);
+    await hydrateUser(session?.user ?? null, session?.access_token ?? null);
+  }, [hydrateUser]);
 
   useEffect(() => {
     let mounted = true;
@@ -133,18 +152,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (_event, session) => {
         if (!mounted) return;
+        console.log("[Auth] onAuthStateChange event:", _event);
+        // Use setTimeout to avoid Supabase internal deadlock
         setTimeout(() => {
-          if (mounted) applyAuthSession(session?.user ?? null);
+          if (mounted) hydrateUser(session?.user ?? null, session?.access_token ?? null);
         }, 0);
       }
     );
 
     supabase.auth.getSession()
       .then(({ data: { session } }) => {
-        if (mounted) applyAuthSession(session?.user ?? null);
+        if (mounted) hydrateUser(session?.user ?? null, session?.access_token ?? null);
       })
       .catch((err) => {
-        console.error("getSession failed:", err);
+        console.error("[Auth] getSession failed:", err);
         if (mounted) {
           setLoading(false);
           setProfileLoaded(true);
@@ -156,7 +177,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       mounted = false;
       subscription.unsubscribe();
     };
-  }, [applyAuthSession]);
+  }, [hydrateUser]);
 
   const handleSignOut = useCallback(async () => {
     requestIdRef.current++;
@@ -173,7 +194,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   return (
     <AuthContext.Provider
-      value={{ user, profile, role, loading, profileLoaded, isAdmin, isActive, authError, signOut: handleSignOut, refreshAuth }}
+      value={{ user, profile, role, loading, profileLoaded, isAdmin, isActive, authError, signOut: handleSignOut, refreshAuth, hydrateFromSession }}
     >
       {children}
     </AuthContext.Provider>
