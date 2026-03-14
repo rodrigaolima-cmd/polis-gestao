@@ -191,13 +191,17 @@ export function useContracts() {
 
       const batchSize = 100;
       let created = 0;
+      const totalBatches = Math.ceil(payloads.length / batchSize);
       for (let i = 0; i < payloads.length; i += batchSize) {
+        const batchNum = Math.floor(i / batchSize) + 1;
+        onProgress?.(`Inserindo contratos... lote ${batchNum}/${totalBatches}`, 55 + Math.round((batchNum / totalBatches) * 40));
         const batch = payloads.slice(i, i + batchSize);
         const { error: insertError } = await supabase.from("client_modules").insert(batch);
         if (insertError) throw insertError;
         created += batch.length;
       }
 
+      onProgress?.("Finalizando...", 98);
       toast.success(`Importação concluída: ${created} registros importados`);
       await loadFromDatabase();
     } catch (err) {
