@@ -100,6 +100,7 @@ export function useAuth() {
   }, [fetchProfile]);
 
   const signOut = useCallback(async () => {
+    setProfileLoaded(false);
     await supabase.auth.signOut();
   }, []);
 
