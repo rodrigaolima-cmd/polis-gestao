@@ -199,7 +199,7 @@ export default function Dashboard() {
         />
       </main>
 
-      <ImportDialog open={importOpen} onOpenChange={setImportOpen} onImport={handleImport} />
+      <ImportDialog open={importOpen} onOpenChange={setImportOpen} onImport={handleImport} onImportToDatabase={importToDatabase} />
       <ChartReportDialog
         title={reportConfig?.title ?? ""}
         contracts={reportConfig?.contracts ?? []}
