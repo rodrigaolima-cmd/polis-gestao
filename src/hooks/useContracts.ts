@@ -166,6 +166,7 @@ export function useContracts() {
       }
 
       // 4. Clear existing client_modules and insert all rows fresh
+      onProgress?.("Limpando dados anteriores...", 52);
       await supabase.from("client_modules").delete().neq("id", "00000000-0000-0000-0000-000000000000");
 
       // Insert in batches of 100
