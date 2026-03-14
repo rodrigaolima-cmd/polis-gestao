@@ -13,6 +13,13 @@ export function ProtectedRoute({ children, requireAdmin = false }: { children: R
     }
   }, [loading, profileLoaded, user, profile, isActive, signOut]);
 
+  useEffect(() => {
+    if (!loading && profileLoaded && user && !profile) {
+      toast.error("Perfil não encontrado. Contate o administrador.");
+      signOut();
+    }
+  }, [loading, profileLoaded, user, profile, signOut]);
+
   if (loading || (user && !profileLoaded)) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
