@@ -1,44 +1,41 @@
 
 
-# Correção: Importação Incompleta (500 de 975 registros)
+## Plano: Dashboard por Consultor com Relatório Detalhado e Exportação PDF
 
-## Problema Identificado
+### 1. Novo componente `src/components/dashboard/ConsultorDashboard.tsx`
 
-O banco contém apenas **500 registros** em vez de 975. A importação está falhando silenciosamente em algum lote após o 5º batch (500 registros). Possíveis causas:
-- Algum registro com data em formato inválido para o tipo `date` do PostgreSQL
-- Erro em um batch que interrompe o loop mas não reporta claramente ao usuário
+Seção dedicada inserida no Dashboard principal (após CommercialAnalysis), com:
 
-Além disso, o `loadFromDatabase` não tem paginação — se ultrapassar 1000 registros no futuro, perderá dados.
+- **Header**: Título "Dashboard por Consultor" com ícone `UserCheck`
+- **Seletor de consultor**: Dropdown `<Select>` listando todos os consultores disponíveis nos `clients`
+- **KPIs do consultor selecionado** (grid 4 colunas):
+  - Total Contratado, Total Faturado, Pendência (Dinheiro na Mesa), Nº Clientes
+- **Tabela de clientes do consultor**: Lista os clientes do consultor selecionado com colunas: Cliente, Tipo UG, Contratado, Faturado, Diferença, % Faturado, Vencimento, Status
+- **Rodapé totalizador**
+- **Botão relatório** (ícone Printer) que abre o `SectionReportDialog` com tipo `"byConsultorDetalhado"`
 
-## Correção
+### 2. `src/components/dashboard/SectionReportDialog.tsx`
 
-### 1. Tornar a inserção resiliente a erros por lote (`useContracts.ts`)
+- Adicionar `"byConsultorDetalhado"` ao `SectionReportType`
+- Adicionar título: `byConsultorDetalhado: "Relatório Detalhado — Dashboard por Consultor"`
+- Novo componente `ByConsultorDetalhadoReport`:
+  - Recebe `clients` e `contracts`
+  - Agrupa contratos por consultor, depois por cliente dentro de cada consultor
+  - Para cada consultor: header com nome, subtabela com todos os contratos (Produto, Tipo UG, Contratado, Faturado, Pendência, Vencimento, Status)
+  - Subtotal por consultor
+  - Rodapé totalizador geral
+  - Exportação PDF via `window.print()` (mesmo padrão dos outros relatórios)
 
-Em vez de `throw insertError` que aborta toda a importação quando um lote falha:
-- **Tentar inserir cada lote individualmente**
-- Se um lote falhar, tentar inserir **registro por registro** nesse lote para identificar e pular apenas os registros problemáticos
-- Acumular lista de registros com erro para reportar ao final
-- Sanitizar datas antes da inserção: converter strings vazias ou inválidas para `null`
+### 3. `src/components/dashboard/Dashboard.tsx`
 
-### 2. Adicionar validação de datas antes da inserção (`useContracts.ts`)
+- Importar `ConsultorDashboard`
+- Inserir `<ConsultorDashboard>` entre `CommercialAnalysis` e `ActionTables`
+- Passar props: `clients`, `contracts: filteredContracts`, callback `onReport={() => setSectionReport("byConsultorDetalhado")}`
 
-Adicionar uma função `sanitizeDate(dateStr)` que:
-- Retorna `null` para strings vazias ou inválidas
-- Valida que a data está no formato `YYYY-MM-DD`
-- Previne erro do PostgreSQL ao inserir data malformada
+### Detalhes técnicos
 
-### 3. Garantir leitura completa dos dados (`useContracts.ts`)
-
-Na função `loadFromDatabase`, adicionar `.range(0, 9999)` à query para garantir que todos os registros sejam retornados (não depender do limite padrão de 1000).
-
-### 4. Reportar falhas detalhadas (`ImportDialog.tsx`)
-
-Na tela "done", exibir quantos registros falharam com mensagem clara, para o usuário saber se precisa corrigir a planilha.
-
-### Arquivos afetados
-
-| Ação | Arquivo |
-|------|---------|
-| Modificar | `src/hooks/useContracts.ts` — sanitização de datas, inserção resiliente, paginação na leitura |
-| Modificar | `src/components/dashboard/ImportDialog.tsx` — exibir erros detalhados na tela de resultado |
+- O `ConsultorDashboard` usa `useMemo` para filtrar clientes pelo consultor selecionado
+- A lista de consultores é extraída de `clients` com `new Set`, filtrando vazios
+- O relatório detalhado reutiliza o padrão visual existente (Table, TableFooter, formatCurrency, etc.)
+- A exportação PDF usa o mesmo mecanismo `window.print()` + classe `.print-report` já implementado
 

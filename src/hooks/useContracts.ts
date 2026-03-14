@@ -35,6 +35,18 @@ interface DbClientModule {
   modules: DbModule;
 }
 
+function sanitizeDate(dateStr: string | null | undefined): string | null {
+  if (!dateStr || typeof dateStr !== "string") return null;
+  const trimmed = dateStr.trim();
+  if (!trimmed) return null;
+  // Must be YYYY-MM-DD
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return null;
+  // Validate actual date
+  const d = new Date(trimmed + "T00:00:00");
+  if (isNaN(d.getTime())) return null;
+  return trimmed;
+}
+
 function mapToContractRow(cm: DbClientModule): ContractRow {
   return {
     id: cm.id,
@@ -64,7 +76,8 @@ export function useContracts() {
       const { data, error } = await supabase
         .from("client_modules")
         .select("*, clients(*), modules(*)")
-        .order("created_at", { ascending: false });
+        .order("created_at", { ascending: false })
+        .range(0, 9999);
 
       if (error) throw error;
 
@@ -176,7 +189,7 @@ export function useContracts() {
       onProgress?.("Limpando dados anteriores...", 52);
       await supabase.from("client_modules").delete().neq("id", "00000000-0000-0000-0000-000000000000");
 
-      // Insert in batches of 100
+      // Insert in batches of 100 with resilient error handling
       const payloads = rows
         .map((row) => {
           const clientId = clientMap.get(row.clientName.trim().toLowerCase());
@@ -187,36 +200,55 @@ export function useContracts() {
             modulo_id: moduleId,
             valor_contratado: row.contractedValue,
             valor_faturado: row.billedValue,
-            data_assinatura: row.signatureDate || null,
-            vencimento_contrato: row.expirationDate || null,
+            data_assinatura: sanitizeDate(row.signatureDate),
+            vencimento_contrato: sanitizeDate(row.expirationDate),
             faturado_flag: row.billed,
             status_contrato: row.contractStatus || "Ativo",
             observacoes: row.observations || "",
           };
         })
-        .filter(Boolean);
+        .filter((x): x is NonNullable<typeof x> => x !== null);
 
       const batchSize = 100;
       let created = 0;
+      let failed = 0;
       const totalBatches = Math.ceil(payloads.length / batchSize);
       for (let i = 0; i < payloads.length; i += batchSize) {
         const batchNum = Math.floor(i / batchSize) + 1;
         onProgress?.(`Inserindo contratos... lote ${batchNum}/${totalBatches}`, 55 + Math.round((batchNum / totalBatches) * 40));
         const batch = payloads.slice(i, i + batchSize);
-        const { error: insertError } = await supabase.from("client_modules").insert(batch);
-        if (insertError) throw insertError;
-        created += batch.length;
+        const { error: insertError } = await supabase.from("client_modules").insert(batch as any);
+        if (insertError) {
+          console.warn(`Batch ${batchNum} failed, inserting individually...`, insertError);
+          // Fallback: insert one by one
+          for (const record of batch) {
+            const { error: singleError } = await supabase.from("client_modules").insert(record as any);
+            if (singleError) {
+              console.warn("Record failed:", singleError, record);
+              failed++;
+            } else {
+              created++;
+            }
+          }
+        } else {
+          created += batch.length;
+        }
       }
 
       onProgress?.("Finalizando...", 98);
-      toast.success(`Importação concluída: ${created} registros importados`);
+      if (failed > 0) {
+        toast.warning(`Importação concluída: ${created} importados, ${failed} falharam`);
+      } else {
+        toast.success(`Importação concluída: ${created} registros importados`);
+      }
       await loadFromDatabase();
+      return { created, failed };
     } catch (err) {
       console.error("Import error:", err);
       toast.error("Erro ao importar para o banco de dados");
-      // Fallback: use in-memory
       setContracts(rows);
       setDataSource("mock");
+      return { created: 0, failed: rows.length };
     } finally {
       setLoading(false);
     }

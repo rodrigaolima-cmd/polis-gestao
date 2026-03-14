@@ -53,12 +53,13 @@ interface ImportDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onImport: (data: ContractRow[]) => void;
-  onImportToDatabase?: (data: ContractRow[], onProgress?: (stage: string, percent: number) => void) => Promise<void>;
+  onImportToDatabase?: (data: ContractRow[], onProgress?: (stage: string, percent: number) => void) => Promise<{ created: number; failed: number }>;
 }
 
 interface ImportResult {
   total: number;
   skipped: number;
+  failed: number;
 }
 
 export function ImportDialog({ open, onOpenChange, onImport, onImportToDatabase }: ImportDialogProps) {
@@ -234,11 +235,11 @@ export function ImportDialog({ open, onOpenChange, onImport, onImportToDatabase 
     setProgressPercent(0);
 
     try {
-      await onImportToDatabase(valid, (stage, percent) => {
+      const result = await onImportToDatabase(valid, (stage, percent) => {
         setProgressStage(stage);
         setProgressPercent(percent);
       });
-      setImportResult({ total: valid.length, skipped });
+      setImportResult({ total: result.created, skipped, failed: result.failed });
       setProgressPercent(100);
       setStep("done");
     } catch {
@@ -367,8 +368,14 @@ export function ImportDialog({ open, onOpenChange, onImport, onImportToDatabase 
               </div>
               {importResult.skipped > 0 && (
                 <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Registros ignorados</span>
+                  <span className="text-muted-foreground">Registros ignorados (validação)</span>
                   <span className="font-medium text-warning">{importResult.skipped}</span>
+                </div>
+              )}
+              {importResult.failed > 0 && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Registros com erro no banco</span>
+                  <span className="font-medium text-destructive">{importResult.failed}</span>
                 </div>
               )}
             </div>
