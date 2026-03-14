@@ -107,5 +107,5 @@ export function useAuth() {
   const isAdmin = role === "admin";
   const isActive = profile?.is_active ?? false;
 
-  return { user, profile, loading, signOut, isAdmin, isActive, role };
+  return { user, profile, loading, profileLoaded, signOut, isAdmin, isActive, role };
 }
