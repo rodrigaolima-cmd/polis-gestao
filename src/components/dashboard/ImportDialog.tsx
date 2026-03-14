@@ -53,16 +53,24 @@ interface ImportDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onImport: (data: ContractRow[]) => void;
-  onImportToDatabase?: (data: ContractRow[]) => Promise<void>;
+  onImportToDatabase?: (data: ContractRow[], onProgress?: (stage: string, percent: number) => void) => Promise<void>;
+}
+
+interface ImportResult {
+  total: number;
+  skipped: number;
 }
 
 export function ImportDialog({ open, onOpenChange, onImport, onImportToDatabase }: ImportDialogProps) {
   const [headers, setHeaders] = useState<string[]>([]);
   const [rawRows, setRawRows] = useState<Record<string, unknown>[]>([]);
   const [mapping, setMapping] = useState<Record<string, string>>({});
-  const [step, setStep] = useState<"upload" | "map" | "preview">("upload");
+  const [step, setStep] = useState<"upload" | "map" | "importing" | "done">("upload");
   const [fileName, setFileName] = useState("");
   const [importing, setImporting] = useState(false);
+  const [progressStage, setProgressStage] = useState("");
+  const [progressPercent, setProgressPercent] = useState(0);
+  const [importResult, setImportResult] = useState<ImportResult | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const reset = () => {
@@ -72,6 +80,9 @@ export function ImportDialog({ open, onOpenChange, onImport, onImportToDatabase 
     setStep("upload");
     setFileName("");
     setImporting(false);
+    setProgressStage("");
+    setProgressPercent(0);
+    setImportResult(null);
   };
 
   const handleFile = useCallback((file: File) => {
