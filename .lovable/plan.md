@@ -1,52 +1,41 @@
 
 
-## Fix: Login não carrega perfil após autenticação
+## Plano: Dashboard por Consultor com Relatório Detalhado e Exportação PDF
 
-### Problema raiz confirmado
-O login retorna 200 com token válido, mas **nenhuma requisição** a `profiles` ou `user_roles` é feita depois. O `onAuthStateChange` deveria disparar `applyAuthSession(user)` via `setTimeout`, mas esse callback está sendo engolido silenciosamente (possível interferência do ambiente preview ou timing do Supabase client). O LoginPage fica preso com `submitting=true` esperando um estado que nunca chega.
+### 1. Novo componente `src/components/dashboard/ConsultorDashboard.tsx`
 
-### Correção (2 arquivos)
+Seção dedicada inserida no Dashboard principal (após CommercialAnalysis), com:
 
-**1. `src/pages/LoginPage.tsx`** — Forçar fetch explícito após login
+- **Header**: Título "Dashboard por Consultor" com ícone `UserCheck`
+- **Seletor de consultor**: Dropdown `<Select>` listando todos os consultores disponíveis nos `clients`
+- **KPIs do consultor selecionado** (grid 4 colunas):
+  - Total Contratado, Total Faturado, Pendência (Dinheiro na Mesa), Nº Clientes
+- **Tabela de clientes do consultor**: Lista os clientes do consultor selecionado com colunas: Cliente, Tipo UG, Contratado, Faturado, Diferença, % Faturado, Vencimento, Status
+- **Rodapé totalizador**
+- **Botão relatório** (ícone Printer) que abre o `SectionReportDialog` com tipo `"byConsultorDetalhado"`
 
-Após `signInWithPassword` sem erro, chamar `await refreshAuth()` para forçar `getSession()` → `applyAuthSession(user)` → fetch profile/role. Isso garante que o perfil é carregado independentemente do `onAuthStateChange`.
+### 2. `src/components/dashboard/SectionReportDialog.tsx`
 
-```typescript
-const handleLogin = async () => {
-  setSubmitting(true);
-  const { error } = await supabase.auth.signInWithPassword({ email, password });
-  if (error) {
-    toast.error(error.message);
-    setSubmitting(false);
-    return;
-  }
-  // Forçar carregamento de perfil/role sem depender do onAuthStateChange
-  await refreshAuth();
-  // useEffect fará a navegação quando user + profileLoaded + isActive
-};
-```
+- Adicionar `"byConsultorDetalhado"` ao `SectionReportType`
+- Adicionar título: `byConsultorDetalhado: "Relatório Detalhado — Dashboard por Consultor"`
+- Novo componente `ByConsultorDetalhadoReport`:
+  - Recebe `clients` e `contracts`
+  - Agrupa contratos por consultor, depois por cliente dentro de cada consultor
+  - Para cada consultor: header com nome, subtabela com todos os contratos (Produto, Tipo UG, Contratado, Faturado, Pendência, Vencimento, Status)
+  - Subtotal por consultor
+  - Rodapé totalizador geral
+  - Exportação PDF via `window.print()` (mesmo padrão dos outros relatórios)
 
-**2. `src/contexts/AuthContext.tsx`** — Adicionar console.log de diagnóstico
+### 3. `src/components/dashboard/Dashboard.tsx`
 
-Adicionar logs em pontos-chave para confirmar o fluxo (temporários, para debug):
-- Entrada de `applyAuthSession` (com source: "listener" vs "getSession" vs "refresh")
-- Resultado do fetch de profile/role
-- Estado final (loading, profileLoaded, user !== null)
+- Importar `ConsultorDashboard`
+- Inserir `<ConsultorDashboard>` entre `CommercialAnalysis` e `ActionTables`
+- Passar props: `clients`, `contracts: filteredContracts`, callback `onReport={() => setSectionReport("byConsultorDetalhado")}`
 
-Isso permite diagnosticar se o `onAuthStateChange` está realmente disparando e se o `requestId` está invalidando resultados válidos.
+### Detalhes técnicos
 
-### Fluxo esperado pós-correção
-```text
-signInWithPassword → 200 OK
- → refreshAuth() chamado explicitamente
- → getSession() retorna sessão ativa
- → applyAuthSession(user) → requestId=N
- → fetch profiles + user_roles (AGORA VISÍVEL na rede)
- → profileLoaded=true, loading=false, isActive=true
- → useEffect no LoginPage detecta → navigate("/")
-```
-
-### Arquivos
-- `src/pages/LoginPage.tsx` — chamar `refreshAuth` após login
-- `src/contexts/AuthContext.tsx` — console.logs de diagnóstico
+- O `ConsultorDashboard` usa `useMemo` para filtrar clientes pelo consultor selecionado
+- A lista de consultores é extraída de `clients` com `new Set`, filtrando vazios
+- O relatório detalhado reutiliza o padrão visual existente (Table, TableFooter, formatCurrency, etc.)
+- A exportação PDF usa o mesmo mecanismo `window.print()` + classe `.print-report` já implementado
 
