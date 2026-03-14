@@ -1,55 +1,41 @@
 
 
-# Fix: Login travado — ProtectedRoute redireciona antes do perfil carregar
+## Plano: Dashboard por Consultor com Relatório Detalhado e Exportação PDF
 
-## Problema real
+### 1. Novo componente `src/components/dashboard/ConsultorDashboard.tsx`
 
-Analisando os logs de rede e console, o login **funciona** (API retorna 200, perfil existe e está ativo). O problema está no **ProtectedRoute**: após `navigate("/")`, ele monta e o `useAuth` inicializa. Existe uma janela onde `loading=false` mas `profile` ainda é `null` (porque `fetchProfile` é assíncrono). Nesse momento:
+Seção dedicada inserida no Dashboard principal (após CommercialAnalysis), com:
 
-```
-isActive = profile?.is_active ?? false  →  false  (profile é null)
-```
+- **Header**: Título "Dashboard por Consultor" com ícone `UserCheck`
+- **Seletor de consultor**: Dropdown `<Select>` listando todos os consultores disponíveis nos `clients`
+- **KPIs do consultor selecionado** (grid 4 colunas):
+  - Total Contratado, Total Faturado, Pendência (Dinheiro na Mesa), Nº Clientes
+- **Tabela de clientes do consultor**: Lista os clientes do consultor selecionado com colunas: Cliente, Tipo UG, Contratado, Faturado, Diferença, % Faturado, Vencimento, Status
+- **Rodapé totalizador**
+- **Botão relatório** (ícone Printer) que abre o `SectionReportDialog` com tipo `"byConsultorDetalhado"`
 
-O ProtectedRoute vê `!isActive` e redireciona para `/login`, cancelando o login.
+### 2. `src/components/dashboard/SectionReportDialog.tsx`
 
-O console confirma: `<Navigate>` renderizou dentro do `ProtectedRoute`, provando o redirect indevido.
+- Adicionar `"byConsultorDetalhado"` ao `SectionReportType`
+- Adicionar título: `byConsultorDetalhado: "Relatório Detalhado — Dashboard por Consultor"`
+- Novo componente `ByConsultorDetalhadoReport`:
+  - Recebe `clients` e `contracts`
+  - Agrupa contratos por consultor, depois por cliente dentro de cada consultor
+  - Para cada consultor: header com nome, subtabela com todos os contratos (Produto, Tipo UG, Contratado, Faturado, Pendência, Vencimento, Status)
+  - Subtotal por consultor
+  - Rodapé totalizador geral
+  - Exportação PDF via `window.print()` (mesmo padrão dos outros relatórios)
 
-## Solução
+### 3. `src/components/dashboard/Dashboard.tsx`
 
-Duas mudanças:
+- Importar `ConsultorDashboard`
+- Inserir `<ConsultorDashboard>` entre `CommercialAnalysis` e `ActionTables`
+- Passar props: `clients`, `contracts: filteredContracts`, callback `onReport={() => setSectionReport("byConsultorDetalhado")}`
 
-### 1. `src/components/ProtectedRoute.tsx`
-Tratar `user && !profile` como "ainda carregando" — se o user existe mas o profile não foi buscado, mostrar spinner ao invés de redirecionar:
+### Detalhes técnicos
 
-```typescript
-// Considerar loading se: loading=true OU user logado mas perfil ainda não carregou
-if (loading || (user && !profile)) {
-  return <spinner />;
-}
-```
-
-### 2. `src/pages/LoginPage.tsx`
-Remover a query redundante de `profiles` no `handleLogin`. O `useAuth` do ProtectedRoute já faz essa verificação. Simplificar para:
-
-```typescript
-const handleLogin = async () => {
-  setLoading(true);
-  const { error } = await supabase.auth.signInWithPassword({ email, password });
-  setLoading(false);
-  if (error) {
-    toast.error(error.message);
-    return;
-  }
-  navigate("/", { replace: true });
-};
-```
-
-A verificação de `is_active` já acontece no ProtectedRoute (via useAuth + useEffect que chama signOut se inativo).
-
-## Arquivos
-
-| Ação | Arquivo |
-|------|---------|
-| Modificar | `src/components/ProtectedRoute.tsx` |
-| Modificar | `src/pages/LoginPage.tsx` |
+- O `ConsultorDashboard` usa `useMemo` para filtrar clientes pelo consultor selecionado
+- A lista de consultores é extraída de `clients` com `new Set`, filtrando vazios
+- O relatório detalhado reutiliza o padrão visual existente (Table, TableFooter, formatCurrency, etc.)
+- A exportação PDF usa o mesmo mecanismo `window.print()` + classe `.print-report` já implementado
 
