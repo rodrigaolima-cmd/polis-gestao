@@ -12,6 +12,7 @@ interface AuthState {
   user: User | null;
   profile: Profile | null;
   role: string | null;
+  accessToken: string | null;
   loading: boolean;
   profileLoaded: boolean;
   isAdmin: boolean;
