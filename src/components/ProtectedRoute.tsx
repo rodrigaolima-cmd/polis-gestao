@@ -7,6 +7,7 @@ export function ProtectedRoute({ children, requireAdmin = false }: { children: R
   const { user, profile, loading, profileLoaded, isActive, isAdmin, signOut } = useAuth();
   const hasSignedOut = useRef(false);
 
+  // Handle inactive account
   useEffect(() => {
     if (!loading && profileLoaded && user && profile && !isActive && !hasSignedOut.current) {
       hasSignedOut.current = true;
@@ -15,6 +16,7 @@ export function ProtectedRoute({ children, requireAdmin = false }: { children: R
     }
   }, [loading, profileLoaded, user, profile, isActive, signOut]);
 
+  // Handle missing profile
   useEffect(() => {
     if (!loading && profileLoaded && user && !profile && !hasSignedOut.current) {
       hasSignedOut.current = true;
