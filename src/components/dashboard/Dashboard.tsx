@@ -30,10 +30,10 @@ interface ReportConfig {
 }
 
 export default function Dashboard() {
+  const navigate = useNavigate();
+  const { contracts, setContracts, dataSource, importToDatabase, resetToMock, loading } = useContracts();
   const [filters, setFilters] = useState<DashboardFilters>(defaultFilters);
-  const [contracts, setContracts] = useState<ContractRow[]>(mockContracts);
   const [importOpen, setImportOpen] = useState(false);
-  const [dataSource, setDataSource] = useState<"mock" | "imported">("mock");
   const [reportConfig, setReportConfig] = useState<ReportConfig | null>(null);
   const [sectionReport, setSectionReport] = useState<SectionReportType | null>(null);
 
