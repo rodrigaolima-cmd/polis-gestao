@@ -1,11 +1,25 @@
 
-# Ativar usuário como Admin
 
-O usuário `Rodrigo Lima` (id: `50098ee2-62b4-49ca-a110-a5de8e955754`) existe na tabela `profiles` com `is_active = false` e sem role definida.
+# Fix: Race Condition in useAuth
 
-## Ações necessárias (dados, não schema):
+## Problem
+The `useAuth` hook sets `loading = false` **before** the profile/role fetch completes. When `ProtectedRoute` sees `loading = false` + `isActive = false` (profile not yet loaded), it triggers sign-out with "Conta inativa" error.
 
-1. **UPDATE** `profiles` → `is_active = true` para o user_id
-2. **INSERT** em `user_roles` → `role = 'admin'` para o user_id
+## Solution
+Ensure `setLoading(false)` only runs **after** `fetchProfile` completes.
 
-Após isso, o usuário poderá fazer login, acessar o dashboard e a página de configurações para gerenciar outros usuários.
+### `src/hooks/useAuth.ts`
+- In `onAuthStateChange`: await `fetchProfile` before setting `loading = false` (remove the `setTimeout` wrapper)
+- In `getSession().then()`: await `fetchProfile` before setting `loading = false`
+- Both paths must wait for profile data before declaring loading complete
+
+### `src/components/ProtectedRoute.tsx`
+- Add a guard: don't check `isActive` until `profile` is actually loaded (not just `!loading`)
+- This prevents false negatives during the brief window before profile data arrives
+
+## Files
+| Action | File |
+|--------|------|
+| Modify | `src/hooks/useAuth.ts` |
+| Modify | `src/components/ProtectedRoute.tsx` |
+
