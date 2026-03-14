@@ -32,8 +32,20 @@ export function useAuth() {
   }, []);
 
   useEffect(() => {
+    // 1. Registrar listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (_event, session) => {
+        if (initialized.current) {
+          setUser(session?.user ?? null);
+          if (session?.user) {
+            await fetchProfile(session.user.id);
+          } else {
+            setProfile(null);
+            setRole(null);
+          }
+          return;
+        }
+        initialized.current = true;
         setUser(session?.user ?? null);
         if (session?.user) {
           await fetchProfile(session.user.id);
@@ -41,14 +53,37 @@ export function useAuth() {
           setProfile(null);
           setRole(null);
         }
-        if (!initialized.current) {
-          initialized.current = true;
-          setLoading(false);
-        }
+        setLoading(false);
       }
     );
 
-    return () => subscription.unsubscribe();
+    // 2. Fallback: getSession() caso onAuthStateChange não dispare
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (!initialized.current) {
+        initialized.current = true;
+        setUser(session?.user ?? null);
+        if (session?.user) {
+          await fetchProfile(session.user.id);
+        } else {
+          setProfile(null);
+          setRole(null);
+        }
+        setLoading(false);
+      }
+    });
+
+    // 3. Timeout de segurança absoluto (5s)
+    const timeout = setTimeout(() => {
+      if (!initialized.current) {
+        initialized.current = true;
+        setLoading(false);
+      }
+    }, 5000);
+
+    return () => {
+      subscription.unsubscribe();
+      clearTimeout(timeout);
+    };
   }, [fetchProfile]);
 
   const signOut = useCallback(async () => {
