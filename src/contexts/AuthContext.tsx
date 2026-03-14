@@ -12,6 +12,7 @@ interface AuthState {
   user: User | null;
   profile: Profile | null;
   role: string | null;
+  accessToken: string | null;
   loading: boolean;
   profileLoaded: boolean;
   isAdmin: boolean;
@@ -72,22 +73,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [role, setRole] = useState<string | null>(null);
+  const [accessToken, setAccessToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [profileLoaded, setProfileLoaded] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
 
   const requestIdRef = useRef(0);
 
-  const hydrateUser = useCallback(async (currentUser: User | null, accessToken: string | null) => {
+  const hydrateUser = useCallback(async (currentUser: User | null, token: string | null) => {
     const thisRequest = ++requestIdRef.current;
     console.log("[Auth] hydrateUser requestId:", thisRequest, "user:", currentUser?.id ?? "null");
     setAuthError(null);
 
-    if (!currentUser || !accessToken) {
+    if (!currentUser || !token) {
       if (thisRequest === requestIdRef.current) {
         setUser(null);
         setProfile(null);
         setRole(null);
+        setAccessToken(null);
         setProfileLoaded(true);
         setLoading(false);
       }
@@ -95,6 +98,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     setUser(currentUser);
+    setAccessToken(token);
     setLoading(true);
     setProfileLoaded(false);
 
@@ -103,8 +107,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     try {
       const [profileData, roleData] = await Promise.all([
-        fetchProfileREST(currentUser.id, accessToken, controller.signal),
-        fetchRoleREST(currentUser.id, accessToken, controller.signal),
+        fetchProfileREST(currentUser.id, token, controller.signal),
+        fetchRoleREST(currentUser.id, token, controller.signal),
       ]);
 
       clearTimeout(timeout);
@@ -184,6 +188,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
     setProfile(null);
     setRole(null);
+    setAccessToken(null);
     setProfileLoaded(false);
     setAuthError(null);
     await supabase.auth.signOut();
@@ -194,7 +199,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   return (
     <AuthContext.Provider
-      value={{ user, profile, role, loading, profileLoaded, isAdmin, isActive, authError, signOut: handleSignOut, refreshAuth, hydrateFromSession }}
+      value={{ user, profile, role, accessToken, loading, profileLoaded, isAdmin, isActive, authError, signOut: handleSignOut, refreshAuth, hydrateFromSession }}
     >
       {children}
     </AuthContext.Provider>
