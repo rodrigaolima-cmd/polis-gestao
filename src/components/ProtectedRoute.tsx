@@ -4,16 +4,16 @@ import { useEffect } from "react";
 import { toast } from "sonner";
 
 export function ProtectedRoute({ children, requireAdmin = false }: { children: React.ReactNode; requireAdmin?: boolean }) {
-  const { user, profile, loading, isActive, isAdmin, signOut } = useAuth();
+  const { user, profile, loading, profileLoaded, isActive, isAdmin, signOut } = useAuth();
 
   useEffect(() => {
-    if (!loading && user && profile && !isActive) {
+    if (!loading && profileLoaded && user && profile && !isActive) {
       toast.error("Conta inativa. Contate o administrador.");
       signOut();
     }
-  }, [loading, user, profile, isActive, signOut]);
+  }, [loading, profileLoaded, user, profile, isActive, signOut]);
 
-  if (loading || (user && !profile)) {
+  if (loading || (user && !profileLoaded)) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />

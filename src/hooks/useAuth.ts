@@ -13,6 +13,7 @@ export function useAuth() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [role, setRole] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [profileLoaded, setProfileLoaded] = useState(false);
   const initialized = useRef(false);
 
   const fetchProfile = useCallback(async (userId: string) => {
@@ -39,6 +40,8 @@ export function useAuth() {
       console.error("Error fetching role:", e);
       setRole(null);
     }
+
+    setProfileLoaded(true);
   }, []);
 
   useEffect(() => {
@@ -52,6 +55,7 @@ export function useAuth() {
           } else {
             setProfile(null);
             setRole(null);
+            setProfileLoaded(true);
           }
           return;
         }
@@ -62,6 +66,7 @@ export function useAuth() {
         } else {
           setProfile(null);
           setRole(null);
+          setProfileLoaded(true);
         }
         setLoading(false);
       }
@@ -77,6 +82,7 @@ export function useAuth() {
         } else {
           setProfile(null);
           setRole(null);
+          setProfileLoaded(true);
         }
         setLoading(false);
       }
@@ -94,11 +100,12 @@ export function useAuth() {
   }, [fetchProfile]);
 
   const signOut = useCallback(async () => {
+    setProfileLoaded(false);
     await supabase.auth.signOut();
   }, []);
 
   const isAdmin = role === "admin";
   const isActive = profile?.is_active ?? false;
 
-  return { user, profile, loading, signOut, isAdmin, isActive, role };
+  return { user, profile, loading, profileLoaded, signOut, isAdmin, isActive, role };
 }
