@@ -235,11 +235,11 @@ export function ImportDialog({ open, onOpenChange, onImport, onImportToDatabase 
     setProgressPercent(0);
 
     try {
-      await onImportToDatabase(valid, (stage, percent) => {
+      const result = await onImportToDatabase(valid, (stage, percent) => {
         setProgressStage(stage);
         setProgressPercent(percent);
       });
-      setImportResult({ total: valid.length, skipped });
+      setImportResult({ total: result.created, skipped, failed: result.failed });
       setProgressPercent(100);
       setStep("done");
     } catch {
