@@ -89,7 +89,10 @@ export function useContracts() {
     loadFromDatabase();
   }, [loadFromDatabase]);
 
-  const importToDatabase = useCallback(async (rows: ContractRow[]) => {
+  const importToDatabase = useCallback(async (
+    rows: ContractRow[],
+    onProgress?: (stage: string, percent: number) => void
+  ) => {
     setLoading(true);
     try {
       // 1. Collect unique clients and modules
@@ -103,9 +106,13 @@ export function useContracts() {
       });
 
       // 2. Find or create clients
-      const clientMap = new Map<string, string>(); // name_lower -> id
+      const clientMap = new Map<string, string>();
+      let clientIdx = 0;
+      const totalClients = uniqueClients.size;
 
       for (const [key, row] of uniqueClients) {
+        clientIdx++;
+        onProgress?.(`Processando clientes... ${clientIdx}/${totalClients}`, Math.round((clientIdx / totalClients) * 30));
         const { data: existing } = await supabase
           .from("clients")
           .select("id")
