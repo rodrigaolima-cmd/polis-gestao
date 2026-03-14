@@ -78,7 +78,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           .maybeSingle(),
       ]);
 
-      if (thisRequest !== requestIdRef.current) return;
+      if (thisRequest !== requestIdRef.current) {
+        console.log("[Auth] Stale request", thisRequest, "current:", requestIdRef.current);
+        return;
+      }
 
       let profileData: Profile | null = null;
       let roleData: string | null = null;
@@ -90,27 +93,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const reason = profileResult.status === "fulfilled"
           ? profileResult.value.error
           : String(profileResult.reason);
-        console.error("Profile fetch failed:", reason);
+        console.error("[Auth] Profile fetch failed:", reason);
         error = "Não foi possível carregar o perfil. Tente novamente.";
       }
 
       if (roleResult.status === "fulfilled" && !roleResult.value.error) {
         roleData = roleResult.value.data?.role ?? null;
       } else {
-        console.error("Role fetch failed:", roleResult.status === "fulfilled" ? roleResult.value.error?.message : roleResult.reason);
+        console.error("[Auth] Role fetch failed:", roleResult.status === "fulfilled" ? roleResult.value.error?.message : roleResult.reason);
       }
 
+      console.log("[Auth] Setting state - profile:", !!profileData, "role:", roleData, "active:", profileData?.is_active);
       setProfile(profileData);
       setRole(roleData);
       setAuthError(error);
     } catch (e) {
       if (thisRequest !== requestIdRef.current) return;
-      console.error("Exception fetching user data:", e);
+      console.error("[Auth] Exception fetching user data:", e);
       setProfile(null);
       setRole(null);
       setAuthError("Erro ao carregar dados do usuário.");
     } finally {
       if (thisRequest === requestIdRef.current) {
+        console.log("[Auth] Final state - profileLoaded=true, loading=false");
         setProfileLoaded(true);
         setLoading(false);
       }
