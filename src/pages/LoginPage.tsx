@@ -17,13 +17,20 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
 
-  // Redirect if already authenticated
   useEffect(() => {
+    // Redirect if already authenticated
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) {
+      if (session) navigate("/", { replace: true });
+    });
+
+    // Listen for auth changes — navigate only when SIGNED_IN is confirmed
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      if (event === "SIGNED_IN") {
         navigate("/", { replace: true });
       }
     });
+
+    return () => subscription.unsubscribe();
   }, [navigate]);
 
   const handleLogin = async () => {
@@ -32,9 +39,8 @@ export default function LoginPage() {
     setLoading(false);
     if (error) {
       toast.error(error.message);
-      return;
+      // Do NOT navigate here — the onAuthStateChange listener will handle it
     }
-    navigate("/", { replace: true });
   };
 
   const handleForgotPassword = async () => {
