@@ -62,7 +62,11 @@ export default function ClientesPage() {
         const mods = modulesByClient.get(c.id) || [];
         const activeMods = mods.filter((m: any) => m.ativo_no_cliente);
         const totalContratado = mods.reduce((s: number, m: any) => s + (Number(m.valor_contratado) || 0), 0);
-        const totalFaturado = mods.reduce((s: number, m: any) => s + (Number(m.valor_faturado) || 0), 0);
+        const totalFaturado = mods.reduce((s: number, m: any) => {
+          // Módulos inativos não contam como faturado
+          if (m.ativo_no_cliente === false) return s;
+          return s + (Number(m.valor_faturado) || 0);
+        }, 0);
         const vencimentos = mods
           .map((m: any) => m.vencimento_contrato)
           .filter(Boolean)
