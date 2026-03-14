@@ -227,13 +227,23 @@ export function ImportDialog({ open, onOpenChange, onImport, onImportToDatabase 
       return;
     }
 
+    const skipped = rawRows.length - valid.length;
     setImporting(true);
+    setStep("importing");
+    setProgressStage("Iniciando...");
+    setProgressPercent(0);
+
     try {
-      await onImportToDatabase(valid);
-      reset();
-      onOpenChange(false);
+      await onImportToDatabase(valid, (stage, percent) => {
+        setProgressStage(stage);
+        setProgressPercent(percent);
+      });
+      setImportResult({ total: valid.length, skipped });
+      setProgressPercent(100);
+      setStep("done");
     } catch {
       toast.error("Erro ao importar para o banco");
+      setStep("map");
     } finally {
       setImporting(false);
     }
