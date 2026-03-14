@@ -143,6 +143,11 @@ export default function Dashboard() {
             <Button variant="default" size="sm" className="gap-2 text-xs" onClick={() => setImportOpen(true)}>
               <Upload className="h-3.5 w-3.5" /> Importar
             </Button>
+            {isAdmin && (
+              <Button variant="outline" size="sm" className="gap-2 text-xs" onClick={() => navigate("/configuracoes")}>
+                <Settings className="h-3.5 w-3.5" /> Configurações
+              </Button>
+            )}
             {dataSource === "database" && (
               <Button variant="ghost" size="sm" className="gap-2 text-xs text-muted-foreground" onClick={handleResetToMock}>
                 Dados demo
