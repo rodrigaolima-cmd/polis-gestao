@@ -206,6 +206,11 @@ export default function ClientesPage() {
             <TableBody>
               {loading ? (
                 <TableRow><TableCell colSpan={11} className="text-center text-xs text-muted-foreground py-8">Carregando...</TableCell></TableRow>
+              ) : loadError ? (
+                <TableRow><TableCell colSpan={11} className="text-center py-8">
+                  <p className="text-xs text-destructive mb-2">Erro ao carregar dados</p>
+                  <Button variant="outline" size="sm" onClick={loadClients} className="text-xs">Tentar novamente</Button>
+                </TableCell></TableRow>
               ) : filtered.length === 0 ? (
                 <TableRow><TableCell colSpan={11} className="text-center text-xs text-muted-foreground py-8">Nenhum cliente encontrado</TableCell></TableRow>
               ) : (
