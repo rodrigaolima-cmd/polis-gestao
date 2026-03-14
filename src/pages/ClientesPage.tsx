@@ -89,7 +89,8 @@ export default function ClientesPage() {
 
       setClients(result);
     } catch (err) {
-      console.error(err);
+      console.error("Erro ao carregar clientes:", err);
+      setLoadError(true);
     } finally {
       setLoading(false);
     }
