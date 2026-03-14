@@ -66,13 +66,11 @@ export default function Dashboard() {
 
   const handleImport = (data: ContractRow[]) => {
     setContracts(data);
-    setDataSource("imported");
     setFilters(defaultFilters);
   };
 
   const handleResetToMock = () => {
-    setContracts(mockContracts);
-    setDataSource("mock");
+    resetToMock();
     setFilters(defaultFilters);
   };
 
