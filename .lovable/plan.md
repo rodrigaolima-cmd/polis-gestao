@@ -1,41 +1,43 @@
 
+Objetivo: parar o loop “Entrar → spinner ~10s → volta para /login” com a menor intervenção possível.
 
-## Plano: Dashboard por Consultor com Relatório Detalhado e Exportação PDF
+Diagnóstico (com base em logs/replay):
+- O login no backend está funcionando (POST /token = 200, token emitido).
+- O replay mostra spinner por ~10s e retorno ao login, exatamente o timeout do `useAuth`.
+- Isso indica condição de corrida no client: navegação para `/` acontece antes da sessão estar estabilizada no estado global, e o `ProtectedRoute` cai no fallback de timeout.
 
-### 1. Novo componente `src/components/dashboard/ConsultorDashboard.tsx`
+Plano de implementação (rápido e direto):
 
-Seção dedicada inserida no Dashboard principal (após CommercialAnalysis), com:
+1) Ajustar o fluxo do `LoginPage` para navegar só quando sessão estiver confirmada
+- Arquivo: `src/pages/LoginPage.tsx`
+- Remover navegação imediata após `signInWithPassword`.
+- Em vez disso, escutar `onAuthStateChange` (evento `SIGNED_IN`) e só então `navigate("/")`.
+- Resultado: evita entrar no `ProtectedRoute` com sessão ainda “meio carregada”.
 
-- **Header**: Título "Dashboard por Consultor" com ícone `UserCheck`
-- **Seletor de consultor**: Dropdown `<Select>` listando todos os consultores disponíveis nos `clients`
-- **KPIs do consultor selecionado** (grid 4 colunas):
-  - Total Contratado, Total Faturado, Pendência (Dinheiro na Mesa), Nº Clientes
-- **Tabela de clientes do consultor**: Lista os clientes do consultor selecionado com colunas: Cliente, Tipo UG, Contratado, Faturado, Diferença, % Faturado, Vencimento, Status
-- **Rodapé totalizador**
-- **Botão relatório** (ícone Printer) que abre o `SectionReportDialog` com tipo `"byConsultorDetalhado"`
+2) Tornar o `useAuth` determinístico (sem depender do timeout cego)
+- Arquivo: `src/hooks/useAuth.ts`
+- Registrar `onAuthStateChange` antes da leitura inicial de sessão.
+- Processar sessão com callback não-async + delegação (`setTimeout/queueMicrotask`), mantendo anti-deadlock.
+- Em `applySession`, garantir `setLoading(false)` em `finally` (não apenas no caminho `isInitial`).
+- Tratar `getSession()` com `catch` + finalização garantida.
+- Manter timeout apenas como “última rede” (curto), nunca como fluxo principal.
 
-### 2. `src/components/dashboard/SectionReportDialog.tsx`
+3) Endurecer o `ProtectedRoute` para não mascarar falha de inicialização
+- Arquivo: `src/components/ProtectedRoute.tsx`
+- Manter spinner somente enquanto estado realmente pendente: `loading || (user && !profileLoaded)`.
+- Se sessão existe e `profile` não veio após carga concluída: mensagem clara + `signOut` controlado (sem loop de efeito).
+- Preservar regra de conta inativa.
 
-- Adicionar `"byConsultorDetalhado"` ao `SectionReportType`
-- Adicionar título: `byConsultorDetalhado: "Relatório Detalhado — Dashboard por Consultor"`
-- Novo componente `ByConsultorDetalhadoReport`:
-  - Recebe `clients` e `contracts`
-  - Agrupa contratos por consultor, depois por cliente dentro de cada consultor
-  - Para cada consultor: header com nome, subtabela com todos os contratos (Produto, Tipo UG, Contratado, Faturado, Pendência, Vencimento, Status)
-  - Subtotal por consultor
-  - Rodapé totalizador geral
-  - Exportação PDF via `window.print()` (mesmo padrão dos outros relatórios)
+4) Validação rápida pós-correção (para não gastar mais créditos)
+- Teste 1: login com usuário ativo → deve entrar no `/` sem voltar ao `/login`.
+- Teste 2: refresh já logado → permanece autenticado.
+- Teste 3: logout e novo login em sequência → sem spinner de 10s.
+- Teste 4: usuário sem perfil/inativo → mensagem correta e retorno ao login (sem loop).
 
-### 3. `src/components/dashboard/Dashboard.tsx`
-
-- Importar `ConsultorDashboard`
-- Inserir `<ConsultorDashboard>` entre `CommercialAnalysis` e `ActionTables`
-- Passar props: `clients`, `contracts: filteredContracts`, callback `onReport={() => setSectionReport("byConsultorDetalhado")}`
-
-### Detalhes técnicos
-
-- O `ConsultorDashboard` usa `useMemo` para filtrar clientes pelo consultor selecionado
-- A lista de consultores é extraída de `clients` com `new Set`, filtrando vazios
-- O relatório detalhado reutiliza o padrão visual existente (Table, TableFooter, formatCurrency, etc.)
-- A exportação PDF usa o mesmo mecanismo `window.print()` + classe `.print-report` já implementado
-
+Detalhes técnicos:
+- Arquivos a modificar:
+  - `src/pages/LoginPage.tsx`
+  - `src/hooks/useAuth.ts`
+  - `src/components/ProtectedRoute.tsx`
+- Banco de dados: nenhuma alteração necessária nesta rodada.
+- Ganho esperado: eliminar corrida de sessão + remover dependência do timeout como mecanismo principal de autenticação.
