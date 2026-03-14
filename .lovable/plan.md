@@ -1,39 +1,41 @@
 
 
-# Correções: Intermitência de Dados e Lógica de Módulo Inativo
+## Plano: Dashboard por Consultor com Relatório Detalhado e Exportação PDF
 
-## Problema 1: Dados não carregam (intermitente)
+### 1. Novo componente `src/components/dashboard/ConsultorDashboard.tsx`
 
-A raiz do problema está no `useAuth` hook. O listener `onAuthStateChange` pode disparar múltiplas vezes (INITIAL_SESSION, TOKEN_REFRESHED, etc.), e a flag `initialLoad` cria uma janela onde o `loading` pode ficar em estado inconsistente. Quando `ProtectedRoute` re-renderiza durante essas transições, `ClientesPage` pode ser remontado enquanto a sessão Supabase ainda não está pronta, causando queries que falham silenciosamente (RLS bloqueia sem sessão válida).
+Seção dedicada inserida no Dashboard principal (após CommercialAnalysis), com:
 
-### Correção em `src/hooks/useAuth.ts`
-- Remover a flag `initialLoad` e simplificar: usar apenas `getSession` para o carregamento inicial, e `onAuthStateChange` apenas para eventos subsequentes (SIGNED_IN, SIGNED_OUT, TOKEN_REFRESHED)
-- Garantir que `setLoading(false)` só execute uma vez, após o fetch do perfil no carregamento inicial
-- Usar um `ref` para controlar se a inicialização já ocorreu, evitando re-execuções
+- **Header**: Título "Dashboard por Consultor" com ícone `UserCheck`
+- **Seletor de consultor**: Dropdown `<Select>` listando todos os consultores disponíveis nos `clients`
+- **KPIs do consultor selecionado** (grid 4 colunas):
+  - Total Contratado, Total Faturado, Pendência (Dinheiro na Mesa), Nº Clientes
+- **Tabela de clientes do consultor**: Lista os clientes do consultor selecionado com colunas: Cliente, Tipo UG, Contratado, Faturado, Diferença, % Faturado, Vencimento, Status
+- **Rodapé totalizador**
+- **Botão relatório** (ícone Printer) que abre o `SectionReportDialog` com tipo `"byConsultorDetalhado"`
 
-### Correção em `src/pages/ClientesPage.tsx`
-- Adicionar tratamento de erro visível (mostrar mensagem em vez de ficar preso em "Carregando...")
-- Adicionar um retry automático se a query falhar
+### 2. `src/components/dashboard/SectionReportDialog.tsx`
 
-## Problema 2: Módulo inativo deve contar como "não faturado"
+- Adicionar `"byConsultorDetalhado"` ao `SectionReportType`
+- Adicionar título: `byConsultorDetalhado: "Relatório Detalhado — Dashboard por Consultor"`
+- Novo componente `ByConsultorDetalhadoReport`:
+  - Recebe `clients` e `contracts`
+  - Agrupa contratos por consultor, depois por cliente dentro de cada consultor
+  - Para cada consultor: header com nome, subtabela com todos os contratos (Produto, Tipo UG, Contratado, Faturado, Pendência, Vencimento, Status)
+  - Subtotal por consultor
+  - Rodapé totalizador geral
+  - Exportação PDF via `window.print()` (mesmo padrão dos outros relatórios)
 
-Atualmente, o `useContracts` carrega todos os `client_modules` e mapeia para `ContractRow` sem considerar `ativo_no_cliente`. Quando um módulo é inativado, o `billedValue` continua sendo contado no total faturado do dashboard.
+### 3. `src/components/dashboard/Dashboard.tsx`
 
-A regra de negócio correta: se `ativo_no_cliente = false`, o valor faturado deve ser zerado para fins de cálculo, movendo o valor contratado para a coluna "diferença / dinheiro na mesa".
+- Importar `ConsultorDashboard`
+- Inserir `<ConsultorDashboard>` entre `CommercialAnalysis` e `ActionTables`
+- Passar props: `clients`, `contracts: filteredContracts`, callback `onReport={() => setSectionReport("byConsultorDetalhado")}`
 
-### Correção em `src/hooks/useContracts.ts`
-- Na função `mapToContractRow`, verificar `ativo_no_cliente`:
-  - Se `false`: setar `billedValue = 0` e `billed = false`
-  - Manter o `contractedValue` para que a diferença (contratado - faturado) reflita o "dinheiro na mesa"
+### Detalhes técnicos
 
-### Correção em `src/pages/ClientesPage.tsx`  
-- Na agregação de módulos (linhas 63-65), aplicar a mesma regra: módulos inativos devem ter `valor_faturado = 0` no cálculo dos totais
-
-## Arquivos Afetados
-
-| Ação | Arquivo |
-|------|---------|
-| Modificar | `src/hooks/useAuth.ts` — simplificar inicialização |
-| Modificar | `src/hooks/useContracts.ts` — zerar faturado de inativos |
-| Modificar | `src/pages/ClientesPage.tsx` — erro visível + regra de inativo |
+- O `ConsultorDashboard` usa `useMemo` para filtrar clientes pelo consultor selecionado
+- A lista de consultores é extraída de `clients` com `new Set`, filtrando vazios
+- O relatório detalhado reutiliza o padrão visual existente (Table, TableFooter, formatCurrency, etc.)
+- A exportação PDF usa o mesmo mecanismo `window.print()` + classe `.print-report` já implementado
 

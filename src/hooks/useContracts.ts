@@ -48,16 +48,17 @@ function sanitizeDate(dateStr: string | null | undefined): string | null {
 }
 
 function mapToContractRow(cm: DbClientModule): ContractRow {
+  const isInactive = cm.ativo_no_cliente === false;
   return {
     id: cm.id,
     clientName: cm.clients.nome_cliente,
     ugType: cm.clients.tipo_ug || "",
     product: cm.modules.nome_modulo,
     contractedValue: Number(cm.valor_contratado) || 0,
-    billedValue: Number(cm.valor_faturado) || 0,
+    billedValue: isInactive ? 0 : (Number(cm.valor_faturado) || 0),
     signatureDate: cm.data_assinatura || "",
     expirationDate: cm.vencimento_contrato || "",
-    billed: cm.faturado_flag,
+    billed: isInactive ? false : cm.faturado_flag,
     contractStatus: cm.status_contrato || "",
     observations: cm.observacoes || "",
     regiao: cm.clients.regiao || "",

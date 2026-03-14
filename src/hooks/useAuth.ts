@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { User } from "@supabase/supabase-js";
 
@@ -13,6 +13,7 @@ export function useAuth() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [role, setRole] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const initialized = useRef(false);
 
   const fetchProfile = useCallback(async (userId: string) => {
     const { data } = await supabase
@@ -31,10 +32,24 @@ export function useAuth() {
   }, []);
 
   useEffect(() => {
-    let initialLoad = true;
+    // Initial load via getSession
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (initialized.current) return;
+      initialized.current = true;
 
+      setUser(session?.user ?? null);
+      if (session?.user) {
+        await fetchProfile(session.user.id);
+      }
+      setLoading(false);
+    });
+
+    // Subsequent auth events only
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
+      async (event, session) => {
+        // Skip initial session event — handled above
+        if (!initialized.current) return;
+
         setUser(session?.user ?? null);
         if (session?.user) {
           await fetchProfile(session.user.id);
@@ -42,20 +57,8 @@ export function useAuth() {
           setProfile(null);
           setRole(null);
         }
-        if (!initialLoad) {
-          setLoading(false);
-        }
       }
     );
-
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        await fetchProfile(session.user.id);
-      }
-      setLoading(false);
-      initialLoad = false;
-    });
 
     return () => subscription.unsubscribe();
   }, [fetchProfile]);

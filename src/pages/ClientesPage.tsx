@@ -35,9 +35,11 @@ export default function ClientesPage() {
   const [filterStatus, setFilterStatus] = useState("");
   const [formOpen, setFormOpen] = useState(false);
   const [editingClient, setEditingClient] = useState<ClientRow | null>(null);
+  const [loadError, setLoadError] = useState(false);
 
   const loadClients = async () => {
     setLoading(true);
+    setLoadError(false);
     try {
       const { data: clientsData, error } = await supabase
         .from("clients")
@@ -62,7 +64,11 @@ export default function ClientesPage() {
         const mods = modulesByClient.get(c.id) || [];
         const activeMods = mods.filter((m: any) => m.ativo_no_cliente);
         const totalContratado = mods.reduce((s: number, m: any) => s + (Number(m.valor_contratado) || 0), 0);
-        const totalFaturado = mods.reduce((s: number, m: any) => s + (Number(m.valor_faturado) || 0), 0);
+        const totalFaturado = mods.reduce((s: number, m: any) => {
+          // Módulos inativos não contam como faturado
+          if (m.ativo_no_cliente === false) return s;
+          return s + (Number(m.valor_faturado) || 0);
+        }, 0);
         const vencimentos = mods
           .map((m: any) => m.vencimento_contrato)
           .filter(Boolean)
@@ -85,7 +91,8 @@ export default function ClientesPage() {
 
       setClients(result);
     } catch (err) {
-      console.error(err);
+      console.error("Erro ao carregar clientes:", err);
+      setLoadError(true);
     } finally {
       setLoading(false);
     }
@@ -199,6 +206,11 @@ export default function ClientesPage() {
             <TableBody>
               {loading ? (
                 <TableRow><TableCell colSpan={11} className="text-center text-xs text-muted-foreground py-8">Carregando...</TableCell></TableRow>
+              ) : loadError ? (
+                <TableRow><TableCell colSpan={11} className="text-center py-8">
+                  <p className="text-xs text-destructive mb-2">Erro ao carregar dados</p>
+                  <Button variant="outline" size="sm" onClick={loadClients} className="text-xs">Tentar novamente</Button>
+                </TableCell></TableRow>
               ) : filtered.length === 0 ? (
                 <TableRow><TableCell colSpan={11} className="text-center text-xs text-muted-foreground py-8">Nenhum cliente encontrado</TableCell></TableRow>
               ) : (
