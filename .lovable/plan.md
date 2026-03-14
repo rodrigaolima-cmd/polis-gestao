@@ -1,41 +1,38 @@
 
 
-## Plano: Dashboard por Consultor com Relatório Detalhado e Exportação PDF
+# Diagnóstico e Correção da Importação
 
-### 1. Novo componente `src/components/dashboard/ConsultorDashboard.tsx`
+## Problema Identificado
 
-Seção dedicada inserida no Dashboard principal (após CommercialAnalysis), com:
+A tabela `client_modules` possui uma **constraint UNIQUE em (client_id, modulo_id)**, o que impede que um cliente tenha mais de um registro para o mesmo módulo. Porém, na planilha original existem clientes com **múltiplas linhas para o mesmo produto** (contratos diferentes, aditivos, etc.).
 
-- **Header**: Título "Dashboard por Consultor" com ícone `UserCheck`
-- **Seletor de consultor**: Dropdown `<Select>` listando todos os consultores disponíveis nos `clients`
-- **KPIs do consultor selecionado** (grid 4 colunas):
-  - Total Contratado, Total Faturado, Pendência (Dinheiro na Mesa), Nº Clientes
-- **Tabela de clientes do consultor**: Lista os clientes do consultor selecionado com colunas: Cliente, Tipo UG, Contratado, Faturado, Diferença, % Faturado, Vencimento, Status
-- **Rodapé totalizador**
-- **Botão relatório** (ícone Printer) que abre o `SectionReportDialog` com tipo `"byConsultorDetalhado"`
+**Resultado:** A importação sobrescreve registros duplicados em vez de criar novos. Por isso:
+- Planilha tem **975 linhas** → banco tem apenas **958 registros** (17 perdidos)
+- Total contratado: **R$ 1.582.122** no banco vs **R$ 1.617.648** esperado
+- Valores das linhas sobrescritas foram perdidos
 
-### 2. `src/components/dashboard/SectionReportDialog.tsx`
+## Plano de Correção
 
-- Adicionar `"byConsultorDetalhado"` ao `SectionReportType`
-- Adicionar título: `byConsultorDetalhado: "Relatório Detalhado — Dashboard por Consultor"`
-- Novo componente `ByConsultorDetalhadoReport`:
-  - Recebe `clients` e `contracts`
-  - Agrupa contratos por consultor, depois por cliente dentro de cada consultor
-  - Para cada consultor: header com nome, subtabela com todos os contratos (Produto, Tipo UG, Contratado, Faturado, Pendência, Vencimento, Status)
-  - Subtotal por consultor
-  - Rodapé totalizador geral
-  - Exportação PDF via `window.print()` (mesmo padrão dos outros relatórios)
+### 1. Remover a constraint UNIQUE
 
-### 3. `src/components/dashboard/Dashboard.tsx`
+Migration SQL para dropar a constraint `client_modules_client_id_modulo_id_key`, permitindo múltiplos registros por par cliente+módulo.
 
-- Importar `ConsultorDashboard`
-- Inserir `<ConsultorDashboard>` entre `CommercialAnalysis` e `ActionTables`
-- Passar props: `clients`, `contracts: filteredContracts`, callback `onReport={() => setSectionReport("byConsultorDetalhado")}`
+### 2. Atualizar lógica de importação
 
-### Detalhes técnicos
+No `useContracts.ts`, a função `importToDatabase`:
+- **Antes:** Verifica se existe (client_id, modulo_id) e faz update
+- **Depois:** Limpa todos os `client_modules` existentes e insere todos os registros da planilha como novos (fresh import)
 
-- O `ConsultorDashboard` usa `useMemo` para filtrar clientes pelo consultor selecionado
-- A lista de consultores é extraída de `clients` com `new Set`, filtrando vazios
-- O relatório detalhado reutiliza o padrão visual existente (Table, TableFooter, formatCurrency, etc.)
-- A exportação PDF usa o mesmo mecanismo `window.print()` + classe `.print-report` já implementado
+Isso garante que os dados do banco reflitam exatamente a planilha.
+
+### 3. Limpar dados atuais e reimportar
+
+Após a correção, será necessário reimportar a planilha para que os 975 registros e valores corretos sejam persistidos.
+
+### Arquivos afetados
+
+| Ação | Arquivo |
+|------|---------|
+| Migration | Dropar unique constraint em client_modules |
+| Modificar | `src/hooks/useContracts.ts` — lógica de importação |
 
