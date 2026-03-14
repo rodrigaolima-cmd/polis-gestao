@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { User, Session } from "@supabase/supabase-js";
 
@@ -14,8 +14,13 @@ export function useAuth() {
   const [role, setRole] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [profileLoaded, setProfileLoaded] = useState(false);
+  const processingRef = useRef(false);
 
-  const applySession = useCallback(async (session: Session | null, isInitial: boolean) => {
+  const applySession = useCallback(async (session: Session | null) => {
+    // Prevent concurrent processing
+    if (processingRef.current) return;
+    processingRef.current = true;
+
     const currentUser = session?.user ?? null;
     setUser(currentUser);
 
@@ -23,76 +28,84 @@ export function useAuth() {
       setProfile(null);
       setRole(null);
       setProfileLoaded(true);
-      if (isInitial) setLoading(false);
+      setLoading(false);
+      processingRef.current = false;
       return;
     }
 
     try {
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("id, full_name, is_active")
-        .eq("id", currentUser.id)
-        .single();
+      const [profileResult, roleResult] = await Promise.all([
+        supabase
+          .from("profiles")
+          .select("id, full_name, is_active")
+          .eq("id", currentUser.id)
+          .single(),
+        supabase
+          .from("user_roles")
+          .select("role")
+          .eq("user_id", currentUser.id)
+          .maybeSingle(),
+      ]);
 
-      if (error) {
-        console.error("Error fetching profile:", error.message);
+      if (profileResult.error) {
+        console.error("Error fetching profile:", profileResult.error.message);
         setProfile(null);
       } else {
-        setProfile(data);
+        setProfile(profileResult.data);
       }
-    } catch (e) {
-      console.error("Exception fetching profile:", e);
-      setProfile(null);
-    }
 
-    try {
-      const { data: roleData, error: roleError } = await supabase
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", currentUser.id)
-        .maybeSingle();
-
-      if (roleError) {
-        console.error("Error fetching role:", roleError.message);
+      if (roleResult.error) {
+        console.error("Error fetching role:", roleResult.error.message);
         setRole(null);
       } else {
-        setRole(roleData?.role ?? null);
+        setRole(roleResult.data?.role ?? null);
       }
     } catch (e) {
-      console.error("Exception fetching role:", e);
+      console.error("Exception in applySession:", e);
+      setProfile(null);
       setRole(null);
+    } finally {
+      setProfileLoaded(true);
+      setLoading(false);
+      processingRef.current = false;
     }
-
-    setProfileLoaded(true);
-    if (isInitial) setLoading(false);
   }, []);
 
   useEffect(() => {
     let mounted = true;
 
-    // 1. Bootstrap with getSession
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (mounted) {
-        applySession(session, true);
-      }
-    });
-
-    // 2. Listen for changes with NON-ASYNC callback to avoid deadlock
+    // 1. Register listener FIRST (non-async callback to avoid deadlock)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (_event, session) => {
-        // Delegate async work outside the callback
+        if (!mounted) return;
+        // Delegate async work outside the synchronous callback
         setTimeout(() => {
-          if (mounted) {
-            applySession(session, false);
-          }
+          if (mounted) applySession(session);
         }, 0);
       }
     );
 
-    // 3. Safety timeout (10s)
+    // 2. Then bootstrap with getSession
+    supabase.auth.getSession()
+      .then(({ data: { session } }) => {
+        if (mounted) applySession(session);
+      })
+      .catch((err) => {
+        console.error("getSession failed:", err);
+        if (mounted) {
+          setLoading(false);
+          setProfileLoaded(true);
+        }
+      });
+
+    // 3. Safety net timeout (only as last resort)
     const timeout = setTimeout(() => {
-      if (mounted) setLoading(false);
-    }, 10000);
+      if (mounted && loading) {
+        console.warn("Auth safety timeout reached");
+        setLoading(false);
+        setProfileLoaded(true);
+      }
+    }, 15000);
 
     return () => {
       mounted = false;
@@ -102,6 +115,9 @@ export function useAuth() {
   }, [applySession]);
 
   const signOut = useCallback(async () => {
+    processingRef.current = false;
+    setProfile(null);
+    setRole(null);
     setProfileLoaded(false);
     await supabase.auth.signOut();
   }, []);
