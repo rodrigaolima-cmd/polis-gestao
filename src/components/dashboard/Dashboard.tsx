@@ -2,6 +2,8 @@ import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { ContractRow, DashboardFilters } from "@/types/contract";
 import { useContracts } from "@/hooks/useContracts";
+import { useAuth } from "@/hooks/useAuth";
+import { useAuditLog } from "@/hooks/useAuditLog";
 import { ChartReportDialog } from "@/components/dashboard/ChartReportDialog";
 import { SectionReportDialog, SectionReportType } from "@/components/dashboard/SectionReportDialog";
 import {
@@ -20,7 +22,7 @@ import { ConsultorDashboard } from "@/components/dashboard/ConsultorDashboard";
 import {
   DollarSign, TrendingUp, AlertTriangle,
   CalendarX, Clock, AlertCircle, Upload,
-  Target, FileText, Users
+  Target, FileText, Users, LogOut
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
