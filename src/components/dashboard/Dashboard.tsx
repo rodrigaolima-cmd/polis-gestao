@@ -120,8 +120,8 @@ export default function Dashboard() {
             <h1 className="text-xl font-bold tracking-tight">Gestão de Contratos</h1>
             <p className="text-xs text-muted-foreground">
               Polis Gestão • Painel Executivo
-              {dataSource === "imported" && (
-                <span className="ml-2 text-success">• Dados importados ({contracts.length} registros)</span>
+              {dataSource === "database" && (
+                <span className="ml-2 text-success">• Dados do banco ({contracts.length} registros)</span>
               )}
             </p>
           </div>
