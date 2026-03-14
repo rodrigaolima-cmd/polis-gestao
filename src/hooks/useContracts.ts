@@ -35,6 +35,18 @@ interface DbClientModule {
   modules: DbModule;
 }
 
+function sanitizeDate(dateStr: string | null | undefined): string | null {
+  if (!dateStr || typeof dateStr !== "string") return null;
+  const trimmed = dateStr.trim();
+  if (!trimmed) return null;
+  // Must be YYYY-MM-DD
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return null;
+  // Validate actual date
+  const d = new Date(trimmed + "T00:00:00");
+  if (isNaN(d.getTime())) return null;
+  return trimmed;
+}
+
 function mapToContractRow(cm: DbClientModule): ContractRow {
   return {
     id: cm.id,
@@ -64,7 +76,8 @@ export function useContracts() {
       const { data, error } = await supabase
         .from("client_modules")
         .select("*, clients(*), modules(*)")
-        .order("created_at", { ascending: false });
+        .order("created_at", { ascending: false })
+        .range(0, 9999);
 
       if (error) throw error;
 
