@@ -337,6 +337,48 @@ export function ImportDialog({ open, onOpenChange, onImport, onImportToDatabase 
             </div>
           </div>
         )}
+
+        {step === "importing" && (
+          <div className="space-y-6 py-8">
+            <div className="flex flex-col items-center gap-4">
+              <Loader2 className="h-10 w-10 text-primary animate-spin" />
+              <p className="text-sm font-medium text-foreground">Importando dados...</p>
+            </div>
+            <div className="space-y-2">
+              <Progress value={progressPercent} className="h-3" />
+              <div className="flex justify-between text-xs text-muted-foreground">
+                <span>{progressStage}</span>
+                <span>{progressPercent}%</span>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {step === "done" && importResult && (
+          <div className="space-y-6 py-8">
+            <div className="flex flex-col items-center gap-3">
+              <CheckCircle className="h-12 w-12 text-emerald-500" />
+              <p className="text-lg font-semibold text-foreground">Importação concluída!</p>
+            </div>
+            <div className="bg-muted/50 rounded-lg p-4 space-y-2">
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Registros importados</span>
+                <span className="font-medium text-foreground">{importResult.total}</span>
+              </div>
+              {importResult.skipped > 0 && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Registros ignorados</span>
+                  <span className="font-medium text-warning">{importResult.skipped}</span>
+                </div>
+              )}
+            </div>
+            <div className="flex justify-center">
+              <Button onClick={() => { reset(); onOpenChange(false); }} className="gap-1">
+                <CheckCircle className="h-3.5 w-3.5" /> Fechar
+              </Button>
+            </div>
+          </div>
+        )}
       </DialogContent>
     </Dialog>
   );
