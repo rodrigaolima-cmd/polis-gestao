@@ -188,6 +188,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
     setProfile(null);
     setRole(null);
+    setAccessToken(null);
     setProfileLoaded(false);
     setAuthError(null);
     await supabase.auth.signOut();
