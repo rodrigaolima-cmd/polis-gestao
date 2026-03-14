@@ -357,7 +357,7 @@ export function ImportDialog({ open, onOpenChange, onImport, onImportToDatabase 
         {step === "done" && importResult && (
           <div className="space-y-6 py-8">
             <div className="flex flex-col items-center gap-3">
-              <CheckCircle className="h-12 w-12 text-emerald-500" />
+              <CheckCircle className="h-12 w-12 text-success" />
               <p className="text-lg font-semibold text-foreground">Importação concluída!</p>
             </div>
             <div className="bg-muted/50 rounded-lg p-4 space-y-2">
