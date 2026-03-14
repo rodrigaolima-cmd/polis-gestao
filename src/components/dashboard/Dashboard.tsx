@@ -2,6 +2,8 @@ import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { ContractRow, DashboardFilters } from "@/types/contract";
 import { useContracts } from "@/hooks/useContracts";
+import { useAuth } from "@/hooks/useAuth";
+import { useAuditLog } from "@/hooks/useAuditLog";
 import { ChartReportDialog } from "@/components/dashboard/ChartReportDialog";
 import { SectionReportDialog, SectionReportType } from "@/components/dashboard/SectionReportDialog";
 import {
@@ -20,7 +22,7 @@ import { ConsultorDashboard } from "@/components/dashboard/ConsultorDashboard";
 import {
   DollarSign, TrendingUp, AlertTriangle,
   CalendarX, Clock, AlertCircle, Upload,
-  Target, FileText, Users
+  Target, FileText, Users, LogOut
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -32,6 +34,8 @@ interface ReportConfig {
 // Dashboard component
 export default function Dashboard() {
   const navigate = useNavigate();
+  const { profile, signOut } = useAuth();
+  const { logAction } = useAuditLog();
   const { contracts, setContracts, dataSource, importToDatabase, resetToMock, loading } = useContracts();
   const [filters, setFilters] = useState<DashboardFilters>(defaultFilters);
   const [importOpen, setImportOpen] = useState(false);
@@ -68,6 +72,7 @@ export default function Dashboard() {
   const handleImport = (data: ContractRow[]) => {
     setContracts(data);
     setFilters(defaultFilters);
+    logAction("Importação de planilha", "contracts", undefined, { count: data.length });
   };
 
   const handleResetToMock = () => {
@@ -127,6 +132,11 @@ export default function Dashboard() {
             </p>
           </div>
           <div className="flex items-center gap-2">
+            {profile?.full_name && (
+              <span className="text-sm text-muted-foreground hidden sm:inline">
+                Olá, <span className="font-medium text-foreground">{profile.full_name}</span>
+              </span>
+            )}
             <Button variant="outline" size="sm" className="gap-2 text-xs" onClick={() => navigate("/clientes")}>
               <Users className="h-3.5 w-3.5" /> Clientes
             </Button>
@@ -138,6 +148,9 @@ export default function Dashboard() {
                 Dados demo
               </Button>
             )}
+            <Button variant="ghost" size="sm" className="gap-2 text-xs text-muted-foreground" onClick={signOut}>
+              <LogOut className="h-3.5 w-3.5" /> Sair
+            </Button>
           </div>
         </div>
       </header>
