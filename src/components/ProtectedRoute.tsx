@@ -4,14 +4,14 @@ import { useEffect } from "react";
 import { toast } from "sonner";
 
 export function ProtectedRoute({ children, requireAdmin = false }: { children: React.ReactNode; requireAdmin?: boolean }) {
-  const { user, loading, isActive, isAdmin, signOut } = useAuth();
+  const { user, profile, loading, isActive, isAdmin, signOut } = useAuth();
 
   useEffect(() => {
-    if (!loading && user && !isActive) {
+    if (!loading && user && profile && !isActive) {
       toast.error("Conta inativa. Contate o administrador.");
       signOut();
     }
-  }, [loading, user, isActive, signOut]);
+  }, [loading, user, profile, isActive, signOut]);
 
   if (loading) {
     return (

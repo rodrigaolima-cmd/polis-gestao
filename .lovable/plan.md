@@ -1,25 +1,41 @@
 
 
-# Fix: Race Condition in useAuth
+## Plano: Dashboard por Consultor com Relatório Detalhado e Exportação PDF
 
-## Problem
-The `useAuth` hook sets `loading = false` **before** the profile/role fetch completes. When `ProtectedRoute` sees `loading = false` + `isActive = false` (profile not yet loaded), it triggers sign-out with "Conta inativa" error.
+### 1. Novo componente `src/components/dashboard/ConsultorDashboard.tsx`
 
-## Solution
-Ensure `setLoading(false)` only runs **after** `fetchProfile` completes.
+Seção dedicada inserida no Dashboard principal (após CommercialAnalysis), com:
 
-### `src/hooks/useAuth.ts`
-- In `onAuthStateChange`: await `fetchProfile` before setting `loading = false` (remove the `setTimeout` wrapper)
-- In `getSession().then()`: await `fetchProfile` before setting `loading = false`
-- Both paths must wait for profile data before declaring loading complete
+- **Header**: Título "Dashboard por Consultor" com ícone `UserCheck`
+- **Seletor de consultor**: Dropdown `<Select>` listando todos os consultores disponíveis nos `clients`
+- **KPIs do consultor selecionado** (grid 4 colunas):
+  - Total Contratado, Total Faturado, Pendência (Dinheiro na Mesa), Nº Clientes
+- **Tabela de clientes do consultor**: Lista os clientes do consultor selecionado com colunas: Cliente, Tipo UG, Contratado, Faturado, Diferença, % Faturado, Vencimento, Status
+- **Rodapé totalizador**
+- **Botão relatório** (ícone Printer) que abre o `SectionReportDialog` com tipo `"byConsultorDetalhado"`
 
-### `src/components/ProtectedRoute.tsx`
-- Add a guard: don't check `isActive` until `profile` is actually loaded (not just `!loading`)
-- This prevents false negatives during the brief window before profile data arrives
+### 2. `src/components/dashboard/SectionReportDialog.tsx`
 
-## Files
-| Action | File |
-|--------|------|
-| Modify | `src/hooks/useAuth.ts` |
-| Modify | `src/components/ProtectedRoute.tsx` |
+- Adicionar `"byConsultorDetalhado"` ao `SectionReportType`
+- Adicionar título: `byConsultorDetalhado: "Relatório Detalhado — Dashboard por Consultor"`
+- Novo componente `ByConsultorDetalhadoReport`:
+  - Recebe `clients` e `contracts`
+  - Agrupa contratos por consultor, depois por cliente dentro de cada consultor
+  - Para cada consultor: header com nome, subtabela com todos os contratos (Produto, Tipo UG, Contratado, Faturado, Pendência, Vencimento, Status)
+  - Subtotal por consultor
+  - Rodapé totalizador geral
+  - Exportação PDF via `window.print()` (mesmo padrão dos outros relatórios)
+
+### 3. `src/components/dashboard/Dashboard.tsx`
+
+- Importar `ConsultorDashboard`
+- Inserir `<ConsultorDashboard>` entre `CommercialAnalysis` e `ActionTables`
+- Passar props: `clients`, `contracts: filteredContracts`, callback `onReport={() => setSectionReport("byConsultorDetalhado")}`
+
+### Detalhes técnicos
+
+- O `ConsultorDashboard` usa `useMemo` para filtrar clientes pelo consultor selecionado
+- A lista de consultores é extraída de `clients` com `new Set`, filtrando vazios
+- O relatório detalhado reutiliza o padrão visual existente (Table, TableFooter, formatCurrency, etc.)
+- A exportação PDF usa o mesmo mecanismo `window.print()` + classe `.print-report` já implementado
 
