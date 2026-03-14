@@ -3,6 +3,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { ContractRow } from "@/types/contract";
 import { mockContracts } from "@/data/mockContracts";
 import { toast } from "sonner";
+import { useAuth } from "@/hooks/useAuth";
+
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+const OP_TIMEOUT = 15000; // 15s per operation
 
 interface DbClient {
   id: string;
@@ -39,9 +44,7 @@ function sanitizeDate(dateStr: string | null | undefined): string | null {
   if (!dateStr || typeof dateStr !== "string") return null;
   const trimmed = dateStr.trim();
   if (!trimmed) return null;
-  // Must be YYYY-MM-DD
   if (!/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return null;
-  // Validate actual date
   const d = new Date(trimmed + "T00:00:00");
   if (isNaN(d.getTime())) return null;
   return trimmed;
@@ -66,10 +69,84 @@ function mapToContractRow(cm: DbClientModule): ContractRow {
   };
 }
 
+// Lock-free REST helpers that bypass supabase client auth lock
+async function restSelect(token: string, table: string, query: string, signal: AbortSignal) {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}?${query}`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+      apikey: SUPABASE_ANON_KEY,
+      Accept: "application/json",
+      "Content-Type": "application/json",
+    },
+    signal,
+  });
+  if (!res.ok) throw new Error(`SELECT ${table} failed: ${res.status}`);
+  return res.json();
+}
+
+async function restInsert(token: string, table: string, body: unknown, signal: AbortSignal, returnData = false) {
+  const headers: Record<string, string> = {
+    Authorization: `Bearer ${token}`,
+    apikey: SUPABASE_ANON_KEY,
+    "Content-Type": "application/json",
+    Prefer: returnData ? "return=representation" : "return=minimal",
+  };
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify(body),
+    signal,
+  });
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(`INSERT ${table} failed: ${res.status} ${text}`);
+  }
+  return returnData ? res.json() : null;
+}
+
+async function restUpdate(token: string, table: string, query: string, body: unknown, signal: AbortSignal) {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}?${query}`, {
+    method: "PATCH",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      apikey: SUPABASE_ANON_KEY,
+      "Content-Type": "application/json",
+      Prefer: "return=minimal",
+    },
+    body: JSON.stringify(body),
+    signal,
+  });
+  if (!res.ok) throw new Error(`UPDATE ${table} failed: ${res.status}`);
+}
+
+async function restDelete(token: string, table: string, query: string, signal: AbortSignal) {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}?${query}`, {
+    method: "DELETE",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      apikey: SUPABASE_ANON_KEY,
+      Prefer: "return=minimal",
+    },
+    signal,
+  });
+  if (!res.ok) throw new Error(`DELETE ${table} failed: ${res.status}`);
+}
+
+function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(`Timeout: ${label} (${ms}ms)`)), ms);
+    promise.then(
+      (v) => { clearTimeout(timer); resolve(v); },
+      (e) => { clearTimeout(timer); reject(e); }
+    );
+  });
+}
+
 export function useContracts() {
   const [contracts, setContracts] = useState<ContractRow[]>(mockContracts);
   const [loading, setLoading] = useState(false);
   const [dataSource, setDataSource] = useState<"mock" | "database">("mock");
+  const { accessToken } = useAuth();
 
   const loadFromDatabase = useCallback(async () => {
     setLoading(true);
@@ -107,15 +184,31 @@ export function useContracts() {
     rows: ContractRow[],
     onProgress?: (stage: string, percent: number) => void
   ) => {
+    // Get token - prefer context, fallback to session
+    let token = accessToken;
+    if (!token) {
+      try {
+        const { data } = await withTimeout(supabase.auth.getSession(), 3000, "getSession");
+        token = data?.session?.access_token ?? null;
+      } catch {
+        // ignore - will fail on first REST call
+      }
+    }
+    if (!token) {
+      toast.error("Sessão expirada. Faça login novamente.");
+      return { created: 0, failed: rows.length };
+    }
+
     setLoading(true);
+    const controller = new AbortController();
+    const { signal } = controller;
+
     try {
-      // Ensure auth session is resolved before making DB calls
-      await supabase.auth.getSession();
-      
+      onProgress?.("Preparando importação...", 1);
+
       // 1. Collect unique clients and modules
       const uniqueClients = new Map<string, ContractRow>();
       const uniqueModules = new Set<string>();
-
       rows.forEach((r) => {
         const key = r.clientName.trim().toLowerCase();
         if (!uniqueClients.has(key)) uniqueClients.set(key, r);
@@ -130,34 +223,33 @@ export function useContracts() {
       for (const [key, row] of uniqueClients) {
         clientIdx++;
         onProgress?.(`Processando clientes... ${clientIdx}/${totalClients}`, Math.round((clientIdx / totalClients) * 30));
-        const { data: existing } = await supabase
-          .from("clients")
-          .select("id")
-          .ilike("nome_cliente", row.clientName.trim())
-          .limit(1);
+
+        const existing = await withTimeout(
+          restSelect(token, "clients", `nome_cliente=ilike.${encodeURIComponent(row.clientName.trim())}&select=id&limit=1`, signal),
+          OP_TIMEOUT, `client lookup ${clientIdx}`
+        );
 
         if (existing && existing.length > 0) {
           clientMap.set(key, existing[0].id);
-          // Update client info
-          await supabase.from("clients").update({
-            tipo_ug: row.ugType || undefined,
-            regiao: row.regiao || undefined,
-            consultor: row.consultor || undefined,
-          }).eq("id", existing[0].id);
+          await withTimeout(
+            restUpdate(token, "clients", `id=eq.${existing[0].id}`, {
+              tipo_ug: row.ugType || undefined,
+              regiao: row.regiao || undefined,
+              consultor: row.consultor || undefined,
+            }, signal),
+            OP_TIMEOUT, `client update ${clientIdx}`
+          );
         } else {
-          const { data: created, error } = await supabase
-            .from("clients")
-            .insert({
+          const created = await withTimeout(
+            restInsert(token, "clients", {
               nome_cliente: row.clientName.trim(),
               tipo_ug: row.ugType || "",
               regiao: row.regiao || "",
               consultor: row.consultor || "",
-            })
-            .select("id")
-            .single();
-
-          if (error) throw error;
-          clientMap.set(key, created.id);
+            }, signal, true),
+            OP_TIMEOUT, `client insert ${clientIdx}`
+          );
+          clientMap.set(key, created[0].id);
         }
       }
 
@@ -169,31 +261,30 @@ export function useContracts() {
       for (const moduleName of uniqueModules) {
         modIdx++;
         onProgress?.(`Processando módulos... ${modIdx}/${totalMods}`, 30 + Math.round((modIdx / totalMods) * 20));
-        const { data: existing } = await supabase
-          .from("modules")
-          .select("id")
-          .ilike("nome_modulo", moduleName)
-          .limit(1);
+
+        const existing = await withTimeout(
+          restSelect(token, "modules", `nome_modulo=ilike.${encodeURIComponent(moduleName)}&select=id&limit=1`, signal),
+          OP_TIMEOUT, `module lookup ${modIdx}`
+        );
 
         if (existing && existing.length > 0) {
           moduleMap.set(moduleName.toLowerCase(), existing[0].id);
         } else {
-          const { data: created, error } = await supabase
-            .from("modules")
-            .insert({ nome_modulo: moduleName })
-            .select("id")
-            .single();
-
-          if (error) throw error;
-          moduleMap.set(moduleName.toLowerCase(), created.id);
+          const created = await withTimeout(
+            restInsert(token, "modules", { nome_modulo: moduleName }, signal, true),
+            OP_TIMEOUT, `module insert ${modIdx}`
+          );
+          moduleMap.set(moduleName.toLowerCase(), created[0].id);
         }
       }
 
-      // 4. Clear existing client_modules and insert all rows fresh
+      // 4. Clear existing and insert fresh
       onProgress?.("Limpando dados anteriores...", 52);
-      await supabase.from("client_modules").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+      await withTimeout(
+        restDelete(token, "client_modules", "id=neq.00000000-0000-0000-0000-000000000000", signal),
+        OP_TIMEOUT, "delete old modules"
+      );
 
-      // Insert in batches of 100 with resilient error handling
       const payloads = rows
         .map((row) => {
           const clientId = clientMap.get(row.clientName.trim().toLowerCase());
@@ -217,25 +308,27 @@ export function useContracts() {
       let created = 0;
       let failed = 0;
       const totalBatches = Math.ceil(payloads.length / batchSize);
+
       for (let i = 0; i < payloads.length; i += batchSize) {
         const batchNum = Math.floor(i / batchSize) + 1;
         onProgress?.(`Inserindo contratos... lote ${batchNum}/${totalBatches}`, 55 + Math.round((batchNum / totalBatches) * 40));
         const batch = payloads.slice(i, i + batchSize);
-        const { error: insertError } = await supabase.from("client_modules").insert(batch as any);
-        if (insertError) {
-          console.warn(`Batch ${batchNum} failed, inserting individually...`, insertError);
-          // Fallback: insert one by one
+        try {
+          await withTimeout(
+            restInsert(token, "client_modules", batch, signal, false),
+            OP_TIMEOUT, `batch ${batchNum}`
+          );
+          created += batch.length;
+        } catch (batchErr) {
+          console.warn(`Batch ${batchNum} failed, inserting individually...`, batchErr);
           for (const record of batch) {
-            const { error: singleError } = await supabase.from("client_modules").insert(record as any);
-            if (singleError) {
-              console.warn("Record failed:", singleError, record);
-              failed++;
-            } else {
+            try {
+              await restInsert(token, "client_modules", record, signal, false);
               created++;
+            } catch {
+              failed++;
             }
           }
-        } else {
-          created += batch.length;
         }
       }
 
@@ -247,16 +340,20 @@ export function useContracts() {
       }
       await loadFromDatabase();
       return { created, failed };
-    } catch (err) {
+    } catch (err: any) {
       console.error("Import error:", err);
-      toast.error("Erro ao importar para o banco de dados");
+      const msg = err?.message?.startsWith("Timeout:")
+        ? "Importação travou (timeout). Tente novamente."
+        : "Erro ao importar para o banco de dados";
+      toast.error(msg);
+      controller.abort();
       setContracts(rows);
       setDataSource("mock");
       return { created: 0, failed: rows.length };
     } finally {
       setLoading(false);
     }
-  }, [loadFromDatabase]);
+  }, [loadFromDatabase, accessToken]);
 
   const resetToMock = useCallback(() => {
     setContracts(mockContracts);
