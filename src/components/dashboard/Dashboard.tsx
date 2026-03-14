@@ -225,6 +225,7 @@ export default function Dashboard() {
           onCriticalReport={() => setSectionReport("critical")}
         />
       </main>
+      )}
 
       <ImportDialog open={importOpen} onOpenChange={setImportOpen} onImport={handleImport} onImportToDatabase={importToDatabase} />
       <ChartReportDialog
