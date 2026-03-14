@@ -13,6 +13,7 @@ export function useAuth() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [role, setRole] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [profileLoaded, setProfileLoaded] = useState(false);
   const initialized = useRef(false);
 
   const fetchProfile = useCallback(async (userId: string) => {
@@ -39,6 +40,8 @@ export function useAuth() {
       console.error("Error fetching role:", e);
       setRole(null);
     }
+
+    setProfileLoaded(true);
   }, []);
 
   useEffect(() => {
