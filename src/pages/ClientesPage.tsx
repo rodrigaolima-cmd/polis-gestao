@@ -39,6 +39,7 @@ export default function ClientesPage() {
 
   const loadClients = async () => {
     setLoading(true);
+    setLoadError(false);
     try {
       const { data: clientsData, error } = await supabase
         .from("clients")
