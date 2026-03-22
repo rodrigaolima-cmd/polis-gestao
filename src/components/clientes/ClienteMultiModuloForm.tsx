@@ -286,6 +286,9 @@ export function ClienteMultiModuloForm({ open, onOpenChange, clientId, onSaved }
                 <Button variant="outline" size="sm" className="h-7 text-[10px] gap-1" onClick={applyBulkFaturado}>
                   <CopyCheck className="h-3 w-3" /> Aplicar a todos
                 </Button>
+                <Button variant="outline" size="sm" className="h-7 text-[10px] gap-1" onClick={copyContratadoToFaturado}>
+                  <Copy className="h-3 w-3" /> Copiar contratado → faturado
+                </Button>
               </div>
               <div className="border border-border/50 rounded-lg overflow-hidden">
                 <Table>
