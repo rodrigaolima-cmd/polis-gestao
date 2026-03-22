@@ -1,41 +1,49 @@
 
 
-## Plano: Dashboard por Consultor com Relatório Detalhado e Exportação PDF
+## Plano: 3 melhorias no módulo Clientes
 
-### 1. Novo componente `src/components/dashboard/ConsultorDashboard.tsx`
+### 1. Relatório Completo de Clientes e Sistemas
 
-Seção dedicada inserida no Dashboard principal (após CommercialAnalysis), com:
+**Novo arquivo:** `src/components/clientes/ClientesReportDialog.tsx`
 
-- **Header**: Título "Dashboard por Consultor" com ícone `UserCheck`
-- **Seletor de consultor**: Dropdown `<Select>` listando todos os consultores disponíveis nos `clients`
-- **KPIs do consultor selecionado** (grid 4 colunas):
-  - Total Contratado, Total Faturado, Pendência (Dinheiro na Mesa), Nº Clientes
-- **Tabela de clientes do consultor**: Lista os clientes do consultor selecionado com colunas: Cliente, Tipo UG, Contratado, Faturado, Diferença, % Faturado, Vencimento, Status
-- **Rodapé totalizador**
-- **Botão relatório** (ícone Printer) que abre o `SectionReportDialog` com tipo `"byConsultorDetalhado"`
+- Modal/dialog aberto por botão na `ClientesPage`
+- Busca dados de `clients` + `client_modules` + `modules` (join)
+- Agrupa por cliente (ordem alfabética pt-BR), dentro de cada cliente ordena sistemas alfabeticamente
+- Mostra: Nome Cliente, Sistema, Valor Contratado, Valor Faturado, Diferença
+- Subtotal por cliente, grand total no footer
+- Respeita filtros ativos da `ClientesPage` (recebe `filtered` client IDs como prop)
+- Botão "Exportar PDF" usando `window.print()` com classe `.print-report`
 
-### 2. `src/components/dashboard/SectionReportDialog.tsx`
+**Edição:** `src/pages/ClientesPage.tsx`
+- Adicionar botão "Relatório Completo" no header ao lado de "Novo Cliente"
+- Passar lista de IDs filtrados para o dialog
 
-- Adicionar `"byConsultorDetalhado"` ao `SectionReportType`
-- Adicionar título: `byConsultorDetalhado: "Relatório Detalhado — Dashboard por Consultor"`
-- Novo componente `ByConsultorDetalhadoReport`:
-  - Recebe `clients` e `contracts`
-  - Agrupa contratos por consultor, depois por cliente dentro de cada consultor
-  - Para cada consultor: header com nome, subtabela com todos os contratos (Produto, Tipo UG, Contratado, Faturado, Pendência, Vencimento, Status)
-  - Subtotal por consultor
-  - Rodapé totalizador geral
-  - Exportação PDF via `window.print()` (mesmo padrão dos outros relatórios)
+### 2. Copiar datas para todos os sistemas
 
-### 3. `src/components/dashboard/Dashboard.tsx`
+**Edição:** `src/pages/ClienteDetailPage.tsx`
+- Adicionar botão "Aplicar datas para todos os sistemas" na seção de módulos (ao lado de "Adicionar Módulo")
+- Só aparece quando há 2+ módulos
+- Ao clicar, abre dialog com:
+  - Campos de Data de Assinatura e Vencimento (preenchidos com valores do primeiro módulo se existirem)
+  - Checkboxes: "Assinatura" / "Vencimento" (ambos marcados por padrão)
+  - Botão "Aplicar" com confirmação ("Isto substituirá as datas de X módulos. Continuar?")
+- Executa update em batch nos `client_modules` do cliente
+- Recarrega dados após sucesso
 
-- Importar `ConsultorDashboard`
-- Inserir `<ConsultorDashboard>` entre `CommercialAnalysis` e `ActionTables`
-- Passar props: `clients`, `contracts: filteredContracts`, callback `onReport={() => setSectionReport("byConsultorDetalhado")}`
+**Novo arquivo:** `src/components/clientes/CopyDatesDialog.tsx`
+
+### 3. Dropdowns de Região e Consultor no formulário de cliente
+
+**Edição:** `src/components/clientes/ClienteForm.tsx`
+- Carregar valores únicos de `regiao` e `consultor` da tabela `clients` ao abrir o dialog
+- Substituir `<Input>` por `<Select>` com Combobox-like behavior:
+  - Lista valores existentes ordenados alfabeticamente (pt-BR)
+  - Opção "Outro..." que revela um Input para valor manual
+- Mantém compatibilidade com edição (valor atual aparece selecionado mesmo se não estiver na lista)
 
 ### Detalhes técnicos
-
-- O `ConsultorDashboard` usa `useMemo` para filtrar clientes pelo consultor selecionado
-- A lista de consultores é extraída de `clients` com `new Set`, filtrando vazios
-- O relatório detalhado reutiliza o padrão visual existente (Table, TableFooter, formatCurrency, etc.)
-- A exportação PDF usa o mesmo mecanismo `window.print()` + classe `.print-report` já implementado
+- Sem alterações no banco de dados
+- Sem alterações no dashboard
+- 2 novos arquivos, 3 arquivos editados
+- Estilo visual consistente com o existente (glass-card, text-xs, etc.)
 
