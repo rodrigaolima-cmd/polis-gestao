@@ -187,9 +187,16 @@ export default function ClienteDetailPage() {
         <div className="glass-card rounded-xl overflow-hidden">
           <div className="px-5 py-4 border-b border-border/30 flex items-center justify-between">
             <h2 className="text-sm font-semibold">Módulos do Cliente</h2>
-            <Button size="sm" className="gap-2 text-xs" onClick={handleAddModule}>
-              <Plus className="h-3.5 w-3.5" /> Adicionar Módulo
-            </Button>
+            <div className="flex items-center gap-2">
+              {modules.length >= 2 && (
+                <Button variant="outline" size="sm" className="gap-2 text-xs" onClick={() => setCopyDatesOpen(true)}>
+                  <Copy className="h-3.5 w-3.5" /> Aplicar datas para todos
+                </Button>
+              )}
+              <Button size="sm" className="gap-2 text-xs" onClick={handleAddModule}>
+                <Plus className="h-3.5 w-3.5" /> Adicionar Módulo
+              </Button>
+            </div>
           </div>
           <Table>
             <TableHeader>
