@@ -11,7 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { CopyCheck } from "lucide-react";
+import { CopyCheck, Copy } from "lucide-react";
 
 interface ModuleOption {
   id: string;
@@ -117,6 +117,19 @@ export function ClienteMultiModuloForm({ open, onOpenChange, clientId, onSaved }
     });
   };
 
+  const copyContratadoToFaturado = () => {
+    setModuleValues((prev) => {
+      const next = { ...prev };
+      selectedIds.forEach((id) => {
+        if (next[id]) {
+          next[id] = { ...next[id], valor_faturado: next[id].valor_contratado };
+        }
+      });
+      return next;
+    });
+    toast.info("Valores contratados copiados para faturados");
+  };
+
   const selectedModules = useMemo(
     () => allModules.filter((m) => selectedIds.has(m.id)),
     [allModules, selectedIds]
@@ -126,6 +139,10 @@ export function ClienteMultiModuloForm({ open, onOpenChange, clientId, onSaved }
     if (selectedIds.size === 0) {
       toast.error("Selecione ao menos um módulo");
       return;
+    }
+
+    if (!dataAssinatura || !vencimento) {
+      toast.warning("Datas de assinatura ou vencimento não preenchidas — os registros serão salvos sem elas");
     }
 
     // Filter out already linked
@@ -206,7 +223,7 @@ export function ClienteMultiModuloForm({ open, onOpenChange, clientId, onSaved }
 
           {/* Shared fields */}
           <div className="space-y-3">
-            <Label className="text-xs font-semibold">Campos Compartilhados</Label>
+            <Label className="text-xs font-semibold">Dados comuns para todos os sistemas</Label>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
               <div className="space-y-1">
                 <Label className="text-[10px]">Data de Assinatura</Label>
@@ -273,6 +290,9 @@ export function ClienteMultiModuloForm({ open, onOpenChange, clientId, onSaved }
                 <Button variant="outline" size="sm" className="h-7 text-[10px] gap-1" onClick={applyBulkFaturado}>
                   <CopyCheck className="h-3 w-3" /> Aplicar a todos
                 </Button>
+                <Button variant="outline" size="sm" className="h-7 text-[10px] gap-1" onClick={copyContratadoToFaturado}>
+                  <Copy className="h-3 w-3" /> Copiar contratado → faturado
+                </Button>
               </div>
               <div className="border border-border/50 rounded-lg overflow-hidden">
                 <Table>
@@ -286,7 +306,12 @@ export function ClienteMultiModuloForm({ open, onOpenChange, clientId, onSaved }
                   <TableBody>
                     {selectedModules.map((m) => (
                       <TableRow key={m.id} className="border-border/20">
-                        <TableCell className="text-xs font-medium">{m.nome_modulo}</TableCell>
+                        <TableCell className="text-xs font-medium">
+                          <span className="flex items-center gap-2">
+                            {m.nome_modulo}
+                            <Badge variant="default" className="text-[9px]">Novo</Badge>
+                          </span>
+                        </TableCell>
                         <TableCell className="text-right">
                           <Input
                             type="number"
