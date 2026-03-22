@@ -142,9 +142,14 @@ export default function ClientesPage() {
               <p className="text-xs text-muted-foreground">Polis Gestão • Cadastro de Clientes</p>
             </div>
           </div>
-          <Button size="sm" className="gap-2 text-xs" onClick={handleNew}>
-            <Plus className="h-3.5 w-3.5" /> Novo Cliente
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" className="gap-2 text-xs" onClick={() => setReportOpen(true)}>
+              <FileText className="h-3.5 w-3.5" /> Relatório Completo
+            </Button>
+            <Button size="sm" className="gap-2 text-xs" onClick={handleNew}>
+              <Plus className="h-3.5 w-3.5" /> Novo Cliente
+            </Button>
+          </div>
         </div>
       </header>
 
