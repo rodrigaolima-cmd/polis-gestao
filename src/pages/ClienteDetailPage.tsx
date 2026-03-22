@@ -47,6 +47,7 @@ export default function ClienteDetailPage() {
   const [moduleFormOpen, setModuleFormOpen] = useState(false);
   const [editingModule, setEditingModule] = useState<ClientModuleRow | null>(null);
   const [copyDatesOpen, setCopyDatesOpen] = useState(false);
+  const [multiModuleFormOpen, setMultiModuleFormOpen] = useState(false);
 
   const loadData = async () => {
     if (!id) return;
