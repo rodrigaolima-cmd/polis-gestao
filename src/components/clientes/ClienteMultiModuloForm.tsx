@@ -302,7 +302,12 @@ export function ClienteMultiModuloForm({ open, onOpenChange, clientId, onSaved }
                   <TableBody>
                     {selectedModules.map((m) => (
                       <TableRow key={m.id} className="border-border/20">
-                        <TableCell className="text-xs font-medium">{m.nome_modulo}</TableCell>
+                        <TableCell className="text-xs font-medium">
+                          <span className="flex items-center gap-2">
+                            {m.nome_modulo}
+                            <Badge variant="default" className="text-[9px]">Novo</Badge>
+                          </span>
+                        </TableCell>
                         <TableCell className="text-right">
                           <Input
                             type="number"
