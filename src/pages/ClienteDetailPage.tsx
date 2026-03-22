@@ -319,6 +319,15 @@ export default function ClienteDetailPage() {
       )}
 
       {id && (
+        <ClienteMultiModuloForm
+          open={multiModuleFormOpen}
+          onOpenChange={setMultiModuleFormOpen}
+          clientId={id}
+          onSaved={loadData}
+        />
+      )}
+
+      {id && (
         <CopyDatesDialog
           open={copyDatesOpen}
           onOpenChange={setCopyDatesOpen}
