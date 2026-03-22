@@ -1,49 +1,30 @@
 
 
-## Plano: 3 melhorias no módulo Clientes
+## Adicionar múltiplos sistemas de uma vez
 
-### 1. Relatório Completo de Clientes e Sistemas
+### Resumo
+Novo componente `ClienteMultiModuloForm` — modal acessível via botão "Adicionar Vários" ao lado do botão existente "Adicionar Módulo" na tela de detalhe do cliente.
 
-**Novo arquivo:** `src/components/clientes/ClientesReportDialog.tsx`
+### Novo arquivo: `src/components/clientes/ClienteMultiModuloForm.tsx`
 
-- Modal/dialog aberto por botão na `ClientesPage`
-- Busca dados de `clients` + `client_modules` + `modules` (join)
-- Agrupa por cliente (ordem alfabética pt-BR), dentro de cada cliente ordena sistemas alfabeticamente
-- Mostra: Nome Cliente, Sistema, Valor Contratado, Valor Faturado, Diferença
-- Subtotal por cliente, grand total no footer
-- Respeita filtros ativos da `ClientesPage` (recebe `filtered` client IDs como prop)
-- Botão "Exportar PDF" usando `window.print()` com classe `.print-report`
+**Layout do modal (max-w-3xl):**
+1. **Seleção de módulos** — lista de checkboxes com todos os módulos do catálogo (`modules` table), ordenados alfabeticamente. Filtra os já vinculados ao cliente (marca como "já vinculado" e desabilita). 
+2. **Campos compartilhados** — Data de Assinatura, Vencimento, Status, Faturado?, Observações, Ativo no cliente. Preenchidos uma vez, aplicados a todos.
+3. **Tabela de valores individuais** — uma linha por módulo selecionado com colunas: Módulo (nome), Valor Contratado (input), Valor Faturado (input). Botão opcional "Aplicar mesmo valor a todos" acima da tabela para copiar um valor base.
+4. **Salvamento** — insere N registros em `client_modules` em batch. Exibe warning se algum módulo já está vinculado (detectado ao carregar `client_modules` existentes do cliente). Pula duplicatas automaticamente.
 
-**Edição:** `src/pages/ClientesPage.tsx`
-- Adicionar botão "Relatório Completo" no header ao lado de "Novo Cliente"
-- Passar lista de IDs filtrados para o dialog
+### Edição: `src/pages/ClienteDetailPage.tsx`
 
-### 2. Copiar datas para todos os sistemas
-
-**Edição:** `src/pages/ClienteDetailPage.tsx`
-- Adicionar botão "Aplicar datas para todos os sistemas" na seção de módulos (ao lado de "Adicionar Módulo")
-- Só aparece quando há 2+ módulos
-- Ao clicar, abre dialog com:
-  - Campos de Data de Assinatura e Vencimento (preenchidos com valores do primeiro módulo se existirem)
-  - Checkboxes: "Assinatura" / "Vencimento" (ambos marcados por padrão)
-  - Botão "Aplicar" com confirmação ("Isto substituirá as datas de X módulos. Continuar?")
-- Executa update em batch nos `client_modules` do cliente
-- Recarrega dados após sucesso
-
-**Novo arquivo:** `src/components/clientes/CopyDatesDialog.tsx`
-
-### 3. Dropdowns de Região e Consultor no formulário de cliente
-
-**Edição:** `src/components/clientes/ClienteForm.tsx`
-- Carregar valores únicos de `regiao` e `consultor` da tabela `clients` ao abrir o dialog
-- Substituir `<Input>` por `<Select>` com Combobox-like behavior:
-  - Lista valores existentes ordenados alfabeticamente (pt-BR)
-  - Opção "Outro..." que revela um Input para valor manual
-- Mantém compatibilidade com edição (valor atual aparece selecionado mesmo se não estiver na lista)
+- Adicionar state `multiModuleFormOpen`
+- Adicionar botão "Adicionar Vários" (com ícone `ListPlus` ou similar) ao lado do "Adicionar Módulo" existente
+- Importar e renderizar `ClienteMultiModuloForm`
+- Manter toda a funcionalidade existente intacta
 
 ### Detalhes técnicos
+- Busca módulos existentes do cliente (`client_modules` where `client_id`) para detectar duplicatas
+- Busca catálogo completo (`modules` table) para a lista de seleção
+- Insert batch: `supabase.from("client_modules").insert([...arrayOfPayloads])`
 - Sem alterações no banco de dados
-- Sem alterações no dashboard
-- 2 novos arquivos, 3 arquivos editados
-- Estilo visual consistente com o existente (glass-card, text-xs, etc.)
+- Sem alterações no dashboard ou relatórios
+- 1 novo arquivo, 1 arquivo editado
 
