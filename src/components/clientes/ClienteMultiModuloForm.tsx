@@ -219,7 +219,7 @@ export function ClienteMultiModuloForm({ open, onOpenChange, clientId, onSaved }
 
           {/* Shared fields */}
           <div className="space-y-3">
-            <Label className="text-xs font-semibold">Campos Compartilhados</Label>
+            <Label className="text-xs font-semibold">Dados comuns para todos os sistemas</Label>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
               <div className="space-y-1">
                 <Label className="text-[10px]">Data de Assinatura</Label>
