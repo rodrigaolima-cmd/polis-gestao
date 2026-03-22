@@ -7,7 +7,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFoo
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { ClienteForm } from "@/components/clientes/ClienteForm";
 import { ClienteModuloForm } from "@/components/clientes/ClienteModuloForm";
-import { ArrowLeft, Pencil, Plus, MoreVertical, CheckCircle, XCircle, Trash2 } from "lucide-react";
+import { CopyDatesDialog } from "@/components/clientes/CopyDatesDialog";
+import { ArrowLeft, Pencil, Plus, MoreVertical, CheckCircle, XCircle, Trash2, Copy } from "lucide-react";
 import { formatCurrency, formatDate, getDaysToExpire, getExpirationStatus } from "@/utils/contractUtils";
 import { toast } from "sonner";
 
