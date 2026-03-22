@@ -7,7 +7,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { ClienteForm } from "@/components/clientes/ClienteForm";
-import { Users, Plus, Search, Eye, Pencil, ArrowLeft } from "lucide-react";
+import { ClientesReportDialog } from "@/components/clientes/ClientesReportDialog";
+import { Users, Plus, Search, Eye, Pencil, ArrowLeft, FileText } from "lucide-react";
 import { formatCurrency, formatDate, getDaysToExpire, getExpirationStatus } from "@/utils/contractUtils";
 
 interface ClientRow {
