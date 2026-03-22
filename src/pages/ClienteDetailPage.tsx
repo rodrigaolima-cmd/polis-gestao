@@ -312,6 +312,18 @@ export default function ClienteDetailPage() {
           onSaved={loadData}
         />
       )}
+
+      {id && (
+        <CopyDatesDialog
+          open={copyDatesOpen}
+          onOpenChange={setCopyDatesOpen}
+          clientId={id}
+          moduleCount={modules.length}
+          initialAssinatura={modules[0]?.data_assinatura || ""}
+          initialVencimento={modules[0]?.vencimento_contrato || ""}
+          onSaved={loadData}
+        />
+      )}
     </div>
   );
 }

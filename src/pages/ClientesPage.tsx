@@ -280,6 +280,12 @@ export default function ClientesPage() {
         cliente={editingClient}
         onSaved={loadClients}
       />
+
+      <ClientesReportDialog
+        open={reportOpen}
+        onOpenChange={setReportOpen}
+        filteredClientIds={filtered.map(c => c.id)}
+      />
     </div>
   );
 }
