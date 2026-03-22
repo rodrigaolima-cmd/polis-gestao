@@ -195,6 +195,9 @@ export default function ClienteDetailPage() {
                   <Copy className="h-3.5 w-3.5" /> Aplicar datas para todos
                 </Button>
               )}
+              <Button variant="outline" size="sm" className="gap-2 text-xs" onClick={() => setMultiModuleFormOpen(true)}>
+                <ListPlus className="h-3.5 w-3.5" /> Adicionar Vários
+              </Button>
               <Button size="sm" className="gap-2 text-xs" onClick={handleAddModule}>
                 <Plus className="h-3.5 w-3.5" /> Adicionar Módulo
               </Button>
