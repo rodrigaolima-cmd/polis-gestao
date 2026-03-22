@@ -117,6 +117,19 @@ export function ClienteMultiModuloForm({ open, onOpenChange, clientId, onSaved }
     });
   };
 
+  const copyContratadoToFaturado = () => {
+    setModuleValues((prev) => {
+      const next = { ...prev };
+      selectedIds.forEach((id) => {
+        if (next[id]) {
+          next[id] = { ...next[id], valor_faturado: next[id].valor_contratado };
+        }
+      });
+      return next;
+    });
+    toast.info("Valores contratados copiados para faturados");
+  };
+
   const selectedModules = useMemo(
     () => allModules.filter((m) => selectedIds.has(m.id)),
     [allModules, selectedIds]
