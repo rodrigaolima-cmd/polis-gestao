@@ -7,8 +7,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFoo
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { ClienteForm } from "@/components/clientes/ClienteForm";
 import { ClienteModuloForm } from "@/components/clientes/ClienteModuloForm";
+import { ClienteMultiModuloForm } from "@/components/clientes/ClienteMultiModuloForm";
 import { CopyDatesDialog } from "@/components/clientes/CopyDatesDialog";
-import { ArrowLeft, Pencil, Plus, MoreVertical, CheckCircle, XCircle, Trash2, Copy } from "lucide-react";
+import { ArrowLeft, Pencil, Plus, MoreVertical, CheckCircle, XCircle, Trash2, Copy, ListPlus } from "lucide-react";
 import { formatCurrency, formatDate, getDaysToExpire, getExpirationStatus } from "@/utils/contractUtils";
 import { toast } from "sonner";
 
@@ -46,6 +47,7 @@ export default function ClienteDetailPage() {
   const [moduleFormOpen, setModuleFormOpen] = useState(false);
   const [editingModule, setEditingModule] = useState<ClientModuleRow | null>(null);
   const [copyDatesOpen, setCopyDatesOpen] = useState(false);
+  const [multiModuleFormOpen, setMultiModuleFormOpen] = useState(false);
 
   const loadData = async () => {
     if (!id) return;
@@ -193,6 +195,9 @@ export default function ClienteDetailPage() {
                   <Copy className="h-3.5 w-3.5" /> Aplicar datas para todos
                 </Button>
               )}
+              <Button variant="outline" size="sm" className="gap-2 text-xs" onClick={() => setMultiModuleFormOpen(true)}>
+                <ListPlus className="h-3.5 w-3.5" /> Adicionar Vários
+              </Button>
               <Button size="sm" className="gap-2 text-xs" onClick={handleAddModule}>
                 <Plus className="h-3.5 w-3.5" /> Adicionar Módulo
               </Button>
@@ -309,6 +314,15 @@ export default function ClienteDetailPage() {
             observacoes: editingModule.observacoes,
             ativo_no_cliente: editingModule.ativo_no_cliente,
           } : null}
+          onSaved={loadData}
+        />
+      )}
+
+      {id && (
+        <ClienteMultiModuloForm
+          open={multiModuleFormOpen}
+          onOpenChange={setMultiModuleFormOpen}
+          clientId={id}
           onSaved={loadData}
         />
       )}
