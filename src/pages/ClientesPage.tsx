@@ -7,7 +7,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { ClienteForm } from "@/components/clientes/ClienteForm";
-import { Users, Plus, Search, Eye, Pencil, ArrowLeft } from "lucide-react";
+import { ClientesReportDialog } from "@/components/clientes/ClientesReportDialog";
+import { Users, Plus, Search, Eye, Pencil, ArrowLeft, FileText } from "lucide-react";
 import { formatCurrency, formatDate, getDaysToExpire, getExpirationStatus } from "@/utils/contractUtils";
 
 interface ClientRow {
@@ -35,6 +36,7 @@ export default function ClientesPage() {
   const [filterStatus, setFilterStatus] = useState("");
   const [formOpen, setFormOpen] = useState(false);
   const [editingClient, setEditingClient] = useState<ClientRow | null>(null);
+  const [reportOpen, setReportOpen] = useState(false);
   const [loadError, setLoadError] = useState(false);
 
   const loadClients = async () => {
@@ -140,9 +142,14 @@ export default function ClientesPage() {
               <p className="text-xs text-muted-foreground">Polis Gestão • Cadastro de Clientes</p>
             </div>
           </div>
-          <Button size="sm" className="gap-2 text-xs" onClick={handleNew}>
-            <Plus className="h-3.5 w-3.5" /> Novo Cliente
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" className="gap-2 text-xs" onClick={() => setReportOpen(true)}>
+              <FileText className="h-3.5 w-3.5" /> Relatório Completo
+            </Button>
+            <Button size="sm" className="gap-2 text-xs" onClick={handleNew}>
+              <Plus className="h-3.5 w-3.5" /> Novo Cliente
+            </Button>
+          </div>
         </div>
       </header>
 
@@ -272,6 +279,12 @@ export default function ClientesPage() {
         onOpenChange={setFormOpen}
         cliente={editingClient}
         onSaved={loadClients}
+      />
+
+      <ClientesReportDialog
+        open={reportOpen}
+        onOpenChange={setReportOpen}
+        filteredClientIds={filtered.map(c => c.id)}
       />
     </div>
   );
