@@ -11,7 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { CopyCheck } from "lucide-react";
+import { CopyCheck, Copy } from "lucide-react";
 
 interface ModuleOption {
   id: string;
