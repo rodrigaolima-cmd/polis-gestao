@@ -141,6 +141,10 @@ export function ClienteMultiModuloForm({ open, onOpenChange, clientId, onSaved }
       return;
     }
 
+    if (!dataAssinatura || !vencimento) {
+      toast.warning("Datas de assinatura ou vencimento não preenchidas — os registros serão salvos sem elas");
+    }
+
     // Filter out already linked
     const toInsert = Array.from(selectedIds).filter((id) => !existingModuleIds.has(id));
     const skipped = selectedIds.size - toInsert.length;
