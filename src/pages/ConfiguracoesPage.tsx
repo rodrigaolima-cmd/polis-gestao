@@ -108,6 +108,22 @@ export default function ConfiguracoesPage() {
     fetchUsers();
   };
 
+  const handleFixEncoding = async () => {
+    setFixingEncoding(true);
+    try {
+      const res = await supabase.functions.invoke("fix-encoding");
+      if (res.error || res.data?.error) {
+        toast.error(res.data?.error || res.error?.message || "Erro ao corrigir encoding");
+      } else {
+        toast.success(`Correção concluída: ${res.data?.fixed ?? 0} registros corrigidos`);
+      }
+    } catch (err: any) {
+      toast.error("Erro: " + err.message);
+    } finally {
+      setFixingEncoding(false);
+    }
+  };
+
   if (!isAdmin) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
