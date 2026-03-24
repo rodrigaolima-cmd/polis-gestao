@@ -1,89 +1,54 @@
 
 
-## Plano: Correção de encoding e busca sem acentos
+## Problema identificado
 
-### 1. Criar utilitário de normalização de texto — `src/utils/textUtils.ts`
+A edge function `fix-encoding` existe mas **nunca foi executada com sucesso** -- ela dá timeout porque processa cada registro individualmente (um UPDATE por registro). Com centenas de registros, excede o limite de tempo.
 
-Funções:
-- `fixMojibake(text: string): string` — corrige sequências UTF-8 quebradas (ex: `Ã£` → `ã`, `Ã©` → `é`). Usa mapa de substituições conhecidas de double-encoding latin1→UTF-8.
-- `normalizeForSearch(text: string): string` — remove acentos via `normalize("NFD").replace(/[\u0300-\u036f]/g, "")`, lowercase, trim.
-- `normalizeText(text: string): string` — aplica `fixMojibake` + trim.
+Os dados no banco continuam com mojibake: "CÃ¢mara" em vez de "Câmara", "SÃ£o" em vez de "São", etc.
 
-### 2. Corrigir dados existentes no banco — edge function `fix-encoding`
+Além disso, os nomes aparecem quebrados na UI porque não há normalização na renderização.
 
-Edge function `supabase/functions/fix-encoding/index.ts`:
-- Busca todos os registros de `clients` e `modules`
-- Aplica `fixMojibake` nos campos: `nome_cliente`, `regiao`, `consultor`, `tipo_ug`, `observacoes_cliente` (clients) e `nome_modulo` (modules)
-- Também aplica em `client_modules.observacoes`
-- Só faz UPDATE quando o valor mudou (segurança)
-- Retorna contagem de registros corrigidos
-- Pode ser chamada manualmente (botão na tela de Configurações ou via fetch direto)
+## Plano de correção
 
-### 3. Normalizar imports futuros — `src/hooks/useContracts.ts`
+### 1. Reescrever a edge function `fix-encoding` com SQL direto
 
-No `importToDatabase`, antes de salvar clientes e módulos, aplicar `normalizeText()` nos campos de texto (nome_cliente, regiao, consultor, tipo_ug, observacoes, nome_modulo).
+Em vez de buscar todos os registros e fazer UPDATE um a um, usar `REPLACE()` em SQL em batch -- uma única query por campo:
 
-### 4. Busca accent-insensitive — múltiplos arquivos
-
-**`src/pages/ClientesPage.tsx`** — linha 111:
-Trocar `c.nome_cliente.toLowerCase().includes(search.toLowerCase())` por comparação usando `normalizeForSearch`:
-```
-normalizeForSearch(c.nome_cliente).includes(normalizeForSearch(search))
+```sql
+UPDATE clients SET nome_cliente = REPLACE(REPLACE(REPLACE(nome_cliente, 'Ã£', 'ã'), 'Ã©', 'é'), 'Ã§', 'ç') ...
+WHERE nome_cliente ~ 'Ã[£¡©­³ºç¢ª´¼µ]';
 ```
 
-**`src/utils/contractUtils.ts`** — `applyFilters` linhas 79-82:
-Trocar busca por search para usar `normalizeForSearch` em `clientName` e `product`.
+Isso resolve em segundos em vez de minutos.
 
-**`src/utils/contractUtils.ts`** — `getUniqueValues` linha 115:
-Ordenar com `localeCompare('pt-BR')` (já feito em alguns lugares, garantir consistência).
+**Arquivo:** `supabase/functions/fix-encoding/index.ts`
+- Usar `supabase.rpc()` com uma function SQL ou fazer múltiplos `UPDATE ... SET field = REPLACE(...)` via SQL direto
+- Cobrir todos os campos: `nome_cliente`, `regiao`, `consultor`, `tipo_ug`, `observacoes_cliente` (clients), `nome_modulo` (modules), `observacoes` (client_modules)
+- Adicionar padrões faltantes para caracteres maiúsculos (Â, Ê, Ô, Õ, Ã, À, Á, É, etc.)
 
-**`src/components/dashboard/FiltersBar.tsx`** — sem mudanças estruturais, os filtros de dropdown usam valores exatos que já funcionam.
+### 2. Aplicar `fixMojibake` na renderização (display-side fix)
 
-### 5. Normalizar formulário de cliente — `src/components/clientes/ClienteForm.tsx`
+Enquanto os dados não são corrigidos no banco, aplicar a correção ao exibir:
 
-<lov-plan>
+**`src/pages/ClientesPage.tsx`** -- ao mapear os resultados de `clientsData`, aplicar `fixMojibake()` nos campos de texto (`nome_cliente`, `regiao`, `consultor`, `tipo_ug`)
 
-## Plano: Correção de encoding e busca sem acentos
+**`src/hooks/useContracts.ts`** -- no `loadFromDatabase`, aplicar `fixMojibake()` nos campos ao montar os `ContractRow`
 
-### 1. Criar utilitário de normalização — `src/utils/textUtils.ts` (novo)
+Isso garante que a UI mostra os nomes corretos imediatamente, mesmo antes de executar a correção no banco.
 
-- `fixMojibake(text)` — mapa de substituições de double-encoding latin1→UTF-8 (Ã£→ã, Ã©→é, Ã§→ç, etc.)
-- `normalizeForSearch(text)` — `normalize("NFD").replace(/[\u0300-\u036f]/g, "")` + lowercase + trim
-- `normalizeText(text)` — `fixMojibake` + trim
+### 3. Criar migration SQL para correção direta (alternativa mais confiável)
 
-### 2. Corrigir dados existentes — edge function `fix-encoding` (novo)
+Criar uma database migration que faz os REPLACE diretamente, sem depender da edge function:
 
-`supabase/functions/fix-encoding/index.ts`:
-- Busca todos os `clients`, aplica fixMojibake em `nome_cliente`, `regiao`, `consultor`, `tipo_ug`, `observacoes_cliente`
-- Busca todos os `modules`, aplica em `nome_modulo`
-- Busca todos os `client_modules`, aplica em `observacoes`
-- Só faz UPDATE quando valor mudou
-- Retorna contagem de correções
-- Chamável via botão na tela de Configurações
+```sql
+UPDATE clients SET nome_cliente = REPLACE(nome_cliente, 'Ã£', 'ã') WHERE nome_cliente LIKE '%Ã£%';
+UPDATE clients SET nome_cliente = REPLACE(nome_cliente, 'Ã¢', 'â') WHERE nome_cliente LIKE '%Ã¢%';
+-- ... para cada padrão e campo
+```
 
-### 3. Normalizar imports futuros — `src/hooks/useContracts.ts`
-
-No `importToDatabase`, aplicar `normalizeText()` nos campos de texto antes de salvar (nome_cliente, regiao, consultor, tipo_ug, observacoes, nome_modulo).
-
-### 4. Busca accent-insensitive
-
-**`src/pages/ClientesPage.tsx`** — filtro de busca (linha 111):
-Usar `normalizeForSearch(c.nome_cliente).includes(normalizeForSearch(search))`
-
-**`src/utils/contractUtils.ts`** — `applyFilters` (linhas 79-82):
-Usar `normalizeForSearch` para comparar search com clientName e product.
-
-### 5. Normalizar entrada no formulário — `src/components/clientes/ClienteForm.tsx`
-
-Aplicar trim nos campos ao salvar (já parcialmente feito, garantir consistência).
-
-### 6. Botão para executar correção — `src/pages/ConfiguracoesPage.tsx`
-
-Adicionar seção "Qualidade de Dados" com botão "Corrigir encoding dos dados" que chama a edge function.
-
-### Arquivos afetados
-- 1 novo utilitário: `src/utils/textUtils.ts`
-- 1 nova edge function: `supabase/functions/fix-encoding/index.ts`
-- 4 arquivos editados: `ClientesPage.tsx`, `contractUtils.ts`, `useContracts.ts`, `ConfiguracoesPage.tsx`
-- Sem alterações no banco, dashboard ou layout
+### Resumo de alterações
+- 1 arquivo reescrito: `supabase/functions/fix-encoding/index.ts`
+- 2 arquivos editados para display fix: `ClientesPage.tsx`, `useContracts.ts`
+- 1 migration SQL para corrigir dados no banco diretamente
+- Sem alterações de layout, dashboard ou lógica de filtros
 
