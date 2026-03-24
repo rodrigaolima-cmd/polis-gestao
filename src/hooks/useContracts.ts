@@ -243,10 +243,10 @@ export function useContracts() {
         } else {
           const created = await withTimeout(
             restInsert(token, "clients", {
-              nome_cliente: row.clientName.trim(),
-              tipo_ug: row.ugType || "",
-              regiao: row.regiao || "",
-              consultor: row.consultor || "",
+              nome_cliente: normalizeText(row.clientName.trim()),
+              tipo_ug: normalizeText(row.ugType || ""),
+              regiao: normalizeText(row.regiao || ""),
+              consultor: normalizeText(row.consultor || ""),
             }, signal, true),
             OP_TIMEOUT, `client insert ${clientIdx}`
           );
