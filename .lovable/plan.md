@@ -1,54 +1,35 @@
 
 
-## Problema identificado
+## Plano: Inserir módulos e criar cadastro de módulos
 
-A edge function `fix-encoding` existe mas **nunca foi executada com sucesso** -- ela dá timeout porque processa cada registro individualmente (um UPDATE por registro). Com centenas de registros, excede o limite de tempo.
+### 1. Inserir os 26 módulos no banco
 
-Os dados no banco continuam com mojibake: "CÃ¢mara" em vez de "Câmara", "SÃ£o" em vez de "São", etc.
+Usar o insert tool para inserir na tabela `modules` com `categoria_modulo` derivada do prefixo (GSP ou EDU):
 
-Além disso, os nomes aparecem quebrados na UI porque não há normalização na renderização.
+- 16 módulos GSP (categoria "GSP - Saúde")
+- 10 módulos EDU (categoria "EDU - Educação")
 
-## Plano de correção
+Todos com `status_modulo = 'Ativo'`.
 
-### 1. Reescrever a edge function `fix-encoding` com SQL direto
+### 2. Criar seção "Catálogo de Módulos" na página de Configurações
 
-Em vez de buscar todos os registros e fazer UPDATE um a um, usar `REPLACE()` em SQL em batch -- uma única query por campo:
+**Edição: `src/pages/ConfiguracoesPage.tsx`**
 
-```sql
-UPDATE clients SET nome_cliente = REPLACE(REPLACE(REPLACE(nome_cliente, 'Ã£', 'ã'), 'Ã©', 'é'), 'Ã§', 'ç') ...
-WHERE nome_cliente ~ 'Ã[£¡©­³ºç¢ª´¼µ]';
-```
+Adicionar novo Card abaixo dos existentes com:
 
-Isso resolve em segundos em vez de minutos.
+- Tabela listando todos os módulos (`nome_modulo`, `categoria_modulo`, `status_modulo`)
+- Ordenação alfabética por nome
+- Badge de status (Ativo/Inativo)
+- Ações por linha:
+  - **Editar** — abre dialog para alterar nome, categoria, descrição
+  - **Ativar/Inativar** — toggle switch (soft delete, não exclui)
+  - **Excluir** — botão com confirmação; só permite se módulo não estiver vinculado a nenhum cliente (`client_modules`). Se vinculado, mostra aviso.
+- Botão "Novo Módulo" no header do card — dialog com campos: nome, categoria, descrição
+- Busca/filtro por nome
 
-**Arquivo:** `supabase/functions/fix-encoding/index.ts`
-- Usar `supabase.rpc()` com uma function SQL ou fazer múltiplos `UPDATE ... SET field = REPLACE(...)` via SQL direto
-- Cobrir todos os campos: `nome_cliente`, `regiao`, `consultor`, `tipo_ug`, `observacoes_cliente` (clients), `nome_modulo` (modules), `observacoes` (client_modules)
-- Adicionar padrões faltantes para caracteres maiúsculos (Â, Ê, Ô, Õ, Ã, À, Á, É, etc.)
-
-### 2. Aplicar `fixMojibake` na renderização (display-side fix)
-
-Enquanto os dados não são corrigidos no banco, aplicar a correção ao exibir:
-
-**`src/pages/ClientesPage.tsx`** -- ao mapear os resultados de `clientsData`, aplicar `fixMojibake()` nos campos de texto (`nome_cliente`, `regiao`, `consultor`, `tipo_ug`)
-
-**`src/hooks/useContracts.ts`** -- no `loadFromDatabase`, aplicar `fixMojibake()` nos campos ao montar os `ContractRow`
-
-Isso garante que a UI mostra os nomes corretos imediatamente, mesmo antes de executar a correção no banco.
-
-### 3. Criar migration SQL para correção direta (alternativa mais confiável)
-
-Criar uma database migration que faz os REPLACE diretamente, sem depender da edge function:
-
-```sql
-UPDATE clients SET nome_cliente = REPLACE(nome_cliente, 'Ã£', 'ã') WHERE nome_cliente LIKE '%Ã£%';
-UPDATE clients SET nome_cliente = REPLACE(nome_cliente, 'Ã¢', 'â') WHERE nome_cliente LIKE '%Ã¢%';
--- ... para cada padrão e campo
-```
-
-### Resumo de alterações
-- 1 arquivo reescrito: `supabase/functions/fix-encoding/index.ts`
-- 2 arquivos editados para display fix: `ClientesPage.tsx`, `useContracts.ts`
-- 1 migration SQL para corrigir dados no banco diretamente
-- Sem alterações de layout, dashboard ou lógica de filtros
+### Arquivos afetados
+- 1 arquivo editado: `src/pages/ConfiguracoesPage.tsx`
+- 26 registros inseridos via insert tool na tabela `modules`
+- Sem alterações no banco de dados (schema)
+- Sem alterações no dashboard ou layout
 
