@@ -1,5 +1,6 @@
 import { ContractRow, ClientSummary, DashboardFilters } from "@/types/contract";
 import { differenceInDays, parseISO, format } from "date-fns";
+import { normalizeForSearch } from "@/utils/textUtils";
 
 const today = new Date();
 
@@ -77,8 +78,8 @@ export function applyFilters(contracts: ContractRow[], filters: DashboardFilters
     if (filters.regiao && (c.regiao || "").trim() !== filters.regiao) return false;
     if (filters.consultor && (c.consultor || "").trim() !== filters.consultor) return false;
     if (filters.search) {
-      const q = filters.search.toLowerCase();
-      if (!c.clientName.toLowerCase().includes(q) && !c.product.toLowerCase().includes(q)) return false;
+      const q = normalizeForSearch(filters.search);
+      if (!normalizeForSearch(c.clientName).includes(q) && !normalizeForSearch(c.product).includes(q)) return false;
     }
     if (filters.onlyWithDifference) {
       // We check difference at row level (not consolidated), basic filter

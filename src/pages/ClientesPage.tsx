@@ -10,6 +10,7 @@ import { ClienteForm } from "@/components/clientes/ClienteForm";
 import { ClientesReportDialog } from "@/components/clientes/ClientesReportDialog";
 import { Users, Plus, Search, Eye, Pencil, ArrowLeft, FileText } from "lucide-react";
 import { formatCurrency, formatDate, getDaysToExpire, getExpirationStatus } from "@/utils/contractUtils";
+import { normalizeForSearch } from "@/utils/textUtils";
 
 interface ClientRow {
   id: string;
@@ -108,7 +109,7 @@ export default function ClientesPage() {
 
   const filtered = useMemo(() => {
     return clients.filter(c => {
-      if (search && !c.nome_cliente.toLowerCase().includes(search.toLowerCase())) return false;
+      if (search && !normalizeForSearch(c.nome_cliente).includes(normalizeForSearch(search))) return false;
       if (filterRegiao && c.regiao !== filterRegiao) return false;
       if (filterConsultor && c.consultor !== filterConsultor) return false;
       if (filterUG && c.tipo_ug !== filterUG) return false;

@@ -4,6 +4,7 @@ import { ContractRow } from "@/types/contract";
 import { mockContracts } from "@/data/mockContracts";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
+import { normalizeText } from "@/utils/textUtils";
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
@@ -242,10 +243,10 @@ export function useContracts() {
         } else {
           const created = await withTimeout(
             restInsert(token, "clients", {
-              nome_cliente: row.clientName.trim(),
-              tipo_ug: row.ugType || "",
-              regiao: row.regiao || "",
-              consultor: row.consultor || "",
+              nome_cliente: normalizeText(row.clientName.trim()),
+              tipo_ug: normalizeText(row.ugType || ""),
+              regiao: normalizeText(row.regiao || ""),
+              consultor: normalizeText(row.consultor || ""),
             }, signal, true),
             OP_TIMEOUT, `client insert ${clientIdx}`
           );
@@ -271,7 +272,7 @@ export function useContracts() {
           moduleMap.set(moduleName.toLowerCase(), existing[0].id);
         } else {
           const created = await withTimeout(
-            restInsert(token, "modules", { nome_modulo: moduleName }, signal, true),
+            restInsert(token, "modules", { nome_modulo: normalizeText(moduleName) }, signal, true),
             OP_TIMEOUT, `module insert ${modIdx}`
           );
           moduleMap.set(moduleName.toLowerCase(), created[0].id);

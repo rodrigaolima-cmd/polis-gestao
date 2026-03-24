@@ -11,7 +11,7 @@ import { Switch } from "@/components/ui/switch";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { ArrowLeft, UserPlus, Shield, User as UserIcon } from "lucide-react";
+import { ArrowLeft, UserPlus, Shield, User as UserIcon, Wrench } from "lucide-react";
 
 interface UserProfile {
   id: string;
@@ -31,6 +31,7 @@ export default function ConfiguracoesPage() {
   const [newPassword, setNewPassword] = useState("");
   const [newFullName, setNewFullName] = useState("");
   const [creating, setCreating] = useState(false);
+  const [fixingEncoding, setFixingEncoding] = useState(false);
 
   const fetchUsers = useCallback(async () => {
     setLoading(true);
@@ -105,6 +106,22 @@ export default function ConfiguracoesPage() {
     setNewPassword("");
     setNewFullName("");
     fetchUsers();
+  };
+
+  const handleFixEncoding = async () => {
+    setFixingEncoding(true);
+    try {
+      const res = await supabase.functions.invoke("fix-encoding");
+      if (res.error || res.data?.error) {
+        toast.error(res.data?.error || res.error?.message || "Erro ao corrigir encoding");
+      } else {
+        toast.success(`Correção concluída: ${res.data?.fixed ?? 0} registros corrigidos`);
+      }
+    } catch (err: any) {
+      toast.error("Erro: " + err.message);
+    } finally {
+      setFixingEncoding(false);
+    }
   };
 
   if (!isAdmin) {
@@ -215,6 +232,27 @@ export default function ConfiguracoesPage() {
                 </TableBody>
               </Table>
             )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Qualidade de Dados</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <p className="text-sm text-muted-foreground">
+              Corrige problemas de encoding (acentos quebrados) nos registros existentes de clientes, módulos e contratos.
+            </p>
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-2"
+              onClick={handleFixEncoding}
+              disabled={fixingEncoding}
+            >
+              <Wrench className="h-4 w-4" />
+              {fixingEncoding ? "Corrigindo..." : "Corrigir encoding dos dados"}
+            </Button>
           </CardContent>
         </Card>
       </main>
