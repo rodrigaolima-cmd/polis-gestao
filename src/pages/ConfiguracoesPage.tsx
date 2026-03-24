@@ -256,6 +256,8 @@ export default function ConfiguracoesPage() {
             </Button>
           </CardContent>
         </Card>
+
+        <ModuloCatalogo />
       </main>
     </div>
   );
