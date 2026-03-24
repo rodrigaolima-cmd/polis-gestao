@@ -4,7 +4,7 @@ import { ContractRow } from "@/types/contract";
 import { mockContracts } from "@/data/mockContracts";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
-import { normalizeText } from "@/utils/textUtils";
+import { normalizeText, fixMojibake } from "@/utils/textUtils";
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
