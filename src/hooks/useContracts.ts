@@ -272,7 +272,7 @@ export function useContracts() {
           moduleMap.set(moduleName.toLowerCase(), existing[0].id);
         } else {
           const created = await withTimeout(
-            restInsert(token, "modules", { nome_modulo: moduleName }, signal, true),
+            restInsert(token, "modules", { nome_modulo: normalizeText(moduleName) }, signal, true),
             OP_TIMEOUT, `module insert ${modIdx}`
           );
           moduleMap.set(moduleName.toLowerCase(), created[0].id);

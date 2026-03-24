@@ -1,5 +1,6 @@
 import { ContractRow, ClientSummary, DashboardFilters } from "@/types/contract";
 import { differenceInDays, parseISO, format } from "date-fns";
+import { normalizeForSearch } from "@/utils/textUtils";
 
 const today = new Date();
 
