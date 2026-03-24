@@ -12,6 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { ArrowLeft, UserPlus, Shield, User as UserIcon, Wrench } from "lucide-react";
+import ModuloCatalogo from "@/components/configuracoes/ModuloCatalogo";
 
 interface UserProfile {
   id: string;
@@ -255,6 +256,8 @@ export default function ConfiguracoesPage() {
             </Button>
           </CardContent>
         </Card>
+
+        <ModuloCatalogo />
       </main>
     </div>
   );
