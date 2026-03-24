@@ -31,6 +31,7 @@ export default function ConfiguracoesPage() {
   const [newPassword, setNewPassword] = useState("");
   const [newFullName, setNewFullName] = useState("");
   const [creating, setCreating] = useState(false);
+  const [fixingEncoding, setFixingEncoding] = useState(false);
 
   const fetchUsers = useCallback(async () => {
     setLoading(true);
