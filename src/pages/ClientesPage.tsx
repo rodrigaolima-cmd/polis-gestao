@@ -10,7 +10,7 @@ import { ClienteForm } from "@/components/clientes/ClienteForm";
 import { ClientesReportDialog } from "@/components/clientes/ClientesReportDialog";
 import { Users, Plus, Search, Eye, Pencil, ArrowLeft, FileText } from "lucide-react";
 import { formatCurrency, formatDate, getDaysToExpire, getExpirationStatus } from "@/utils/contractUtils";
-import { normalizeForSearch } from "@/utils/textUtils";
+import { normalizeForSearch, fixMojibake } from "@/utils/textUtils";
 
 interface ClientRow {
   id: string;
