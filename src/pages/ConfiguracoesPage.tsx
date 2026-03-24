@@ -234,6 +234,27 @@ export default function ConfiguracoesPage() {
             )}
           </CardContent>
         </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Qualidade de Dados</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <p className="text-sm text-muted-foreground">
+              Corrige problemas de encoding (acentos quebrados) nos registros existentes de clientes, módulos e contratos.
+            </p>
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-2"
+              onClick={handleFixEncoding}
+              disabled={fixingEncoding}
+            >
+              <Wrench className="h-4 w-4" />
+              {fixingEncoding ? "Corrigindo..." : "Corrigir encoding dos dados"}
+            </Button>
+          </CardContent>
+        </Card>
       </main>
     </div>
   );
