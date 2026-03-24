@@ -1,35 +1,26 @@
 
 
-## Plano: Inserir módulos e criar cadastro de módulos
+## Esclarecimento e ajustes
 
-### 1. Inserir os 26 módulos no banco
+### Sobre os 2 cadastros de módulos
 
-Usar o insert tool para inserir na tabela `modules` com `categoria_modulo` derivada do prefixo (GSP ou EDU):
+- **Configurações → Catálogo de Módulos** — este é o cadastro correto do catálogo (CRUD de módulos disponíveis no sistema). Mantê-lo.
+- **Clientes → Detalhe do Cliente → "Módulos do Cliente"** — isto NÃO é um cadastro duplicado. É a vinculação de módulos a um cliente específico (com valores, datas, status). Também deve ser mantido.
 
-- 16 módulos GSP (categoria "GSP - Saúde")
-- 10 módulos EDU (categoria "EDU - Educação")
+São coisas diferentes:
+- Configurações = **catálogo global** (quais módulos existem)
+- Cliente = **vínculo por cliente** (quais módulos o cliente contratou, com preços)
 
-Todos com `status_modulo = 'Ativo'`.
+Não há duplicação real. Ambos ficam.
 
-### 2. Criar seção "Catálogo de Módulos" na página de Configurações
+### Mudanças a implementar
 
-**Edição: `src/pages/ConfiguracoesPage.tsx`**
+**1. Trocar destaque do botão no header do Dashboard**
 
-Adicionar novo Card abaixo dos existentes com:
-
-- Tabela listando todos os módulos (`nome_modulo`, `categoria_modulo`, `status_modulo`)
-- Ordenação alfabética por nome
-- Badge de status (Ativo/Inativo)
-- Ações por linha:
-  - **Editar** — abre dialog para alterar nome, categoria, descrição
-  - **Ativar/Inativar** — toggle switch (soft delete, não exclui)
-  - **Excluir** — botão com confirmação; só permite se módulo não estiver vinculado a nenhum cliente (`client_modules`). Se vinculado, mostra aviso.
-- Botão "Novo Módulo" no header do card — dialog com campos: nome, categoria, descrição
-- Busca/filtro por nome
+`src/components/dashboard/Dashboard.tsx` — linha 140-144:
+- Botão "Clientes": trocar de `variant="outline"` para `variant="default"` (azul/primário)
+- Botão "Importar": trocar de `variant="default"` para `variant="outline"` (neutro)
 
 ### Arquivos afetados
-- 1 arquivo editado: `src/pages/ConfiguracoesPage.tsx`
-- 26 registros inseridos via insert tool na tabela `modules`
-- Sem alterações no banco de dados (schema)
-- Sem alterações no dashboard ou layout
+- 1 arquivo editado: `src/components/dashboard/Dashboard.tsx` (2 linhas)
 
