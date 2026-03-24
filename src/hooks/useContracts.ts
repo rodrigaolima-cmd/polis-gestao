@@ -55,18 +55,18 @@ function mapToContractRow(cm: DbClientModule): ContractRow {
   const isInactive = cm.ativo_no_cliente === false;
   return {
     id: cm.id,
-    clientName: cm.clients.nome_cliente,
-    ugType: cm.clients.tipo_ug || "",
-    product: cm.modules.nome_modulo,
+    clientName: fixMojibake(cm.clients.nome_cliente),
+    ugType: fixMojibake(cm.clients.tipo_ug || ""),
+    product: fixMojibake(cm.modules.nome_modulo),
     contractedValue: Number(cm.valor_contratado) || 0,
     billedValue: isInactive ? 0 : (Number(cm.valor_faturado) || 0),
     signatureDate: cm.data_assinatura || "",
     expirationDate: cm.vencimento_contrato || "",
     billed: isInactive ? false : cm.faturado_flag,
     contractStatus: cm.status_contrato || "",
-    observations: cm.observacoes || "",
-    regiao: cm.clients.regiao || "",
-    consultor: cm.clients.consultor || "",
+    observations: fixMojibake(cm.observacoes || ""),
+    regiao: fixMojibake(cm.clients.regiao || ""),
+    consultor: fixMojibake(cm.clients.consultor || ""),
   };
 }
 
