@@ -79,12 +79,12 @@ export default function ClientesPage() {
 
         return {
           id: c.id,
-          nome_cliente: c.nome_cliente,
-          tipo_ug: c.tipo_ug || "",
-          regiao: c.regiao || "",
-          consultor: c.consultor || "",
+          nome_cliente: fixMojibake(c.nome_cliente),
+          tipo_ug: fixMojibake(c.tipo_ug || ""),
+          regiao: fixMojibake(c.regiao || ""),
+          consultor: fixMojibake(c.consultor || ""),
           status_cliente: c.status_cliente || "Ativo",
-          observacoes_cliente: c.observacoes_cliente || "",
+          observacoes_cliente: fixMojibake(c.observacoes_cliente || ""),
           modules_count: activeMods.length,
           total_contratado: totalContratado,
           total_faturado: totalFaturado,
