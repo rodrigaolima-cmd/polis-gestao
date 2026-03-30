@@ -132,24 +132,25 @@ export default function ClientesPage() {
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b border-border/50 bg-card/50 backdrop-blur-xl sticky top-0 z-50">
-        <div className="max-w-[1600px] mx-auto px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Button variant="ghost" size="icon" onClick={() => navigate("/")} className="h-8 w-8">
+        <div className="max-w-[1600px] mx-auto px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <MobileMenu />
+            <Button variant="ghost" size="icon" onClick={() => navigate("/")} className="h-8 w-8 hidden md:flex">
               <ArrowLeft className="h-4 w-4" />
             </Button>
             <div>
-              <h1 className="text-xl font-bold tracking-tight flex items-center gap-2">
-                <Users className="h-5 w-5 text-primary" /> Clientes
+              <h1 className="text-lg sm:text-xl font-bold tracking-tight flex items-center gap-2">
+                <Users className="h-5 w-5 text-primary hidden sm:block" /> Clientes
               </h1>
-              <p className="text-xs text-muted-foreground">Polis Gestão • Cadastro de Clientes</p>
+              <p className="text-xs text-muted-foreground hidden sm:block">Polis Gestão • Cadastro de Clientes</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" className="gap-2 text-xs" onClick={() => setReportOpen(true)}>
-              <FileText className="h-3.5 w-3.5" /> Relatório Completo
+            <Button variant="outline" size="sm" className="gap-2 text-xs hidden sm:flex" onClick={() => setReportOpen(true)}>
+              <FileText className="h-3.5 w-3.5" /> Relatório
             </Button>
             <Button size="sm" className="gap-2 text-xs" onClick={handleNew}>
-              <Plus className="h-3.5 w-3.5" /> Novo Cliente
+              <Plus className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Novo Cliente</span><span className="sm:hidden">Novo</span>
             </Button>
           </div>
         </div>
