@@ -6,6 +6,7 @@ interface Profile {
   id: string;
   full_name: string;
   is_active: boolean;
+  force_password_change: boolean;
 }
 
 interface AuthState {
