@@ -22,7 +22,7 @@ import { ConsultorDashboard } from "@/components/dashboard/ConsultorDashboard";
 import {
   DollarSign, TrendingUp, AlertTriangle,
   CalendarX, Clock, AlertCircle, Upload,
-  Target, FileText, Users, LogOut, Settings
+  Target, FileText, Users, LogOut, Settings, Layers
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
