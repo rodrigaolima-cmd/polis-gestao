@@ -19,6 +19,7 @@ import { ActionTables } from "@/components/dashboard/ActionTables";
 import { CommercialAnalysis } from "@/components/dashboard/CommercialAnalysis";
 import { ImportDialog } from "@/components/dashboard/ImportDialog";
 import { ConsultorDashboard } from "@/components/dashboard/ConsultorDashboard";
+import { MobileMenu } from "@/components/MobileMenu";
 import {
   DollarSign, TrendingUp, AlertTriangle,
   CalendarX, Clock, AlertCircle, Upload,
