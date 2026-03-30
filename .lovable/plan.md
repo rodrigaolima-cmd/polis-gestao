@@ -1,26 +1,34 @@
 
 
-## Esclarecimento e ajustes
+## Plano: KPI de Módulos no Dashboard + Somatório na tabela de Clientes
 
-### Sobre os 2 cadastros de módulos
+### 1. Novo KPI Card "Total Módulos" no Dashboard
 
-- **Configurações → Catálogo de Módulos** — este é o cadastro correto do catálogo (CRUD de módulos disponíveis no sistema). Mantê-lo.
-- **Clientes → Detalhe do Cliente → "Módulos do Cliente"** — isto NÃO é um cadastro duplicado. É a vinculação de módulos a um cliente específico (com valores, datas, status). Também deve ser mantido.
+**Edição: `src/components/dashboard/Dashboard.tsx`**
 
-São coisas diferentes:
-- Configurações = **catálogo global** (quais módulos existem)
-- Cliente = **vínculo por cliente** (quais módulos o cliente contratou, com preços)
+- Calcular `totalModulos` somando `productCount` de cada client no array `clients` (já filtrado)
+- Adicionar novo KPI card na grid, com ícone `Layers` ou `Package`, variant "info"
+- Tornar clicável — ao clicar, abre `SectionReportDialog` com novo tipo `"byModulos"`
+- Ajustar grid para 9 colunas ou reorganizar os 8+1 existentes (manter `xl:grid-cols-9` ou usar wrap)
 
-Não há duplicação real. Ambos ficam.
+### 2. Novo tipo de relatório "byModulos" no SectionReportDialog
 
-### Mudanças a implementar
+**Edição: `src/components/dashboard/SectionReportDialog.tsx`**
 
-**1. Trocar destaque do botão no header do Dashboard**
+- Adicionar `"byModulos"` ao tipo `SectionReportType`
+- Renderizar tabela: Cliente | Qtd Módulos | Produtos | Contratado | Faturado
+- Ordenar por quantidade de módulos (decrescente)
+- Totalizador no footer com soma de módulos
 
-`src/components/dashboard/Dashboard.tsx` — linha 140-144:
-- Botão "Clientes": trocar de `variant="outline"` para `variant="default"` (azul/primário)
-- Botão "Importar": trocar de `variant="default"` para `variant="outline"` (neutro)
+### 3. Somatório de módulos na tabela de Clientes
+
+**Edição: `src/pages/ClientesPage.tsx`**
+
+- Calcular `totalModulos = filtered.reduce((s, c) => s + c.modules_count, 0)` 
+- Exibir no footer da tabela, ao lado do texto "X cliente(s) encontrado(s)": `• Y módulo(s)`
+- Sensível ao filtro aplicado (usa `filtered`, não `clients`)
 
 ### Arquivos afetados
-- 1 arquivo editado: `src/components/dashboard/Dashboard.tsx` (2 linhas)
+- 3 arquivos editados: `Dashboard.tsx`, `SectionReportDialog.tsx`, `ClientesPage.tsx`
+- Sem alterações no banco, layout geral ou lógica de dados
 
