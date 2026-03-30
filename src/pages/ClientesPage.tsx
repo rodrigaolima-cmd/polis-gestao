@@ -156,36 +156,36 @@ export default function ClientesPage() {
         </div>
       </header>
 
-      <main className="max-w-[1600px] mx-auto px-6 py-6 space-y-4">
+      <main className="max-w-[1600px] mx-auto px-4 sm:px-6 py-4 sm:py-6 space-y-4">
         {/* Filters */}
-        <div className="flex flex-wrap gap-3 items-end">
-          <div className="relative flex-1 min-w-[200px]">
+        <div className="flex flex-wrap gap-2 sm:gap-3 items-end">
+          <div className="relative flex-1 min-w-[160px]">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
             <Input placeholder="Buscar por nome..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9 h-9 text-xs" />
           </div>
           <Select value={filterRegiao || "all"} onValueChange={(v) => setFilterRegiao(v === "all" ? "" : v)}>
-            <SelectTrigger className="h-9 w-[150px] text-xs"><SelectValue placeholder="Região" /></SelectTrigger>
+            <SelectTrigger className="h-9 w-[130px] sm:w-[150px] text-xs"><SelectValue placeholder="Região" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Todas Regiões</SelectItem>
               {regioes.map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}
             </SelectContent>
           </Select>
           <Select value={filterConsultor || "all"} onValueChange={(v) => setFilterConsultor(v === "all" ? "" : v)}>
-            <SelectTrigger className="h-9 w-[150px] text-xs"><SelectValue placeholder="Consultor" /></SelectTrigger>
+            <SelectTrigger className="h-9 w-[130px] sm:w-[150px] text-xs"><SelectValue placeholder="Consultor" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Todos Consultores</SelectItem>
               {consultores.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
             </SelectContent>
           </Select>
           <Select value={filterUG || "all"} onValueChange={(v) => setFilterUG(v === "all" ? "" : v)}>
-            <SelectTrigger className="h-9 w-[150px] text-xs"><SelectValue placeholder="Tipo UG" /></SelectTrigger>
+            <SelectTrigger className="h-9 w-[130px] sm:w-[150px] text-xs"><SelectValue placeholder="Tipo UG" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Todos Tipos</SelectItem>
               {ugTypes.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
             </SelectContent>
           </Select>
           <Select value={filterStatus || "all"} onValueChange={(v) => setFilterStatus(v === "all" ? "" : v)}>
-            <SelectTrigger className="h-9 w-[120px] text-xs"><SelectValue placeholder="Status" /></SelectTrigger>
+            <SelectTrigger className="h-9 w-[110px] sm:w-[120px] text-xs"><SelectValue placeholder="Status" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Todos</SelectItem>
               <SelectItem value="Ativo">Ativo</SelectItem>
@@ -197,6 +197,7 @@ export default function ClientesPage() {
 
         {/* Table */}
         <div className="glass-card rounded-xl overflow-hidden">
+          <div className="overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow className="border-border/30">
