@@ -25,7 +25,7 @@ interface ClienteFormProps {
   onSaved: () => void;
 }
 
-const UG_TYPES = ["Prefeitura", "Câmara", "Autarquia", "Consórcio", "Fundo", "Instituto", "SAAE", "RPPS"];
+const UG_TYPES = ["PREFEITURA", "CÂMARA", "AUTARQUIA", "CONSÓRCIO", "FUNDO", "INSTITUTO", "SAAE", "RPPS"];
 
 export function ClienteForm({ open, onOpenChange, cliente, onSaved }: ClienteFormProps) {
   const [form, setForm] = useState<ClienteData>({
