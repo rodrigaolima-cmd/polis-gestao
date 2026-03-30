@@ -8,11 +8,14 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { ArrowLeft, UserPlus, Shield, User as UserIcon, Wrench } from "lucide-react";
 import ModuloCatalogo from "@/components/configuracoes/ModuloCatalogo";
+import { MobileMenu } from "@/components/MobileMenu";
 
 interface UserProfile {
   id: string;
@@ -20,6 +23,8 @@ interface UserProfile {
   is_active: boolean;
   email?: string;
   role?: string;
+  created_at?: string;
+  force_password_change?: boolean;
 }
 
 export default function ConfiguracoesPage() {
@@ -34,29 +39,34 @@ export default function ConfiguracoesPage() {
   const [creating, setCreating] = useState(false);
   const [fixingEncoding, setFixingEncoding] = useState(false);
 
+  // Edit user dialog
+  const [editUser, setEditUser] = useState<UserProfile | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editRole, setEditRole] = useState("user");
+  const [editForcePassword, setEditForcePassword] = useState(false);
+  const [savingEdit, setSavingEdit] = useState(false);
+
   const fetchUsers = useCallback(async () => {
     setLoading(true);
     const { data: profiles } = await supabase
       .from("profiles")
-      .select("id, full_name, is_active");
+      .select("id, full_name, is_active, created_at, force_password_change");
 
     if (!profiles) {
       setLoading(false);
       return;
     }
 
-    // Fetch roles for all users
     const { data: roles } = await supabase
       .from("user_roles")
       .select("user_id, role");
 
     const roleMap = new Map(roles?.map((r) => [r.user_id, r.role]) ?? []);
 
-    // Fetch emails via edge function or use auth metadata
-    // Since we can't query auth.users from client, we'll show what we have
     const mapped: UserProfile[] = profiles.map((p) => ({
       ...p,
       role: roleMap.get(p.id) ?? "user",
+      force_password_change: p.force_password_change ?? false,
     }));
 
     setUsers(mapped);
@@ -89,7 +99,6 @@ export default function ConfiguracoesPage() {
     }
     setCreating(true);
 
-    const { data: { session } } = await supabase.auth.getSession();
     const res = await supabase.functions.invoke("admin-create-user", {
       body: { email: newEmail, password: newPassword, full_name: newFullName },
     });
@@ -125,6 +134,52 @@ export default function ConfiguracoesPage() {
     }
   };
 
+  const openEditUser = (u: UserProfile) => {
+    setEditUser(u);
+    setEditName(u.full_name);
+    setEditRole(u.role || "user");
+    setEditForcePassword(u.force_password_change || false);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editUser) return;
+    if (!editName.trim()) {
+      toast.error("Nome é obrigatório");
+      return;
+    }
+    setSavingEdit(true);
+    try {
+      // Update profile
+      const { error: profileError } = await supabase
+        .from("profiles")
+        .update({
+          full_name: editName.trim(),
+          force_password_change: editForcePassword,
+        })
+        .eq("id", editUser.id);
+      if (profileError) throw profileError;
+
+      // Update role
+      const currentRole = editUser.role || "user";
+      if (editRole !== currentRole) {
+        // Delete existing then insert new
+        await supabase.from("user_roles").delete().eq("user_id", editUser.id);
+        const { error: roleError } = await supabase
+          .from("user_roles")
+          .insert({ user_id: editUser.id, role: editRole as any });
+        if (roleError) throw roleError;
+      }
+
+      toast.success("Usuário atualizado");
+      setEditUser(null);
+      fetchUsers();
+    } catch (err: any) {
+      toast.error("Erro ao salvar: " + err.message);
+    } finally {
+      setSavingEdit(false);
+    }
+  };
+
   if (!isAdmin) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -136,24 +191,25 @@ export default function ConfiguracoesPage() {
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b border-border/50 bg-card/50 backdrop-blur-xl sticky top-0 z-50">
-        <div className="max-w-[1200px] mx-auto px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Button variant="ghost" size="sm" onClick={() => navigate("/")}>
+        <div className="max-w-[1200px] mx-auto px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <MobileMenu />
+            <Button variant="ghost" size="sm" onClick={() => navigate("/")} className="hidden md:flex">
               <ArrowLeft className="h-4 w-4 mr-1" /> Voltar
             </Button>
-            <h1 className="text-xl font-bold tracking-tight">Configurações</h1>
+            <h1 className="text-lg sm:text-xl font-bold tracking-tight">Configurações</h1>
           </div>
         </div>
       </header>
 
-      <main className="max-w-[1200px] mx-auto px-6 py-6 space-y-6">
+      <main className="max-w-[1200px] mx-auto px-4 sm:px-6 py-4 sm:py-6 space-y-6">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="text-lg">Gerenciar Usuários</CardTitle>
             <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
               <DialogTrigger asChild>
                 <Button size="sm" className="gap-2">
-                  <UserPlus className="h-4 w-4" /> Novo Usuário
+                  <UserPlus className="h-4 w-4" /> <span className="hidden sm:inline">Novo Usuário</span><span className="sm:hidden">Novo</span>
                 </Button>
               </DialogTrigger>
               <DialogContent>
@@ -186,55 +242,108 @@ export default function ConfiguracoesPage() {
                 <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary" />
               </div>
             ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Nome</TableHead>
-                    <TableHead>Perfil</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="text-right">Ações</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {users.map((u) => (
-                    <TableRow key={u.id}>
-                      <TableCell className="font-medium">{u.full_name || "—"}</TableCell>
-                      <TableCell>
-                        <Badge variant={u.role === "admin" ? "default" : "secondary"} className="gap-1">
-                          {u.role === "admin" ? <Shield className="h-3 w-3" /> : <UserIcon className="h-3 w-3" />}
-                          {u.role === "admin" ? "Admin" : "Usuário"}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={u.is_active ? "default" : "destructive"}>
-                          {u.is_active ? "Ativo" : "Inativo"}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex items-center justify-end gap-2">
-                          <span className="text-xs text-muted-foreground">
-                            {u.is_active ? "Desativar" : "Ativar"}
-                          </span>
-                          <Switch
-                            checked={u.is_active}
-                            onCheckedChange={() => toggleActive(u.id, u.is_active)}
-                          />
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                  {users.length === 0 && (
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
                     <TableRow>
-                      <TableCell colSpan={4} className="text-center text-muted-foreground py-8">
-                        Nenhum usuário encontrado
-                      </TableCell>
+                      <TableHead>Nome</TableHead>
+                      <TableHead>Perfil</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead className="text-right">Ações</TableHead>
                     </TableRow>
-                  )}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {users.map((u) => (
+                      <TableRow
+                        key={u.id}
+                        className="cursor-pointer hover:bg-muted/30"
+                        onClick={() => openEditUser(u)}
+                      >
+                        <TableCell className="font-medium">{u.full_name || "—"}</TableCell>
+                        <TableCell>
+                          <Badge variant={u.role === "admin" ? "default" : "secondary"} className="gap-1">
+                            {u.role === "admin" ? <Shield className="h-3 w-3" /> : <UserIcon className="h-3 w-3" />}
+                            {u.role === "admin" ? "Admin" : "Usuário"}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={u.is_active ? "default" : "destructive"}>
+                            {u.is_active ? "Ativo" : "Inativo"}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex items-center justify-end gap-2" onClick={(e) => e.stopPropagation()}>
+                            <span className="text-xs text-muted-foreground">
+                              {u.is_active ? "Desativar" : "Ativar"}
+                            </span>
+                            <Switch
+                              checked={u.is_active}
+                              onCheckedChange={() => toggleActive(u.id, u.is_active)}
+                            />
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                    {users.length === 0 && (
+                      <TableRow>
+                        <TableCell colSpan={4} className="text-center text-muted-foreground py-8">
+                          Nenhum usuário encontrado
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
             )}
           </CardContent>
         </Card>
+
+        {/* Edit user dialog */}
+        <Dialog open={editUser !== null} onOpenChange={(open) => { if (!open) setEditUser(null); }}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Editar Usuário</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label>Nome Completo</Label>
+                <Input value={editName} onChange={(e) => setEditName(e.target.value)} placeholder="Nome" />
+              </div>
+              {editUser?.created_at && (
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground">Data de cadastro</Label>
+                  <p className="text-sm">{new Date(editUser.created_at).toLocaleDateString("pt-BR")}</p>
+                </div>
+              )}
+              <div className="space-y-2">
+                <Label>Perfil</Label>
+                <Select value={editRole} onValueChange={setEditRole}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="admin">Admin</SelectItem>
+                    <SelectItem value="user">Usuário</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex items-center gap-3">
+                <Checkbox
+                  checked={editForcePassword}
+                  onCheckedChange={(v) => setEditForcePassword(!!v)}
+                  id="forcePassword"
+                />
+                <Label htmlFor="forcePassword" className="text-sm cursor-pointer">
+                  Solicitar troca de senha no primeiro acesso
+                </Label>
+              </div>
+              <div className="flex justify-end gap-2 pt-2">
+                <Button variant="outline" size="sm" onClick={() => setEditUser(null)}>Cancelar</Button>
+                <Button size="sm" onClick={handleSaveEdit} disabled={savingEdit}>
+                  {savingEdit ? "Salvando..." : "Salvar"}
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
 
         <Card>
           <CardHeader>
