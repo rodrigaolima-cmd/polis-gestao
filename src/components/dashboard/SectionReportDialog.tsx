@@ -23,7 +23,8 @@ export type SectionReportType =
   | "dinheiroNaMesaDetalhado"
   | "byConsultor"
   | "byRegiao"
-  | "byConsultorDetalhado";
+  | "byConsultorDetalhado"
+  | "byModulos";
 
 interface SectionReportDialogProps {
   reportType: SectionReportType;
