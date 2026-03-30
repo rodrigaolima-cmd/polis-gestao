@@ -1,7 +1,1 @@
-project_id = "aizzfnarbnsyvbjzhhcz"
-
-[functions.admin-create-user]
-verify_jwt = false
-
-[functions.fix-encoding]
-verify_jwt = false
+project_id = "yjrsbrzmwwfiaaziqocd"
