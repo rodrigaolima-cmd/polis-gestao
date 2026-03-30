@@ -51,6 +51,7 @@ const TITLES: Record<SectionReportType, string> = {
   byConsultor: "Relatório — Dinheiro na Mesa por Consultor",
   byRegiao: "Relatório — Dinheiro na Mesa por Região",
   byConsultorDetalhado: "Relatório Detalhado — Dashboard por Consultor",
+  byModulos: "Relatório — Módulos por Cliente",
 };
 
 export function SectionReportDialog({ reportType, clients, contracts, open, onOpenChange }: SectionReportDialogProps) {
