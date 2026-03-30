@@ -314,18 +314,16 @@ export function ClienteMultiModuloForm({ open, onOpenChange, clientId, onSaved }
                           </span>
                         </TableCell>
                         <TableCell className="text-right">
-                          <Input
-                            type="number"
+                          <CurrencyInput
                             value={moduleValues[m.id]?.valor_contratado ?? 0}
-                            onChange={(e) => updateValue(m.id, "valor_contratado", parseFloat(e.target.value) || 0)}
+                            onChange={(v) => updateValue(m.id, "valor_contratado", v)}
                             className="h-7 text-xs w-28 ml-auto"
                           />
                         </TableCell>
                         <TableCell className="text-right">
-                          <Input
-                            type="number"
+                          <CurrencyInput
                             value={moduleValues[m.id]?.valor_faturado ?? 0}
-                            onChange={(e) => updateValue(m.id, "valor_faturado", parseFloat(e.target.value) || 0)}
+                            onChange={(v) => updateValue(m.id, "valor_faturado", v)}
                             className="h-7 text-xs w-28 ml-auto"
                           />
                         </TableCell>
