@@ -81,6 +81,7 @@ export function SectionReportDialog({ reportType, clients, contracts, open, onOp
           {reportType === "byConsultor" && <ByRankingReport clients={clients} rankingKey="consultor" label="Consultor" />}
           {reportType === "byRegiao" && <ByRankingReport clients={clients} rankingKey="regiao" label="Região" />}
           {reportType === "byConsultorDetalhado" && <ByConsultorDetalhadoReport contracts={contracts} />}
+          {reportType === "byModulos" && <ByModulosReport clients={clients} />}
         </div>
       </DialogContent>
     </Dialog>
