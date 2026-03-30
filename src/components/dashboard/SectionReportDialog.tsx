@@ -790,3 +790,46 @@ function ByConsultorDetalhadoReport({ contracts }: { contracts: ContractRow[] })
     </div>
   );
 }
+
+function ByModulosReport({ clients }: { clients: ClientSummary[] }) {
+  const sorted = [...clients].sort((a, b) => b.productCount - a.productCount || a.clientName.localeCompare(b.clientName, 'pt-BR'));
+  const totalMods = sorted.reduce((s, c) => s + c.productCount, 0);
+  const totC = sorted.reduce((s, c) => s + c.totalContracted, 0);
+  const totB = sorted.reduce((s, c) => s + c.totalBilled, 0);
+
+  return (
+    <Table>
+      <TableHeader>
+        <TableRow className="border-border/50">
+          <TableHead className="text-xs">Cliente</TableHead>
+          <TableHead className="text-xs">Tipo UG</TableHead>
+          <TableHead className="text-xs text-center">Módulos</TableHead>
+          <TableHead className="text-xs">Produtos</TableHead>
+          <TableHead className="text-xs text-right">Contratado</TableHead>
+          <TableHead className="text-xs text-right">Faturado</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {sorted.map((c) => (
+          <TableRow key={c.clientName} className="border-border/30">
+            <TableCell className="text-sm font-medium">{c.clientName}</TableCell>
+            <TableCell className="text-xs">{c.ugType}</TableCell>
+            <TableCell className="text-xs text-center mono font-bold">{c.productCount}</TableCell>
+            <TableCell className="text-xs">{c.products.join(", ")}</TableCell>
+            <TableCell className="text-xs text-right mono">{formatCurrency(c.totalContracted)}</TableCell>
+            <TableCell className="text-xs text-right mono text-success">{formatCurrency(c.totalBilled)}</TableCell>
+          </TableRow>
+        ))}
+      </TableBody>
+      <TableFooter>
+        <TableRow className="bg-muted/50 font-bold">
+          <TableCell colSpan={2} className="text-sm">Total ({sorted.length} clientes)</TableCell>
+          <TableCell className="text-xs text-center mono">{totalMods}</TableCell>
+          <TableCell></TableCell>
+          <TableCell className="text-xs text-right mono">{formatCurrency(totC)}</TableCell>
+          <TableCell className="text-xs text-right mono">{formatCurrency(totB)}</TableCell>
+        </TableRow>
+      </TableFooter>
+    </Table>
+  );
+}
