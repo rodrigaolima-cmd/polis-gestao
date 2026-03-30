@@ -23,7 +23,8 @@ export type SectionReportType =
   | "dinheiroNaMesaDetalhado"
   | "byConsultor"
   | "byRegiao"
-  | "byConsultorDetalhado";
+  | "byConsultorDetalhado"
+  | "byModulos";
 
 interface SectionReportDialogProps {
   reportType: SectionReportType;
@@ -50,6 +51,7 @@ const TITLES: Record<SectionReportType, string> = {
   byConsultor: "Relatório — Dinheiro na Mesa por Consultor",
   byRegiao: "Relatório — Dinheiro na Mesa por Região",
   byConsultorDetalhado: "Relatório Detalhado — Dashboard por Consultor",
+  byModulos: "Relatório — Módulos por Cliente",
 };
 
 export function SectionReportDialog({ reportType, clients, contracts, open, onOpenChange }: SectionReportDialogProps) {
@@ -79,6 +81,7 @@ export function SectionReportDialog({ reportType, clients, contracts, open, onOp
           {reportType === "byConsultor" && <ByRankingReport clients={clients} rankingKey="consultor" label="Consultor" />}
           {reportType === "byRegiao" && <ByRankingReport clients={clients} rankingKey="regiao" label="Região" />}
           {reportType === "byConsultorDetalhado" && <ByConsultorDetalhadoReport contracts={contracts} />}
+          {reportType === "byModulos" && <ByModulosReport clients={clients} />}
         </div>
       </DialogContent>
     </Dialog>
@@ -785,5 +788,48 @@ function ByConsultorDetalhadoReport({ contracts }: { contracts: ContractRow[] })
         </span>
       </div>
     </div>
+  );
+}
+
+function ByModulosReport({ clients }: { clients: ClientSummary[] }) {
+  const sorted = [...clients].sort((a, b) => b.productCount - a.productCount || a.clientName.localeCompare(b.clientName, 'pt-BR'));
+  const totalMods = sorted.reduce((s, c) => s + c.productCount, 0);
+  const totC = sorted.reduce((s, c) => s + c.totalContracted, 0);
+  const totB = sorted.reduce((s, c) => s + c.totalBilled, 0);
+
+  return (
+    <Table>
+      <TableHeader>
+        <TableRow className="border-border/50">
+          <TableHead className="text-xs">Cliente</TableHead>
+          <TableHead className="text-xs">Tipo UG</TableHead>
+          <TableHead className="text-xs text-center">Módulos</TableHead>
+          <TableHead className="text-xs">Produtos</TableHead>
+          <TableHead className="text-xs text-right">Contratado</TableHead>
+          <TableHead className="text-xs text-right">Faturado</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {sorted.map((c) => (
+          <TableRow key={c.clientName} className="border-border/30">
+            <TableCell className="text-sm font-medium">{c.clientName}</TableCell>
+            <TableCell className="text-xs">{c.ugType}</TableCell>
+            <TableCell className="text-xs text-center mono font-bold">{c.productCount}</TableCell>
+            <TableCell className="text-xs">{c.products.join(", ")}</TableCell>
+            <TableCell className="text-xs text-right mono">{formatCurrency(c.totalContracted)}</TableCell>
+            <TableCell className="text-xs text-right mono text-success">{formatCurrency(c.totalBilled)}</TableCell>
+          </TableRow>
+        ))}
+      </TableBody>
+      <TableFooter>
+        <TableRow className="bg-muted/50 font-bold">
+          <TableCell colSpan={2} className="text-sm">Total ({sorted.length} clientes)</TableCell>
+          <TableCell className="text-xs text-center mono">{totalMods}</TableCell>
+          <TableCell></TableCell>
+          <TableCell className="text-xs text-right mono">{formatCurrency(totC)}</TableCell>
+          <TableCell className="text-xs text-right mono">{formatCurrency(totB)}</TableCell>
+        </TableRow>
+      </TableFooter>
+    </Table>
   );
 }
