@@ -173,7 +173,7 @@ export default function Dashboard() {
           </div>
         </div>
       ) : (
-      <main className="max-w-[1600px] mx-auto px-6 py-6 space-y-6">
+      <main className="max-w-[1600px] mx-auto px-4 sm:px-6 py-4 sm:py-6 space-y-6">
         <FiltersBar
           filters={filters}
           contracts={contracts}

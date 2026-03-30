@@ -270,6 +270,7 @@ export default function ClientesPage() {
               )}
             </TableBody>
           </Table>
+          </div>
           {!loading && (
             <div className="px-4 py-2 border-t border-border/30 text-xs text-muted-foreground">
               {filtered.length} cliente(s) encontrado(s) • {filtered.reduce((s, c) => s + c.modules_count, 0)} módulo(s)
