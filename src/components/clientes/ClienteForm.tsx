@@ -25,7 +25,7 @@ interface ClienteFormProps {
   onSaved: () => void;
 }
 
-const UG_TYPES = ["Prefeitura", "Câmara", "Autarquia", "Consórcio", "Fundo", "Instituto", "SAAE", "RPPS"];
+const UG_TYPES = ["PREFEITURA", "CÂMARA", "AUTARQUIA", "CONSÓRCIO", "FUNDO", "INSTITUTO", "SAAE", "RPPS"];
 
 export function ClienteForm({ open, onOpenChange, cliente, onSaved }: ClienteFormProps) {
   const [form, setForm] = useState<ClienteData>({
@@ -85,7 +85,7 @@ export function ClienteForm({ open, onOpenChange, cliente, onSaved }: ClienteFor
       if (cliente?.id) {
         const { error } = await supabase.from("clients").update({
           nome_cliente: form.nome_cliente.trim(),
-          tipo_ug: form.tipo_ug,
+          tipo_ug: form.tipo_ug.toUpperCase(),
           regiao: form.regiao,
           consultor: form.consultor,
           status_cliente: form.status_cliente,
@@ -96,7 +96,7 @@ export function ClienteForm({ open, onOpenChange, cliente, onSaved }: ClienteFor
       } else {
         const { error } = await supabase.from("clients").insert({
           nome_cliente: form.nome_cliente.trim(),
-          tipo_ug: form.tipo_ug,
+          tipo_ug: form.tipo_ug.toUpperCase(),
           regiao: form.regiao,
           consultor: form.consultor,
           status_cliente: form.status_cliente,

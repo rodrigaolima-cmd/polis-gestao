@@ -57,7 +57,7 @@ export function KPICard({ title, value, subtitle, icon: Icon, variant = "default
       <div className="flex items-start justify-between">
         <div className="space-y-1 min-w-0 flex-1">
           <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{title}</p>
-          <p className="text-2xl font-bold tracking-tight mono">{value}</p>
+          <p className="text-base sm:text-lg xl:text-2xl font-bold tracking-tight mono truncate">{value}</p>
           {subtitle && <p className="text-xs text-muted-foreground">{subtitle}</p>}
         </div>
         <div className={`rounded-lg p-2.5 ${iconBgStyles[variant]} shrink-0 ml-3`}>

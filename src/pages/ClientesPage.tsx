@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { ClienteForm } from "@/components/clientes/ClienteForm";
 import { ClientesReportDialog } from "@/components/clientes/ClientesReportDialog";
 import { Users, Plus, Search, Eye, Pencil, ArrowLeft, FileText } from "lucide-react";
+import { MobileMenu } from "@/components/MobileMenu";
 import { formatCurrency, formatDate, getDaysToExpire, getExpirationStatus } from "@/utils/contractUtils";
 import { normalizeForSearch, fixMojibake } from "@/utils/textUtils";
 
@@ -131,59 +132,60 @@ export default function ClientesPage() {
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b border-border/50 bg-card/50 backdrop-blur-xl sticky top-0 z-50">
-        <div className="max-w-[1600px] mx-auto px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Button variant="ghost" size="icon" onClick={() => navigate("/")} className="h-8 w-8">
+        <div className="max-w-[1600px] mx-auto px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <MobileMenu />
+            <Button variant="ghost" size="icon" onClick={() => navigate("/")} className="h-8 w-8 hidden md:flex">
               <ArrowLeft className="h-4 w-4" />
             </Button>
             <div>
-              <h1 className="text-xl font-bold tracking-tight flex items-center gap-2">
-                <Users className="h-5 w-5 text-primary" /> Clientes
+              <h1 className="text-lg sm:text-xl font-bold tracking-tight flex items-center gap-2">
+                <Users className="h-5 w-5 text-primary hidden sm:block" /> Clientes
               </h1>
-              <p className="text-xs text-muted-foreground">Polis Gestão • Cadastro de Clientes</p>
+              <p className="text-xs text-muted-foreground hidden sm:block">Polis Gestão • Cadastro de Clientes</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" className="gap-2 text-xs" onClick={() => setReportOpen(true)}>
-              <FileText className="h-3.5 w-3.5" /> Relatório Completo
+            <Button variant="outline" size="sm" className="gap-2 text-xs hidden sm:flex" onClick={() => setReportOpen(true)}>
+              <FileText className="h-3.5 w-3.5" /> Relatório
             </Button>
             <Button size="sm" className="gap-2 text-xs" onClick={handleNew}>
-              <Plus className="h-3.5 w-3.5" /> Novo Cliente
+              <Plus className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Novo Cliente</span><span className="sm:hidden">Novo</span>
             </Button>
           </div>
         </div>
       </header>
 
-      <main className="max-w-[1600px] mx-auto px-6 py-6 space-y-4">
+      <main className="max-w-[1600px] mx-auto px-4 sm:px-6 py-4 sm:py-6 space-y-4">
         {/* Filters */}
-        <div className="flex flex-wrap gap-3 items-end">
-          <div className="relative flex-1 min-w-[200px]">
+        <div className="flex flex-wrap gap-2 sm:gap-3 items-end">
+          <div className="relative flex-1 min-w-[160px]">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
             <Input placeholder="Buscar por nome..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9 h-9 text-xs" />
           </div>
           <Select value={filterRegiao || "all"} onValueChange={(v) => setFilterRegiao(v === "all" ? "" : v)}>
-            <SelectTrigger className="h-9 w-[150px] text-xs"><SelectValue placeholder="Região" /></SelectTrigger>
+            <SelectTrigger className="h-9 w-[130px] sm:w-[150px] text-xs"><SelectValue placeholder="Região" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Todas Regiões</SelectItem>
               {regioes.map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}
             </SelectContent>
           </Select>
           <Select value={filterConsultor || "all"} onValueChange={(v) => setFilterConsultor(v === "all" ? "" : v)}>
-            <SelectTrigger className="h-9 w-[150px] text-xs"><SelectValue placeholder="Consultor" /></SelectTrigger>
+            <SelectTrigger className="h-9 w-[130px] sm:w-[150px] text-xs"><SelectValue placeholder="Consultor" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Todos Consultores</SelectItem>
               {consultores.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
             </SelectContent>
           </Select>
           <Select value={filterUG || "all"} onValueChange={(v) => setFilterUG(v === "all" ? "" : v)}>
-            <SelectTrigger className="h-9 w-[150px] text-xs"><SelectValue placeholder="Tipo UG" /></SelectTrigger>
+            <SelectTrigger className="h-9 w-[130px] sm:w-[150px] text-xs"><SelectValue placeholder="Tipo UG" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Todos Tipos</SelectItem>
               {ugTypes.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
             </SelectContent>
           </Select>
           <Select value={filterStatus || "all"} onValueChange={(v) => setFilterStatus(v === "all" ? "" : v)}>
-            <SelectTrigger className="h-9 w-[120px] text-xs"><SelectValue placeholder="Status" /></SelectTrigger>
+            <SelectTrigger className="h-9 w-[110px] sm:w-[120px] text-xs"><SelectValue placeholder="Status" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Todos</SelectItem>
               <SelectItem value="Ativo">Ativo</SelectItem>
@@ -195,6 +197,7 @@ export default function ClientesPage() {
 
         {/* Table */}
         <div className="glass-card rounded-xl overflow-hidden">
+          <div className="overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow className="border-border/30">
@@ -267,6 +270,7 @@ export default function ClientesPage() {
               )}
             </TableBody>
           </Table>
+          </div>
           {!loading && (
             <div className="px-4 py-2 border-t border-border/30 text-xs text-muted-foreground">
               {filtered.length} cliente(s) encontrado(s) • {filtered.reduce((s, c) => s + c.modules_count, 0)} módulo(s)

@@ -97,6 +97,19 @@ export function formatCurrency(value: number): string {
   return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
 }
 
+export function parseCurrencyInput(value: string): number {
+  if (!value) return 0;
+  // Remove "R$", spaces, dots (thousands separator), then replace comma with dot
+  const cleaned = value.replace(/R\$\s?/g, "").replace(/\./g, "").replace(",", ".").trim();
+  const num = parseFloat(cleaned);
+  return isNaN(num) ? 0 : num;
+}
+
+export function formatCurrencyInput(value: number): string {
+  if (!value && value !== 0) return "";
+  return new Intl.NumberFormat("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value);
+}
+
 export function formatPercent(value: number): string {
   return `${value.toFixed(1)}%`;
 }

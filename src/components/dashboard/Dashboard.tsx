@@ -19,6 +19,7 @@ import { ActionTables } from "@/components/dashboard/ActionTables";
 import { CommercialAnalysis } from "@/components/dashboard/CommercialAnalysis";
 import { ImportDialog } from "@/components/dashboard/ImportDialog";
 import { ConsultorDashboard } from "@/components/dashboard/ConsultorDashboard";
+import { MobileMenu } from "@/components/MobileMenu";
 import {
   DollarSign, TrendingUp, AlertTriangle,
   CalendarX, Clock, AlertCircle, Upload,
@@ -122,17 +123,20 @@ export default function Dashboard() {
     <div className="min-h-screen bg-background">
       {/* Header */}
       <header className="border-b border-border/50 bg-card/50 backdrop-blur-xl sticky top-0 z-50">
-        <div className="max-w-[1600px] mx-auto px-6 py-4 flex items-center justify-between">
-          <div>
-            <h1 className="text-xl font-bold tracking-tight">Gestão de Contratos</h1>
-            <p className="text-xs text-muted-foreground">
-              Polis Gestão • Painel Executivo
-              {dataSource === "database" && (
-                <span className="ml-2 text-success">• Dados do banco ({contracts.length} registros)</span>
-              )}
-            </p>
-          </div>
+        <div className="max-w-[1600px] mx-auto px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
+            <MobileMenu onImport={() => setImportOpen(true)} />
+            <div>
+              <h1 className="text-lg sm:text-xl font-bold tracking-tight">Gestão de Contratos</h1>
+              <p className="text-xs text-muted-foreground hidden sm:block">
+                Polis Gestão • Painel Executivo
+                {dataSource === "database" && (
+                  <span className="ml-2 text-success">• Dados do banco ({contracts.length} registros)</span>
+                )}
+              </p>
+            </div>
+          </div>
+          <div className="hidden md:flex items-center gap-2">
             {profile?.full_name && (
               <span className="text-sm text-muted-foreground hidden sm:inline">
                 Olá, <span className="font-medium text-foreground">{profile.full_name}</span>
@@ -169,7 +173,7 @@ export default function Dashboard() {
           </div>
         </div>
       ) : (
-      <main className="max-w-[1600px] mx-auto px-6 py-6 space-y-6">
+      <main className="max-w-[1600px] mx-auto px-4 sm:px-6 py-4 sm:py-6 space-y-6">
         <FiltersBar
           filters={filters}
           contracts={contracts}

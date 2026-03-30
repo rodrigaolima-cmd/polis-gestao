@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
+import { CurrencyInput } from "@/components/ui/currency-input";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -155,11 +156,11 @@ export function ClienteModuloForm({ open, onOpenChange, clientId, existingModule
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label className="text-xs">Valor Contratado</Label>
-              <Input type="number" value={form.valor_contratado} onChange={(e) => setForm({ ...form, valor_contratado: parseFloat(e.target.value) || 0 })} />
+              <CurrencyInput value={form.valor_contratado} onChange={(v) => setForm({ ...form, valor_contratado: v })} className="h-9 text-xs" />
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs">Valor Faturado</Label>
-              <Input type="number" value={form.valor_faturado} onChange={(e) => setForm({ ...form, valor_faturado: parseFloat(e.target.value) || 0 })} />
+              <CurrencyInput value={form.valor_faturado} onChange={(v) => setForm({ ...form, valor_faturado: v })} className="h-9 text-xs" />
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3">

@@ -1,4 +1,4 @@
-import { Navigate } from "react-router-dom";
+import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useEffect, useRef } from "react";
 import { toast } from "sonner";
@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 export function ProtectedRoute({ children, requireAdmin = false }: { children: React.ReactNode; requireAdmin?: boolean }) {
   const { user, profile, loading, profileLoaded, isActive, isAdmin, authError, signOut, refreshAuth } = useAuth();
   const hasSignedOut = useRef(false);
+  const location = useLocation();
 
   // Handle inactive account
   useEffect(() => {
@@ -46,6 +47,11 @@ export function ProtectedRoute({ children, requireAdmin = false }: { children: R
 
   if (!user || !isActive) {
     return <Navigate to="/login" replace />;
+  }
+
+  // Force password change redirect
+  if (profile?.force_password_change && location.pathname !== "/reset-password") {
+    return <Navigate to="/reset-password" state={{ forceChange: true }} replace />;
   }
 
   if (requireAdmin && !isAdmin) {

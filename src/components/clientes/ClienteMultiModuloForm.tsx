@@ -9,6 +9,7 @@ import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { CurrencyInput } from "@/components/ui/currency-input";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { CopyCheck, Copy } from "lucide-react";
@@ -313,18 +314,16 @@ export function ClienteMultiModuloForm({ open, onOpenChange, clientId, onSaved }
                           </span>
                         </TableCell>
                         <TableCell className="text-right">
-                          <Input
-                            type="number"
+                          <CurrencyInput
                             value={moduleValues[m.id]?.valor_contratado ?? 0}
-                            onChange={(e) => updateValue(m.id, "valor_contratado", parseFloat(e.target.value) || 0)}
+                            onChange={(v) => updateValue(m.id, "valor_contratado", v)}
                             className="h-7 text-xs w-28 ml-auto"
                           />
                         </TableCell>
                         <TableCell className="text-right">
-                          <Input
-                            type="number"
+                          <CurrencyInput
                             value={moduleValues[m.id]?.valor_faturado ?? 0}
-                            onChange={(e) => updateValue(m.id, "valor_faturado", parseFloat(e.target.value) || 0)}
+                            onChange={(v) => updateValue(m.id, "valor_faturado", v)}
                             className="h-7 text-xs w-28 ml-auto"
                           />
                         </TableCell>

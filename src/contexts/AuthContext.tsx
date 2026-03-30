@@ -6,6 +6,7 @@ interface Profile {
   id: string;
   full_name: string;
   is_active: boolean;
+  force_password_change: boolean;
 }
 
 interface AuthState {
@@ -31,7 +32,7 @@ const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 // Direct REST fetch - bypasses supabase client internal locks
 async function fetchProfileREST(userId: string, accessToken: string, signal: AbortSignal): Promise<Profile | null> {
   const res = await fetch(
-    `${SUPABASE_URL}/rest/v1/profiles?id=eq.${userId}&select=id,full_name,is_active`,
+    `${SUPABASE_URL}/rest/v1/profiles?id=eq.${userId}&select=id,full_name,is_active,force_password_change`,
     {
       headers: {
         Authorization: `Bearer ${accessToken}`,
