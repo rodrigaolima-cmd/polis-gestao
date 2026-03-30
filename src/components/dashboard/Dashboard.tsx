@@ -55,6 +55,7 @@ export default function Dashboard() {
 
   // New KPIs
   const ticketMedio = clients.length > 0 ? totalContracted / clients.length : 0;
+  const totalModulos = clients.reduce((s, c) => s + c.productCount, 0);
 
   // Sparkline trends
   const sparkContracted = useMemo(() => getMonthlyTrend(filteredContracts, "contractedValue"), [filteredContracts]);
