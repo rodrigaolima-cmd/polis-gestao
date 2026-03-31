@@ -32,7 +32,7 @@ interface ClienteModuloFormProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   clientId: string;
-  existingModule?: ClientModuleData | null;
+  existingModuleId?: string | null;
   onSaved: () => void;
 }
 
@@ -48,43 +48,58 @@ const defaultForm: ClientModuleData = {
   ativo_no_cliente: true,
 };
 
-export function ClienteModuloForm({ open, onOpenChange, clientId, existingModule, onSaved }: ClienteModuloFormProps) {
+export function ClienteModuloForm({ open, onOpenChange, clientId, existingModuleId, onSaved }: ClienteModuloFormProps) {
   const [modules, setModules] = useState<ModuleOption[]>([]);
   const [form, setForm] = useState<ClientModuleData>({ ...defaultForm });
   const [newModuleName, setNewModuleName] = useState("");
   const [saving, setSaving] = useState(false);
+  const [loadingData, setLoadingData] = useState(false);
 
-  const buildForm = (mod: ClientModuleData | null | undefined): ClientModuleData => {
-    if (!mod) return { ...defaultForm };
-    return {
-      ...defaultForm,
-      ...mod,
-      valor_contratado: mod.valor_contratado ?? 0,
-      valor_faturado: mod.valor_faturado ?? 0,
-      observacoes: mod.observacoes ?? "",
-      status_contrato: mod.status_contrato ?? "Ativo",
-      data_assinatura: mod.data_assinatura ?? "",
-      vencimento_contrato: mod.vencimento_contrato ?? "",
-    };
-  };
+  const isEditing = !!existingModuleId;
 
-  // Rehydrate form when modal opens or module changes
+  // Fetch fresh data from DB when modal opens
   useEffect(() => {
-    if (open) {
-      setForm(buildForm(existingModule));
-      setNewModuleName("");
-      supabase.from("modules").select("id, nome_modulo").order("nome_modulo").then(({ data }) => {
-        if (data) setModules(data);
-      });
-    }
-  }, [open, existingModule?.id]);
+    if (!open) return;
 
-  // Also rehydrate if the existingModule object updates while modal is already open
-  useEffect(() => {
-    if (open && existingModule) {
-      setForm(buildForm(existingModule));
+    setNewModuleName("");
+
+    // Always fetch module options
+    supabase.from("modules").select("id, nome_modulo").order("nome_modulo").then(({ data }) => {
+      if (data) setModules(data);
+    });
+
+    if (existingModuleId) {
+      // Fetch the actual record from DB — always fresh
+      setLoadingData(true);
+      supabase
+        .from("client_modules")
+        .select("*")
+        .eq("id", existingModuleId)
+        .single()
+        .then(({ data, error }) => {
+          if (error || !data) {
+            toast.error("Erro ao carregar dados do módulo");
+            setForm({ ...defaultForm });
+          } else {
+            setForm({
+              id: data.id,
+              modulo_id: data.modulo_id,
+              valor_contratado: Number(data.valor_contratado) || 0,
+              valor_faturado: Number(data.valor_faturado) || 0,
+              data_assinatura: data.data_assinatura || "",
+              vencimento_contrato: data.vencimento_contrato || "",
+              faturado_flag: data.faturado_flag ?? false,
+              status_contrato: data.status_contrato || "Ativo",
+              observacoes: data.observacoes || "",
+              ativo_no_cliente: data.ativo_no_cliente ?? true,
+            });
+          }
+          setLoadingData(false);
+        });
+    } else {
+      setForm({ ...defaultForm });
     }
-  }, [open, existingModule?.valor_contratado, existingModule?.valor_faturado, existingModule?.data_assinatura, existingModule?.vencimento_contrato, existingModule?.status_contrato, existingModule?.faturado_flag, existingModule?.observacoes, existingModule?.ativo_no_cliente]);
+  }, [open, existingModuleId]);
 
   const handleSave = async () => {
     let moduleId = form.modulo_id;
@@ -123,8 +138,8 @@ export function ClienteModuloForm({ open, onOpenChange, clientId, existingModule
         ativo_no_cliente: form.ativo_no_cliente,
       };
 
-      if (existingModule?.id) {
-        const { error } = await supabase.from("client_modules").update(payload).eq("id", existingModule.id);
+      if (existingModuleId) {
+        const { error } = await supabase.from("client_modules").update(payload).eq("id", existingModuleId);
         if (error) throw error;
         toast.success("Módulo atualizado");
       } else {
@@ -146,78 +161,82 @@ export function ClienteModuloForm({ open, onOpenChange, clientId, existingModule
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg bg-card border-border max-h-[85vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{existingModule?.id ? "Editar Módulo" : "Adicionar Módulo"}</DialogTitle>
+          <DialogTitle>{isEditing ? "Editar Módulo" : "Adicionar Módulo"}</DialogTitle>
           <DialogDescription>Configure o vínculo do módulo com o cliente.</DialogDescription>
         </DialogHeader>
-        <div className="space-y-4">
-          {!existingModule?.id && (
-            <div className="space-y-1.5">
-              <Label className="text-xs">Módulo *</Label>
-              <Select value={form.modulo_id || "none"} onValueChange={(v) => setForm({ ...form, modulo_id: v === "none" ? "" : v })}>
-                <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Selecionar módulo" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">— Selecionar existente —</SelectItem>
-                  {modules.map((m) => <SelectItem key={m.id} value={m.id}>{m.nome_modulo}</SelectItem>)}
-                </SelectContent>
-              </Select>
-              <p className="text-[10px] text-muted-foreground">Ou crie um novo:</p>
-              <Input value={newModuleName} onChange={(e) => setNewModuleName(e.target.value)} placeholder="Nome do novo módulo" className="h-8 text-xs" />
-            </div>
-          )}
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <Label className="text-xs">Valor Contratado</Label>
-              <CurrencyInput value={form.valor_contratado} onChange={(v) => setForm({ ...form, valor_contratado: v })} className="h-9 text-xs" />
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs">Valor Faturado</Label>
-              <CurrencyInput value={form.valor_faturado} onChange={(v) => setForm({ ...form, valor_faturado: v })} className="h-9 text-xs" />
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <Label className="text-xs">Data de Assinatura</Label>
-              <Input type="date" value={form.data_assinatura} onChange={(e) => setForm({ ...form, data_assinatura: e.target.value })} />
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs">Vencimento</Label>
-              <Input type="date" value={form.vencimento_contrato} onChange={(e) => setForm({ ...form, vencimento_contrato: e.target.value })} />
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <Label className="text-xs">Status do Contrato</Label>
-              <Select value={form.status_contrato} onValueChange={(v) => setForm({ ...form, status_contrato: v })}>
-                <SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Ativo">Ativo</SelectItem>
-                  <SelectItem value="Inativo">Inativo</SelectItem>
-                  <SelectItem value="Cancelado">Cancelado</SelectItem>
-                  <SelectItem value="Suspenso">Suspenso</SelectItem>
-                  <SelectItem value="Vencido">Vencido</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1.5 flex flex-col justify-end">
-              <div className="flex items-center gap-2">
-                <Switch checked={form.faturado_flag} onCheckedChange={(v) => setForm({ ...form, faturado_flag: v })} />
-                <Label className="text-xs">Faturado?</Label>
+        {loadingData ? (
+          <p className="text-sm text-muted-foreground py-4 text-center">Carregando dados...</p>
+        ) : (
+          <div className="space-y-4">
+            {!isEditing && (
+              <div className="space-y-1.5">
+                <Label className="text-xs">Módulo *</Label>
+                <Select value={form.modulo_id || "none"} onValueChange={(v) => setForm({ ...form, modulo_id: v === "none" ? "" : v })}>
+                  <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Selecionar módulo" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">— Selecionar existente —</SelectItem>
+                    {modules.map((m) => <SelectItem key={m.id} value={m.id}>{m.nome_modulo}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+                <p className="text-[10px] text-muted-foreground">Ou crie um novo:</p>
+                <Input value={newModuleName} onChange={(e) => setNewModuleName(e.target.value)} placeholder="Nome do novo módulo" className="h-8 text-xs" />
               </div>
-              <div className="flex items-center gap-2">
-                <Switch checked={form.ativo_no_cliente} onCheckedChange={(v) => setForm({ ...form, ativo_no_cliente: v })} />
-                <Label className="text-xs">Ativo no cliente</Label>
+            )}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs">Valor Contratado</Label>
+                <CurrencyInput value={form.valor_contratado} onChange={(v) => setForm({ ...form, valor_contratado: v })} className="h-9 text-xs" />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Valor Faturado</Label>
+                <CurrencyInput value={form.valor_faturado} onChange={(v) => setForm({ ...form, valor_faturado: v })} className="h-9 text-xs" />
               </div>
             </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs">Data de Assinatura</Label>
+                <Input type="date" value={form.data_assinatura} onChange={(e) => setForm({ ...form, data_assinatura: e.target.value })} />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Vencimento</Label>
+                <Input type="date" value={form.vencimento_contrato} onChange={(e) => setForm({ ...form, vencimento_contrato: e.target.value })} />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs">Status do Contrato</Label>
+                <Select value={form.status_contrato} onValueChange={(v) => setForm({ ...form, status_contrato: v })}>
+                  <SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Ativo">Ativo</SelectItem>
+                    <SelectItem value="Inativo">Inativo</SelectItem>
+                    <SelectItem value="Cancelado">Cancelado</SelectItem>
+                    <SelectItem value="Suspenso">Suspenso</SelectItem>
+                    <SelectItem value="Vencido">Vencido</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5 flex flex-col justify-end">
+                <div className="flex items-center gap-2">
+                  <Switch checked={form.faturado_flag} onCheckedChange={(v) => setForm({ ...form, faturado_flag: v })} />
+                  <Label className="text-xs">Faturado?</Label>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Switch checked={form.ativo_no_cliente} onCheckedChange={(v) => setForm({ ...form, ativo_no_cliente: v })} />
+                  <Label className="text-xs">Ativo no cliente</Label>
+                </div>
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Observações</Label>
+              <Textarea value={form.observacoes} onChange={(e) => setForm({ ...form, observacoes: e.target.value })} rows={2} />
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <Button variant="outline" size="sm" onClick={() => onOpenChange(false)}>Cancelar</Button>
+              <Button size="sm" onClick={handleSave} disabled={saving}>{saving ? "Salvando..." : "Salvar"}</Button>
+            </div>
           </div>
-          <div className="space-y-1.5">
-            <Label className="text-xs">Observações</Label>
-            <Textarea value={form.observacoes} onChange={(e) => setForm({ ...form, observacoes: e.target.value })} rows={2} />
-          </div>
-          <div className="flex justify-end gap-2 pt-2">
-            <Button variant="outline" size="sm" onClick={() => onOpenChange(false)}>Cancelar</Button>
-            <Button size="sm" onClick={handleSave} disabled={saving}>{saving ? "Salvando..." : "Salvar"}</Button>
-          </div>
-        </div>
+        )}
       </DialogContent>
     </Dialog>
   );

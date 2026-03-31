@@ -307,7 +307,7 @@ export default function ClienteDetailPage() {
           open={moduleFormOpen}
           onOpenChange={handleModuleFormOpenChange}
           clientId={id}
-          existingModule={editingModule}
+          existingModuleId={editingModuleId}
           onSaved={loadData}
         />
       )}
