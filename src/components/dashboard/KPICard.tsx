@@ -60,8 +60,8 @@ export function KPICard({ title, value, subtitle, icon: Icon, variant = "default
           <p className="text-sm sm:text-base xl:text-lg font-bold tracking-tight mono">{value}</p>
           {subtitle && <p className="text-xs text-muted-foreground">{subtitle}</p>}
         </div>
-        <div className={`rounded-lg p-2.5 ${iconBgStyles[variant]} shrink-0 ml-3`}>
-          <Icon className={`h-5 w-5 ${iconColorStyles[variant]}`} />
+        <div className={`rounded-lg p-2 ${iconBgStyles[variant]} shrink-0 ml-2`}>
+          <Icon className={`h-4 w-4 ${iconColorStyles[variant]}`} />
         </div>
       </div>
       {chartData && chartData.length > 1 && (
