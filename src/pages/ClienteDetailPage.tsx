@@ -114,8 +114,22 @@ export default function ClienteDetailPage() {
   useEffect(() => { loadData(); }, [id]);
 
   const toggleActive = async (mod: ClientModuleRow) => {
-    await supabase.from("client_modules").update({ ativo_no_cliente: !mod.ativo_no_cliente }).eq("id", mod.id);
-    toast.success(mod.ativo_no_cliente ? "Módulo inativado" : "Módulo ativado");
+    if (mod.ativo_no_cliente) {
+      // Inativando: cascata
+      await supabase.from("client_modules").update({
+        ativo_no_cliente: false,
+        faturado_flag: false,
+        valor_faturado: 0,
+        status_contrato: "Inativo",
+      }).eq("id", mod.id);
+      toast.success("Módulo inativado");
+    } else {
+      await supabase.from("client_modules").update({
+        ativo_no_cliente: true,
+        status_contrato: "Ativo",
+      }).eq("id", mod.id);
+      toast.success("Módulo ativado");
+    }
     reloadModules();
   };
 
