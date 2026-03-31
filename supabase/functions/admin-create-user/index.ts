@@ -54,13 +54,16 @@ Deno.serve(async (req) => {
       );
     }
 
-    const { email, password, full_name } = await req.json();
+    const { email, password, full_name, role, force_password_change } = await req.json();
     if (!email || !password || !full_name) {
       return new Response(
         JSON.stringify({ error: "email, password e full_name são obrigatórios" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+
+    const validRole = role === "admin" ? "admin" : "user";
+    const forcePwChange = force_password_change === true;
 
     // Use service role to create user
     const supabaseAdmin = createClient(
