@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -49,6 +49,24 @@ export default function ClienteDetailPage() {
   const [copyDatesOpen, setCopyDatesOpen] = useState(false);
   const [multiModuleFormOpen, setMultiModuleFormOpen] = useState(false);
 
+  const mapModules = (modulesData: any[]): ClientModuleRow[] => {
+    const mapped = (modulesData || []).map((m: any) => ({
+      id: m.id,
+      modulo_id: m.modulo_id,
+      nome_modulo: m.modules?.nome_modulo || "",
+      valor_contratado: Number(m.valor_contratado) || 0,
+      valor_faturado: Number(m.valor_faturado) || 0,
+      data_assinatura: m.data_assinatura || "",
+      vencimento_contrato: m.vencimento_contrato || "",
+      faturado_flag: m.faturado_flag,
+      status_contrato: m.status_contrato || "",
+      observacoes: m.observacoes || "",
+      ativo_no_cliente: m.ativo_no_cliente,
+    }));
+    mapped.sort((a, b) => a.nome_modulo.localeCompare(b.nome_modulo, "pt-BR"));
+    return mapped;
+  };
+
   const loadData = async () => {
     if (!id) return;
     setLoading(true);
@@ -65,26 +83,10 @@ export default function ClienteDetailPage() {
       const { data: modulesData, error: modulesError } = await supabase
         .from("client_modules")
         .select("*, modules(nome_modulo)")
-        .eq("client_id", id)
-        .order("created_at", { ascending: false });
+        .eq("client_id", id);
 
       if (modulesError) throw modulesError;
-
-      const mapped = (modulesData || []).map((m: any) => ({
-          id: m.id,
-          modulo_id: m.modulo_id,
-          nome_modulo: m.modules?.nome_modulo || "",
-          valor_contratado: Number(m.valor_contratado) || 0,
-          valor_faturado: Number(m.valor_faturado) || 0,
-          data_assinatura: m.data_assinatura || "",
-          vencimento_contrato: m.vencimento_contrato || "",
-          faturado_flag: m.faturado_flag,
-          status_contrato: m.status_contrato || "",
-          observacoes: m.observacoes || "",
-          ativo_no_cliente: m.ativo_no_cliente,
-        }));
-      mapped.sort((a, b) => a.nome_modulo.localeCompare(b.nome_modulo, "pt-BR"));
-      setModules(mapped);
+      setModules(mapModules(modulesData || []));
     } catch (err) {
       console.error(err);
       toast.error("Erro ao carregar dados do cliente");
@@ -93,19 +95,35 @@ export default function ClienteDetailPage() {
     }
   };
 
+  // Reload only modules without full-page loading spinner (preserves scroll)
+  const reloadModules = useCallback(async () => {
+    if (!id) return;
+    try {
+      const { data: modulesData, error: modulesError } = await supabase
+        .from("client_modules")
+        .select("*, modules(nome_modulo)")
+        .eq("client_id", id);
+
+      if (modulesError) throw modulesError;
+      setModules(mapModules(modulesData || []));
+    } catch (err) {
+      console.error(err);
+    }
+  }, [id]);
+
   useEffect(() => { loadData(); }, [id]);
 
   const toggleActive = async (mod: ClientModuleRow) => {
     await supabase.from("client_modules").update({ ativo_no_cliente: !mod.ativo_no_cliente }).eq("id", mod.id);
     toast.success(mod.ativo_no_cliente ? "Módulo inativado" : "Módulo ativado");
-    loadData();
+    reloadModules();
   };
 
   const deleteModule = async (mod: ClientModuleRow) => {
     if (!confirm(`Excluir vínculo do módulo "${mod.nome_modulo}"?`)) return;
     await supabase.from("client_modules").delete().eq("id", mod.id);
     toast.success("Vínculo excluído");
-    loadData();
+    reloadModules();
   };
 
   const handleEditModule = (mod: ClientModuleRow) => {
@@ -143,6 +161,8 @@ export default function ClienteDetailPage() {
   const totalContratado = modules.reduce((s, m) => s + m.valor_contratado, 0);
   const totalFaturado = modules.reduce((s, m) => s + m.valor_faturado, 0);
   const totalDiff = totalContratado - totalFaturado;
+
+  const editingRow = modules.find(m => m.id === editingModuleId) || null;
 
   return (
     <div className="min-h-screen bg-background">
@@ -308,7 +328,8 @@ export default function ClienteDetailPage() {
           onOpenChange={handleModuleFormOpenChange}
           clientId={id}
           existingModuleId={editingModuleId}
-          onSaved={loadData}
+          initialData={editingRow}
+          onSaved={reloadModules}
         />
       )}
 
@@ -317,7 +338,7 @@ export default function ClienteDetailPage() {
           open={multiModuleFormOpen}
           onOpenChange={setMultiModuleFormOpen}
           clientId={id}
-          onSaved={loadData}
+          onSaved={reloadModules}
         />
       )}
 
@@ -329,7 +350,7 @@ export default function ClienteDetailPage() {
           moduleCount={modules.length}
           initialAssinatura={modules[0]?.data_assinatura || ""}
           initialVencimento={modules[0]?.vencimento_contrato || ""}
-          onSaved={loadData}
+          onSaved={reloadModules}
         />
       )}
     </div>
