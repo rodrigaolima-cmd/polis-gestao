@@ -1,55 +1,41 @@
 
 
-## Corrigir usuário ausente na lista
+## Adicionar código sequencial aos clientes
 
-### Causa raiz
+### O que será feito
 
-A função `handle_new_user()` existe no banco mas **não há trigger** vinculando-a à tabela `auth.users`. Quando Tatiane foi criada via `admin-create-user`, o Supabase Auth inseriu em `auth.users`, mas nenhum trigger disparou para criar o registro em `profiles`. Sem profile, ela não aparece na lista.
-
-O update na linha 103-106 do `admin-create-user` (`update profiles ... eq id`) silenciosamente não atualiza nada porque o registro não existe.
+Adicionar um campo `codigo_cliente` numérico e auto-incrementável à tabela `clients`, preenchendo automaticamente os clientes existentes.
 
 ### Mudanças
 
-#### 1. Migration: Criar trigger + backfill (SQL)
+#### 1. Migration SQL
 
 ```sql
--- Criar o trigger que estava faltando
-CREATE TRIGGER on_auth_user_created
-  AFTER INSERT ON auth.users
-  FOR EACH ROW
-  EXECUTE FUNCTION public.handle_new_user();
+-- Adicionar coluna com sequência automática
+ALTER TABLE public.clients 
+ADD COLUMN codigo_cliente SERIAL;
 
--- Backfill: criar profiles para users que existem em auth.users mas não em profiles
-INSERT INTO public.profiles (id, full_name, is_active)
-SELECT u.id, COALESCE(u.raw_user_meta_data->>'full_name', ''), false
-FROM auth.users u
-LEFT JOIN public.profiles p ON p.id = u.id
-WHERE p.id IS NULL;
+-- Criar índice único para garantir unicidade
+CREATE UNIQUE INDEX idx_clients_codigo ON public.clients (codigo_cliente);
 ```
 
-#### 2. Edge function `admin-create-user/index.ts` — hardening
+O `SERIAL` auto-preenche todos os registros existentes com valores sequenciais (1, 2, 3...) na ordem de inserção e garante auto-incremento para novos clientes.
 
-Alterar o fluxo pós-criação: em vez de apenas `update`, usar `upsert` para garantir que o profile exista mesmo se o trigger falhar:
+#### 2. Exibição na interface
 
-```ts
-// Linha ~103: trocar update por upsert
-await supabaseAdmin
-  .from("profiles")
-  .upsert({
-    id: newUser.user.id,
-    full_name: full_name,
-    is_active: true,
-    force_password_change: forcePwChange,
-  });
-```
+- **`ClientesPage.tsx`**: Adicionar coluna "Código" como primeira coluna da tabela, antes do nome
+- **`ClienteDetailPage.tsx`**: Exibir o código no cabeçalho do cliente (ex: `#42 — Nome do Cliente`)
 
-### Resultado esperado
+#### 3. Exportação da lista
 
-- Tatiane aparecerá na lista imediatamente após o backfill
-- Futuros usuários criados terão profile garantido (trigger + upsert como fallback)
-- Nenhuma mudança de layout ou lógica de autenticação
+Após a migration, gerar um CSV em `/mnt/documents/` com `codigo_cliente` e `nome_cliente` para consulta.
 
 ### Arquivos afetados
-- Nova migration SQL (trigger + backfill)
-- `supabase/functions/admin-create-user/index.ts` — upsert em vez de update
+- Nova migration SQL (add column)
+- `src/pages/ClientesPage.tsx` — coluna Código na tabela
+- `src/pages/ClienteDetailPage.tsx` — exibir código no header
+
+### O que NÃO muda
+- Dashboard, relatórios, módulos, autenticação
+- Nenhuma coluna existente é alterada
 
