@@ -266,8 +266,8 @@ export default function ClienteDetailPage() {
                   const expStatus = days !== null ? getExpirationStatus(days) : null;
 
                   return (
-                    <TableRow key={m.id} className={`border-border/20 ${!m.ativo_no_cliente ? "opacity-50" : ""}`}>
-                      <TableCell className="text-xs font-medium cursor-pointer hover:underline hover:text-primary transition-colors" onClick={() => handleEditModule(m)}>{m.nome_modulo}</TableCell>
+                    <TableRow key={m.id} className={`border-border/20 cursor-pointer hover:bg-muted/50 transition-colors ${!m.ativo_no_cliente ? "opacity-50" : ""}`} onClick={() => handleEditModule(m)}>
+                      <TableCell className="text-xs font-medium">{m.nome_modulo}</TableCell>
                       <TableCell className="text-xs text-right mono">{formatCurrency(m.valor_contratado)}</TableCell>
                       <TableCell className="text-xs text-right mono">{formatCurrency(m.valor_faturado)}</TableCell>
                       <TableCell className={`text-xs text-right mono ${diff > 0 ? "text-warning" : diff < 0 ? "text-danger" : ""}`}>
@@ -292,7 +292,7 @@ export default function ClienteDetailPage() {
                       <TableCell className="text-center">
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-7 w-7">
+                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => e.stopPropagation()}>
                               <MoreVertical className="h-3.5 w-3.5" />
                             </Button>
                           </DropdownMenuTrigger>
