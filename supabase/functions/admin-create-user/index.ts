@@ -71,6 +71,19 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
+    // Check if email already exists
+    const { data: existingUsers, error: listError } =
+      await supabaseAdmin.auth.admin.listUsers();
+
+    if (!listError && existingUsers?.users?.some(
+      (u: any) => u.email?.toLowerCase() === email.toLowerCase()
+    )) {
+      return new Response(
+        JSON.stringify({ error: "Email já está em uso por outro usuário" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     const { data: newUser, error: createError } =
       await supabaseAdmin.auth.admin.createUser({
         email,
