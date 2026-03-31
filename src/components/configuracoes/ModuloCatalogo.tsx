@@ -9,7 +9,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { Plus, Pencil, Trash2, Search, Package } from "lucide-react";
+import { Plus, Pencil, Trash2, Search, Package, FileText } from "lucide-react";
+import { ModuloCatalogoReport } from "./ModuloCatalogoReport";
 import { normalizeForSearch } from "@/utils/textUtils";
 
 interface Module {
@@ -31,6 +32,7 @@ export default function ModuloCatalogo() {
   const [formDescricao, setFormDescricao] = useState("");
   const [saving, setSaving] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+  const [reportOpen, setReportOpen] = useState(false);
 
   const fetchModules = useCallback(async () => {
     setLoading(true);
@@ -138,12 +140,16 @@ export default function ModuloCatalogo() {
   };
 
   return (
+    <>
     <Card>
       <CardHeader className="flex flex-row items-center justify-between gap-4 flex-wrap">
         <CardTitle className="text-lg flex items-center gap-2">
           <Package className="h-5 w-5" /> Catálogo de Módulos
         </CardTitle>
         <div className="flex items-center gap-2">
+          <Button size="sm" variant="outline" className="gap-2" onClick={() => setReportOpen(true)}>
+            <FileText className="h-4 w-4" /> Relatório
+          </Button>
           <div className="relative">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input
@@ -252,5 +258,7 @@ export default function ModuloCatalogo() {
         <p className="text-xs text-muted-foreground mt-2">{modules.length} módulos cadastrados</p>
       </CardContent>
     </Card>
+    <ModuloCatalogoReport modules={modules} open={reportOpen} onOpenChange={setReportOpen} />
+    </>
   );
 }
