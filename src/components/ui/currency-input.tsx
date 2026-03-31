@@ -4,16 +4,18 @@ import { parseCurrencyInput, formatCurrencyInput } from "@/utils/contractUtils";
 import { cn } from "@/lib/utils";
 
 interface CurrencyInputProps {
-  value: number;
+  value: number | null | undefined;
   onChange: (value: number) => void;
   className?: string;
   placeholder?: string;
 }
 
-export function CurrencyInput({ value, onChange, className, placeholder = "0,00" }: CurrencyInputProps) {
+export function CurrencyInput({ value: rawValue, onChange, className, placeholder = "0,00" }: CurrencyInputProps) {
+  const value = rawValue ?? 0;
   const [display, setDisplay] = React.useState(formatCurrencyInput(value));
   const [focused, setFocused] = React.useState(false);
 
+  // Sync display whenever value changes externally and field is not focused
   React.useEffect(() => {
     if (!focused) {
       setDisplay(formatCurrencyInput(value));
@@ -33,9 +35,11 @@ export function CurrencyInput({ value, onChange, className, placeholder = "0,00"
 
   const handleFocus = () => {
     setFocused(true);
-    // Show raw number for easier editing
+    // Always derive from the current prop value, not stale state
     if (value) {
       setDisplay(String(value).replace(".", ","));
+    } else {
+      setDisplay("");
     }
   };
 
