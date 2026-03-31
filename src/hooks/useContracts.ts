@@ -286,7 +286,7 @@ export function useContracts() {
         }
       }
 
-      // 4. Clear existing and insert fresh
+      // 5. Clear existing and insert fresh
       onProgress?.("Limpando dados anteriores...", 52);
       await withTimeout(
         restDelete(token, "client_modules", "id=neq.00000000-0000-0000-0000-000000000000", signal),
