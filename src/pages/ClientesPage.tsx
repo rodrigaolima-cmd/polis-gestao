@@ -235,6 +235,7 @@ export default function ClientesPage() {
 
                   return (
                     <TableRow key={c.id} className="border-border/20 hover:bg-muted/30 cursor-pointer" onClick={() => navigate(`/clientes/${c.id}`)}>
+                      <TableCell className="text-xs text-center text-muted-foreground">{c.codigo_cliente ?? "—"}</TableCell>
                       <TableCell className="text-xs font-medium">{c.nome_cliente}</TableCell>
                       <TableCell className="text-xs text-muted-foreground">{c.tipo_ug}</TableCell>
                       <TableCell className="text-xs text-muted-foreground">{c.regiao}</TableCell>
