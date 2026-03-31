@@ -192,7 +192,7 @@ export function ClienteMultiModuloForm({ open, onOpenChange, clientId, onSaved }
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-3xl bg-card border-border max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Adicionar Vários Sistemas</DialogTitle>
+          <DialogTitle>Adicionar Módulos</DialogTitle>
           <DialogDescription>Selecione os módulos e preencha os dados do contrato.</DialogDescription>
         </DialogHeader>
 
