@@ -67,6 +67,7 @@ export function KPICard({ title, value, subtitle, icon: Icon, variant = "default
         </div>
         <div className={`rounded-lg p-2 ${iconBgStyles[variant]} shrink-0 ml-2`}>
           <Icon className={`h-4 w-4 ${iconColorStyles[variant]}`} />
+        </div>
       </div>
       {chartData && chartData.length > 1 && (
         <div className="mt-3 -mx-1">
