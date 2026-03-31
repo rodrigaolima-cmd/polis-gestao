@@ -46,6 +46,7 @@ interface ClienteModuloFormProps {
   onOpenChange: (open: boolean) => void;
   clientId: string;
   existingModuleId?: string | null;
+  initialData?: Record<string, any> | null;
   onSaved: () => void;
 }
 
