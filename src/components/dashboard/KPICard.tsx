@@ -1,5 +1,5 @@
 import { LucideIcon } from "lucide-react";
-import { LineChart, Line, Area, AreaChart, ResponsiveContainer } from "recharts";
+import { Area, AreaChart, ResponsiveContainer } from "recharts";
 
 interface KPICardProps {
   title: string;
@@ -7,6 +7,7 @@ interface KPICardProps {
   subtitle?: string;
   icon: LucideIcon;
   variant?: "default" | "success" | "danger" | "warning" | "info";
+  size?: "lg" | "sm";
   animationDelay?: number;
   onClick?: () => void;
   sparklineData?: number[];
@@ -44,23 +45,32 @@ const sparklineColors: Record<string, string> = {
   info: "hsl(var(--info))",
 };
 
-export function KPICard({ title, value, subtitle, icon: Icon, variant = "default", animationDelay = 0, onClick, sparklineData }: KPICardProps) {
-  const chartData = sparklineData?.map((v, i) => ({ v }));
+export function KPICard({ title, value, subtitle, icon: Icon, variant = "default", size = "sm", animationDelay = 0, onClick, sparklineData }: KPICardProps) {
+  const chartData = sparklineData?.map((v) => ({ v }));
   const color = sparklineColors[variant];
+  const isLarge = size === "lg";
 
   return (
     <div
-      className={`glass-card rounded-xl p-4 ${variantStyles[variant]} animate-fade-in ${onClick ? 'cursor-pointer hover:scale-[1.02] transition-transform' : ''}`}
-      style={{ animationDelay: `${animationDelay}ms` }}
+      className={`glass-card rounded-xl ${isLarge ? 'p-5 min-h-[150px]' : 'p-4'} ${variantStyles[variant]} animate-fade-in ${onClick ? 'cursor-pointer hover:scale-[1.02] transition-transform' : ''} ${isLarge ? 'shadow-lg' : ''}`}
+      style={{
+        animationDelay: `${animationDelay}ms`,
+        ...(isLarge ? {
+          background: 'linear-gradient(180deg, hsl(var(--card) / 0.95), hsl(var(--card) / 0.8))',
+          boxShadow: '0 6px 16px hsl(var(--background) / 0.4)',
+        } : {}),
+      }}
       onClick={onClick}
     >
       <div className="flex items-start justify-between">
         <div className="flex flex-col gap-0.5 min-w-0 flex-1">
-          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{title}</p>
-          <p 
-            className="font-bold tracking-tight mono leading-tight"
-            style={{ 
-              fontSize: value.length > 14 ? '0.75rem' : value.length > 8 ? '0.85rem' : '1rem',
+          <p className={`font-medium uppercase tracking-wider text-muted-foreground ${isLarge ? 'text-xs sm:text-sm' : 'text-xs'}`}>{title}</p>
+          <p
+            className={`font-bold tracking-tight mono leading-tight ${isLarge ? 'font-semibold' : ''}`}
+            style={{
+              fontSize: isLarge
+                ? 'clamp(1.1rem, 2.2vw, 1.75rem)'
+                : value.length > 14 ? '0.75rem' : value.length > 8 ? '0.85rem' : '1rem',
               wordBreak: 'keep-all',
               overflowWrap: 'normal',
               whiteSpace: 'normal',
@@ -68,15 +78,15 @@ export function KPICard({ title, value, subtitle, icon: Icon, variant = "default
           >
             {value}
           </p>
-          {subtitle && <p className="text-xs text-muted-foreground">{subtitle}</p>}
+          {subtitle && <p className={`text-muted-foreground ${isLarge ? 'text-xs sm:text-sm' : 'text-xs'}`}>{subtitle}</p>}
         </div>
-        <div className={`rounded-lg p-2 ${iconBgStyles[variant]} shrink-0 ml-2`}>
-          <Icon className={`h-4 w-4 ${iconColorStyles[variant]}`} />
+        <div className={`rounded-lg ${isLarge ? 'p-2.5' : 'p-2'} ${iconBgStyles[variant]} shrink-0 ml-2`}>
+          <Icon className={`${isLarge ? 'h-5 w-5' : 'h-4 w-4'} ${iconColorStyles[variant]}`} />
         </div>
       </div>
       {chartData && chartData.length > 1 && (
-        <div className="mt-3 -mx-1">
-          <ResponsiveContainer width="100%" height={28}>
+        <div className={`${isLarge ? 'mt-4' : 'mt-3'} -mx-1`}>
+          <ResponsiveContainer width="100%" height={isLarge ? 36 : 28}>
             <AreaChart data={chartData}>
               <defs>
                 <linearGradient id={`spark-${variant}`} x1="0" y1="0" x2="0" y2="1">

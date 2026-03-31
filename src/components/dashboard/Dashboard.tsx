@@ -20,10 +20,12 @@ import { CommercialAnalysis } from "@/components/dashboard/CommercialAnalysis";
 import { ImportDialog } from "@/components/dashboard/ImportDialog";
 import { ConsultorDashboard } from "@/components/dashboard/ConsultorDashboard";
 import { MobileMenu } from "@/components/MobileMenu";
+import { useTheme } from "@/hooks/useTheme";
 import {
   DollarSign, TrendingUp, AlertTriangle,
   CalendarX, Clock, AlertCircle, Upload,
-  Target, FileText, Users, LogOut, Settings, Layers
+  Target, FileText, Users, LogOut, Settings, Layers,
+  Sun, Moon
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
