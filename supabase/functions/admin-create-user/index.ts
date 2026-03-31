@@ -54,13 +54,16 @@ Deno.serve(async (req) => {
       );
     }
 
-    const { email, password, full_name } = await req.json();
+    const { email, password, full_name, role, force_password_change } = await req.json();
     if (!email || !password || !full_name) {
       return new Response(
         JSON.stringify({ error: "email, password e full_name são obrigatórios" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+
+    const validRole = role === "admin" ? "admin" : "user";
+    const forcePwChange = force_password_change === true;
 
     // Use service role to create user
     const supabaseAdmin = createClient(
@@ -83,16 +86,16 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Activate the user profile
+    // Activate the user profile and set force_password_change
     await supabaseAdmin
       .from("profiles")
-      .update({ is_active: true })
+      .update({ is_active: true, force_password_change: forcePwChange })
       .eq("id", newUser.user.id);
 
-    // Assign 'user' role by default
+    // Assign chosen role
     await supabaseAdmin.from("user_roles").insert({
       user_id: newUser.user.id,
-      role: "user",
+      role: validRole,
     });
 
     return new Response(
