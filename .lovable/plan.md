@@ -1,49 +1,42 @@
 
 
-## Atualização de lógica de negócio — Módulos do Cliente
+## Adicionar campo Email ao modal Editar Usuário
 
-### Mudanças planejadas
+### Desafio técnico
 
-#### 1. Toggle "Faturado?" — auto-preencher (`ClienteModuloForm.tsx`)
-- Quando `faturado_flag` muda para `true`: copiar `valor_contratado` para `valor_faturado`, setar `status_contrato = "Ativo"`
-- Campo `valor_faturado` continua editável após a cópia
-- Quando muda para `false`: não alterar valores (apenas desmarca o flag)
+O email está armazenado na tabela `auth.users` (gerenciada pelo sistema de autenticação), que **não é acessível** diretamente pelo client-side SDK. A tabela `profiles` não tem coluna `email`. Precisamos de uma abordagem em duas partes.
 
-#### 2. Toggle "Ativo no cliente" OFF (`ClienteModuloForm.tsx`)
-- Quando `ativo_no_cliente` muda para `false`: setar `valor_faturado = 0`, `faturado_flag = false`, `status_contrato = "Inativo"`
-- Quando muda para `true`: setar `status_contrato = "Ativo"` (valores ficam como estão)
+### Abordagem
 
-#### 3. Opções de Status do Contrato (`ClienteModuloForm.tsx` + `ClienteMultiModuloForm.tsx`)
-- Atualizar lista: Ativo, Inativo, Vencido, A vencer, Suspenso, Cancelado
-- O campo continua editável manualmente para override
+#### 1. Nova Edge Function: `admin-list-users`
+Criar uma edge function que usa `service_role_key` para listar emails dos usuários via `supabase.auth.admin.listUsers()`. Retorna um map `{ user_id: email }`. Apenas admins autorizados podem chamar.
 
-#### 4. Inativação em cascata do cliente (`ClienteForm.tsx` + `ClienteDetailPage.tsx`)
-- No `ClienteForm`, ao salvar com `status_cliente = "Inativo"` (quando antes era diferente de Inativo): mostrar `confirm()` perguntando se deseja inativar todos os módulos
-- Se confirmado: após salvar o cliente, executar update em `client_modules` setando `ativo_no_cliente = false`, `faturado_flag = false`, `valor_faturado = 0`, `status_contrato = "Inativo"` para todos os módulos do cliente
-- Se não confirmado: salva só o status do cliente, módulos ficam como estão
+#### 2. Nova Edge Function: `admin-update-email`
+Criar uma edge function que usa `supabase.auth.admin.updateUserById()` para alterar o email de um usuário. Validações:
+- Verificar que o chamador é admin
+- Validar formato do email
+- Verificar duplicidade chamando `admin.listUsers()` e checando se outro user já tem o email
+- Se o usuário editado é o logado, o frontend mostra confirmação antes de chamar
 
-#### 5. Unificar botão de adicionar módulos (`ClienteDetailPage.tsx`)
-- Remover botão "+ Adicionar Módulo" (o que abre form individual)
-- Renomear "Adicionar Vários" para "Adicionar Módulos"
-- Manter apenas 1 botão principal que abre o `ClienteMultiModuloForm`
+#### 3. `ConfiguracoesPage.tsx` — mudanças
 
-#### 6. Busca no modal de adicionar módulos (`ClienteMultiModuloForm.tsx`)
-- Adicionar `Input` de busca acima da grid de módulos
-- Filtrar `allModules` por texto parcial (case-insensitive, normalize para acentos) no `nome_modulo`
-- Atualização em tempo real conforme digita
+**fetchUsers**: Após buscar profiles e roles, chamar `admin-list-users` para obter emails e incluir no array `users`.
 
-#### 7. Toggle "Ativo no cliente" na tabela — cascata (`ClienteDetailPage.tsx`)
-- Ajustar `toggleActive` para, ao inativar (ativo → inativo), também setar `faturado_flag = false`, `valor_faturado = 0`, `status_contrato = "Inativo"` no update do banco
+**Estado do edit modal**: Adicionar `editEmail` state.
+
+**openEditUser**: Setar `editEmail` com o email do usuário.
+
+**handleSaveEdit**: Se `editEmail` mudou, chamar `admin-update-email`. Se o usuário editado é o logado (`editUser.id === currentUser.id`), mostrar `confirm("Alterar o email pode impactar o acesso ao sistema. Deseja continuar?")` antes de prosseguir.
+
+**Modal UI**: Adicionar campo Email (type="email", required) entre "Nome Completo" e "Data de cadastro".
 
 ### Arquivos afetados
-- `src/components/clientes/ClienteModuloForm.tsx` — toggles inteligentes, status options
-- `src/components/clientes/ClienteMultiModuloForm.tsx` — busca, status options
-- `src/pages/ClienteDetailPage.tsx` — unificar botão, toggleActive cascata
-- `src/components/clientes/ClienteForm.tsx` — cascata ao inativar cliente
+- `supabase/functions/admin-list-users/index.ts` — **novo** — listar emails
+- `supabase/functions/admin-update-email/index.ts` — **novo** — atualizar email
+- `src/pages/ConfiguracoesPage.tsx` — campo email no modal, fetch emails, save email
 
 ### O que NÃO muda
-- Dashboard, relatórios, importações
-- Schema do banco (usa campos existentes)
-- Cálculos financeiros existentes
-- Layout visual
+- Layout geral, botões, permissões, login flow
+- Schema do banco (sem migrations)
+- Outros módulos
 
