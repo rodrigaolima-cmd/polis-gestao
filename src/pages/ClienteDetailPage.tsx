@@ -45,7 +45,7 @@ export default function ClienteDetailPage() {
   const [loading, setLoading] = useState(true);
   const [editClientOpen, setEditClientOpen] = useState(false);
   const [moduleFormOpen, setModuleFormOpen] = useState(false);
-  const [editingModule, setEditingModule] = useState<ClientModuleRow | null>(null);
+  const [editingModuleId, setEditingModuleId] = useState<string | null>(null);
   const [copyDatesOpen, setCopyDatesOpen] = useState(false);
   const [multiModuleFormOpen, setMultiModuleFormOpen] = useState(false);
 
@@ -109,18 +109,18 @@ export default function ClienteDetailPage() {
   };
 
   const handleEditModule = (mod: ClientModuleRow) => {
-    setEditingModule(mod);
+    setEditingModuleId(mod.id);
     setModuleFormOpen(true);
   };
 
   const handleAddModule = () => {
-    setEditingModule(null);
+    setEditingModuleId(null);
     setModuleFormOpen(true);
   };
 
   const handleModuleFormOpenChange = (open: boolean) => {
     setModuleFormOpen(open);
-    if (!open) setEditingModule(null);
+    if (!open) setEditingModuleId(null);
   };
 
   if (loading) {
@@ -233,7 +233,7 @@ export default function ClienteDetailPage() {
 
                   return (
                     <TableRow key={m.id} className={`border-border/20 ${!m.ativo_no_cliente ? "opacity-50" : ""}`}>
-                      <TableCell className="text-xs font-medium">{m.nome_modulo}</TableCell>
+                      <TableCell className="text-xs font-medium cursor-pointer hover:underline hover:text-primary transition-colors" onClick={() => handleEditModule(m)}>{m.nome_modulo}</TableCell>
                       <TableCell className="text-xs text-right mono">{formatCurrency(m.valor_contratado)}</TableCell>
                       <TableCell className="text-xs text-right mono">{formatCurrency(m.valor_faturado)}</TableCell>
                       <TableCell className={`text-xs text-right mono ${diff > 0 ? "text-warning" : diff < 0 ? "text-danger" : ""}`}>
@@ -307,7 +307,7 @@ export default function ClienteDetailPage() {
           open={moduleFormOpen}
           onOpenChange={handleModuleFormOpenChange}
           clientId={id}
-          existingModule={editingModule}
+          existingModuleId={editingModuleId}
           onSaved={loadData}
         />
       )}
