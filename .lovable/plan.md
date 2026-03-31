@@ -1,54 +1,79 @@
 
 
-## Catálogo de Módulos — Relatório + Inserção de módulos
+## Catálogo de Módulos — Melhorias de UX e Produtividade
 
-### 1. Inserir módulos no banco (sem duplicatas)
-
-Usar o insert tool para adicionar os 26 módulos listados. Query com `ON CONFLICT` ou `INSERT ... WHERE NOT EXISTS` para evitar duplicatas (match por `nome_modulo`).
-
-```sql
-INSERT INTO public.modules (nome_modulo, categoria_modulo, status_modulo, descricao)
-SELECT v.nome, v.cat, 'Ativo', ''
-FROM (VALUES
-  ('GSP - Portal de Terceiros','GSP'),
-  ('GSP - Pronto Atendimento','GSP'),
-  -- ... todos os 26 módulos
-  ('GSP - Gestão Completa','GSP')
-) AS v(nome, cat)
-WHERE NOT EXISTS (
-  SELECT 1 FROM public.modules m WHERE m.nome_modulo = v.nome
-);
-```
-
-### 2. Relatório do Catálogo — novo componente `ModuloCatalogoReport.tsx`
-
-Criar um dialog de relatório seguindo o padrão visual existente (`ChartReportDialog`, `ClientesReportDialog`):
-
-- **Dialog** com classe `print-report`, max-width, scroll
-- **Header**: título "Relatório do Catálogo de Módulos" + botão "Exportar PDF" (`window.print()`)
-- **Subtítulo**: quantidade total de módulos
-- **Tabela** com colunas: Nome do Módulo | Categoria | Status | Descrição
-- **Footer**: total de módulos
-- Ordenação alfabética pt-BR por `nome_modulo`
-- Recebe `modules: Module[]` como prop (reutiliza dados já carregados)
-
-### 3. Integrar botão no `ModuloCatalogo.tsx`
-
-No header do card, adicionar botão "Relatório" (ícone `FileText`) ao lado de "Novo Módulo":
-
-```tsx
-<Button size="sm" variant="outline" className="gap-2" onClick={() => setReportOpen(true)}>
-  <FileText className="h-4 w-4" /> Relatório
-</Button>
-```
-
-State `reportOpen` controla o dialog. Passa `modules` (todos, sem filtro de busca) para o relatório.
+Este é um refactor significativo do componente `ModuloCatalogo.tsx` e melhorias no `ModuloCatalogoReport.tsx`. Nenhuma mudança de schema é necessária.
 
 ### Arquivos afetados
-- `src/components/configuracoes/ModuloCatalogoReport.tsx` — **novo** — dialog de relatório
-- `src/components/configuracoes/ModuloCatalogo.tsx` — botão + state para abrir relatório
-- Insert SQL (26 módulos, sem duplicatas)
+- `src/components/configuracoes/ModuloCatalogo.tsx` — reescrita principal
+- `src/components/configuracoes/ModuloCatalogoReport.tsx` — adicionar coluna "Data de criação", exportar Excel
+
+### Mudanças detalhadas
+
+#### 1. Row click → abre modal de edição
+- Adicionar `onClick={() => openEdit(m)}` no `<TableRow>` com `cursor-pointer`
+- Nos botões de ação (edit, toggle, delete): `e.stopPropagation()` para evitar bubbling
+
+#### 2. Multi-select com checkbox
+- State: `selectedIds: Set<string>`
+- Checkbox master no header (seleciona/deseleciona todos os filtrados)
+- Checkbox individual em cada row
+- Rows selecionadas com `bg-muted/30`
+
+#### 3. Bulk actions toolbar
+- Aparece quando `selectedIds.size > 0`
+- Ações: Ativar, Inativar, Excluir (com confirmação via AlertDialog), Alterar categoria (com input), Exportar PDF (reutiliza report com seleção)
+- Excluir em lote: verificar vínculos em `client_modules` antes de excluir
+- Após cada ação: atualizar state local sem full reload quando possível
+
+#### 4. Search melhorado
+- Já usa `normalizeForSearch` — manter. Busca por nome e categoria já funciona.
+
+#### 5. Category filter dropdown
+- Novo state `filterCategoria`
+- Dropdown com opções fixas: Todas, GSP, EDU + categorias dinâmicas extraídas dos módulos
+- Combina com search na filtragem
+
+#### 6. Sorting por colunas
+- State: `sortCol` (nome | categoria | status | created_at), `sortDir` (asc | desc)
+- Click no header alterna asc/desc
+- Ícone visual (ChevronUp/ChevronDown)
+- Fetch precisa incluir `created_at` do banco
+
+#### 7. Status badge colors
+- Ativo: `variant="default"` com classe verde (`bg-green-500/10 text-green-500`)
+- Inativo: `variant="secondary"` cinza
+- Substituir o uso de `destructive` para inativo
+
+#### 8. Toggle refinado
+- Inativar: mostrar confirm dialog antes
+- Ativar: imediato (como hoje)
+
+#### 9. Report melhorado
+- Adicionar coluna "Data de criação" ao relatório
+- Adicionar botão "Exportar Excel" que gera download via blob (tabela → CSV como fallback simples)
+- Manter PDF via `window.print()`
+
+#### 10. Responsivo — card layout mobile
+- Usar `useIsMobile()` hook existente
+- Em mobile: renderizar cards em vez de tabela
+- Cada card mostra nome, categoria, status badge, botões de ação
+
+#### 11. Pagination
+- Se `filtered.length > 50`: mostrar paginação (20 por página)
+- Usar componente `Pagination` já existente no projeto
+
+#### 12. Empty state
+- Quando `modules.length === 0` (não apenas filtered): mostrar mensagem + botão "Criar novo módulo"
+- Quando `filtered.length === 0` mas `modules.length > 0`: "Nenhum módulo encontrado" (já existe)
+
+#### 13. Otimização de updates
+- Após toggle/edit/delete: atualizar o array `modules` localmente em vez de `fetchModules()` quando possível
+- `fetchModules` apenas no mount e após create (para pegar o novo ID)
 
 ### O que NÃO muda
-- Layout, dashboard, autenticação, outros relatórios
+- Dashboard, relatórios do dashboard, importações
+- Schema do banco (usa `created_at` que já existe em `modules`)
+- Tema, tipografia, espaçamento geral
+- Páginas de Clientes, Usuários
 
