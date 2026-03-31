@@ -608,7 +608,7 @@ export default function ModuloCatalogo() {
 
       {/* Report dialog — pass selected if any, otherwise all */}
       <ModuloCatalogoReport
-        modules={selectedIds.size > 0 ? selectedModules : modules}
+        modules={selectedIds.size > 0 ? selectedModules : filtered}
         open={reportOpen}
         onOpenChange={setReportOpen}
       />
