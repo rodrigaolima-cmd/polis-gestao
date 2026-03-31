@@ -238,7 +238,16 @@ export default function ConfiguracoesPage() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="text-lg">Gerenciar Usuários</CardTitle>
-            <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+            <Dialog open={dialogOpen} onOpenChange={(open) => {
+              if (open) {
+                setNewFullName("");
+                setNewEmail("");
+                setNewPassword("");
+                setNewRole("user");
+                setNewForcePassword(false);
+              }
+              setDialogOpen(open);
+            }}>
               <DialogTrigger asChild>
                 <Button size="sm" className="gap-2">
                   <UserPlus className="h-4 w-4" /> <span className="hidden sm:inline">Novo Usuário</span><span className="sm:hidden">Novo</span>
