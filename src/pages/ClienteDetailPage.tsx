@@ -109,18 +109,18 @@ export default function ClienteDetailPage() {
   };
 
   const handleEditModule = (mod: ClientModuleRow) => {
-    setEditingModule(mod);
+    setEditingModuleId(mod.id);
     setModuleFormOpen(true);
   };
 
   const handleAddModule = () => {
-    setEditingModule(null);
+    setEditingModuleId(null);
     setModuleFormOpen(true);
   };
 
   const handleModuleFormOpenChange = (open: boolean) => {
     setModuleFormOpen(open);
-    if (!open) setEditingModule(null);
+    if (!open) setEditingModuleId(null);
   };
 
   if (loading) {
