@@ -82,8 +82,9 @@ export default function ClienteDetailPage() {
           status_contrato: m.status_contrato || "",
           observacoes: m.observacoes || "",
           ativo_no_cliente: m.ativo_no_cliente,
-        }))
-      );
+        }));
+      mapped.sort((a, b) => a.nome_modulo.localeCompare(b.nome_modulo, "pt-BR"));
+      setModules(mapped);
     } catch (err) {
       console.error(err);
       toast.error("Erro ao carregar dados do cliente");
