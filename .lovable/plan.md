@@ -1,23 +1,22 @@
 
 
-## Diagnóstico
+## Diagnóstico da causa raiz
 
-O modal abre como "Adicionar Módulo" (não "Editar"), confirmado pelo session replay que mostra o campo "Módulo *" visível e título "Adicionar Módulo". Isso significa `existingModuleId` é `null` quando o form renderiza.
+O problema é uma **race condition entre auto-focus e fetch assíncrono**:
 
-**Causa raiz**: `handleModuleFormOpenChange(false)` limpa `setEditingModuleId(null)` ao fechar o dialog. Porém, quando o Radix Dialog faz a transição de abertura, pode disparar `onOpenChange` internamente, ou a limpeza da sessão anterior interfere com a nova abertura via batching do React.
+1. Component monta com `form = defaultForm` (valores zerados)
+2. `CurrencyInput` inicializa `display = formatCurrencyInput(0)` → "0,00"
+3. Auto-focus dispara em 150ms → `focused = true` no CurrencyInput
+4. Fetch do banco retorna (200-500ms) → `setForm(dataToForm(data))` → prop `value` muda para 35000
+5. **MAS** o `useEffect` do CurrencyInput que atualiza `display` tem a condição `if (!focused)` — como `focused = true`, o display **não atualiza**
 
-## Correção definitiva
+Resultado: campos monetários ficam com "0,00" enquanto datas e outros campos (que não têm essa guarda de `focused`) atualizam normalmente.
 
-### 1. `ClienteDetailPage.tsx` — Não limpar `editingModuleId` no `onOpenChange`
+## Correção (2 arquivos, mudanças mínimas)
 
-```tsx
-const handleModuleFormOpenChange = (open: boolean) => {
-  setModuleFormOpen(open);
-  // NÃO limpar editingModuleId aqui — será definido por handleEditModule/handleAddModule
-};
-```
+### 1. `ClienteDetailPage.tsx` — Passar dados da row como estado inicial
 
-E adicionar `key={editingModuleId || 'new'}` de volta ao form. Desta vez, sem problema, porque `onOpenChange(false)` do unmount **não limpa** o ID.
+Passar `initialData={editingRow}` para o form. Isso elimina a dependência do fetch para a renderização inicial.
 
 ```tsx
 <ClienteModuloForm
@@ -26,29 +25,27 @@ E adicionar `key={editingModuleId || 'new'}` de volta ao form. Desta vez, sem pr
   onOpenChange={handleModuleFormOpenChange}
   clientId={id}
   existingModuleId={editingModuleId}
+  initialData={editingRow}
   onSaved={reloadModules}
 />
 ```
 
-Remover `initialData` prop — o form buscará seus próprios dados.
+### 2. `ClienteModuloForm.tsx` — Usar initialData como estado inicial do form
 
-### 2. `ClienteModuloForm.tsx` — Simplificar hidratação
+- Aceitar prop `initialData?: { valor_contratado: number; valor_faturado: number; ... } | null`
+- Inicializar `form` com `initialData ? dataToForm(initialData) : defaultForm` em vez de sempre `defaultForm`
+- O fetch do banco continua rodando em background para confirmar/atualizar, mas o form já começa preenchido
+- Mover o auto-focus para **depois** do fetch retornar (ou remover o delay e confiar no estado inicial correto)
 
-- Remover prop `initialData` da interface
-- Manter apenas `existingModuleId`
-- Quando `open` e `existingModuleId`: fetch direto do banco e hidratar form
-- Quando `open` sem `existingModuleId`: defaultForm
-- Graças ao `key`, cada abertura de edição monta uma instância limpa → sem estado stale
-- Remover o segundo useEffect de sincronização (desnecessário com key)
+### Fluxo corrigido
 
-### Fluxo resultante
-
-1. User clica editar → `editingModuleId = mod.id`, `moduleFormOpen = true`
-2. Key muda → form remonta limpo, useEffect busca dados do banco → hidrata
-3. User fecha → `moduleFormOpen = false`, `editingModuleId` permanece (inofensivo)
-4. User clica outro módulo → `editingModuleId` muda → key muda → remonta limpo
+1. User clica editar → `editingModuleId = mod.id`
+2. `editingRow` encontra o módulo na lista local (dados já corretos)
+3. Form monta com `initialData` → campos já preenchidos com valores reais
+4. Auto-focus no Valor Contratado → `display` já mostra "35.000,00" → select all funciona
+5. Fetch do banco confirma em background (atualiza se houve mudança externa)
 
 ### Arquivos afetados
-- `src/pages/ClienteDetailPage.tsx` — ajustar `handleModuleFormOpenChange`, adicionar `key`, remover `initialData`
-- `src/components/clientes/ClienteModuloForm.tsx` — remover `initialData`, simplificar useEffect
+- `src/pages/ClienteDetailPage.tsx` — adicionar prop `initialData`
+- `src/components/clientes/ClienteModuloForm.tsx` — aceitar `initialData`, usar como estado inicial
 
