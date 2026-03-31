@@ -15,6 +15,7 @@ import { toast } from "sonner";
 
 interface ClientData {
   id: string;
+  codigo_cliente: number | null;
   nome_cliente: string;
   tipo_ug: string;
   regiao: string;
