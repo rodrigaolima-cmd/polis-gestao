@@ -58,8 +58,13 @@ export function KPICard({ title, value, subtitle, icon: Icon, variant = "default
         <div className="flex flex-col gap-0.5 min-w-0 flex-1">
           <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{title}</p>
           <p 
-            className="font-bold tracking-tight mono leading-tight break-all"
-            style={{ fontSize: value.length > 14 ? '0.75rem' : value.length > 8 ? '0.85rem' : '1rem' }}
+            className="font-bold tracking-tight mono leading-tight"
+            style={{ 
+              fontSize: value.length > 14 ? '0.75rem' : value.length > 8 ? '0.85rem' : '1rem',
+              wordBreak: 'keep-all',
+              overflowWrap: 'normal',
+              whiteSpace: 'normal',
+            }}
           >
             {value}
           </p>
