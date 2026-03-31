@@ -138,7 +138,7 @@ export default function ClienteDetailPage() {
 
   const handleModuleFormOpenChange = (open: boolean) => {
     setModuleFormOpen(open);
-    if (!open) setEditingModuleId(null);
+    // Do NOT clear editingModuleId here — it's set by handleEditModule/handleAddModule
   };
 
   if (loading) {
@@ -324,11 +324,11 @@ export default function ClienteDetailPage() {
 
       {id && (
         <ClienteModuloForm
+          key={editingModuleId || 'new'}
           open={moduleFormOpen}
           onOpenChange={handleModuleFormOpenChange}
           clientId={id}
           existingModuleId={editingModuleId}
-          initialData={editingRow}
           onSaved={reloadModules}
         />
       )}

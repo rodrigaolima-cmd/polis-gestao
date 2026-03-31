@@ -46,7 +46,6 @@ interface ClienteModuloFormProps {
   onOpenChange: (open: boolean) => void;
   clientId: string;
   existingModuleId?: string | null;
-  initialData?: InitialModuleData | null;
   onSaved: () => void;
 }
 
@@ -77,7 +76,7 @@ function dataToForm(data: any): ClientModuleData {
   };
 }
 
-export function ClienteModuloForm({ open, onOpenChange, clientId, existingModuleId, initialData, onSaved }: ClienteModuloFormProps) {
+export function ClienteModuloForm({ open, onOpenChange, clientId, existingModuleId, onSaved }: ClienteModuloFormProps) {
   const [modules, setModules] = useState<ModuleOption[]>([]);
   const [form, setForm] = useState<ClientModuleData>({ ...defaultForm });
   const [newModuleName, setNewModuleName] = useState("");
@@ -86,7 +85,7 @@ export function ClienteModuloForm({ open, onOpenChange, clientId, existingModule
 
   const isEditing = !!existingModuleId;
 
-  // When modal opens, hydrate form immediately from initialData, then silently refresh from DB
+  // On mount (key changes per module), fetch data
   useEffect(() => {
     if (!open) return;
 
@@ -97,23 +96,7 @@ export function ClienteModuloForm({ open, onOpenChange, clientId, existingModule
       if (data) setModules(data);
     });
 
-    if (existingModuleId && initialData) {
-      // Immediately show data from the table row (no loading flash)
-      setForm(dataToForm(initialData));
-
-      // Silently fetch fresh data in background
-      supabase
-        .from("client_modules")
-        .select("*")
-        .eq("id", existingModuleId)
-        .single()
-        .then(({ data }) => {
-          if (data) {
-            setForm(dataToForm(data));
-          }
-        });
-    } else if (existingModuleId) {
-      // No initialData — fetch from DB (fallback)
+    if (existingModuleId) {
       supabase
         .from("client_modules")
         .select("*")
