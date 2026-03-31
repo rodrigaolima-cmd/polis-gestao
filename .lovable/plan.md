@@ -1,42 +1,36 @@
 
 
-## Adicionar campo Email ao modal Editar Usuário
+## Bugfix — Novo Usuário modal
 
-### Desafio técnico
+### Problemas identificados
 
-O email está armazenado na tabela `auth.users` (gerenciada pelo sistema de autenticação), que **não é acessível** diretamente pelo client-side SDK. A tabela `profiles` não tem coluna `email`. Precisamos de uma abordagem em duas partes.
+1. **Modal "Novo Usuário" não reseta campos** — os states `newEmail`, `newFullName`, `newPassword` são limpos após criar, mas não ao abrir o dialog. Se o user fechou sem criar, os valores anteriores permanecem. Além disso, não há campo Perfil nem checkbox de troca de senha.
 
-### Abordagem
+2. **Faltam campos**: Perfil (Admin/Usuário) e "Solicitar troca de senha no primeiro acesso" no modal de criação.
 
-#### 1. Nova Edge Function: `admin-list-users`
-Criar uma edge function que usa `service_role_key` para listar emails dos usuários via `supabase.auth.admin.listUsers()`. Retorna um map `{ user_id: email }`. Apenas admins autorizados podem chamar.
+3. **Edge function `admin-create-user`** sempre atribui role `"user"` — precisa aceitar o role escolhido e o flag `force_password_change`.
 
-#### 2. Nova Edge Function: `admin-update-email`
-Criar uma edge function que usa `supabase.auth.admin.updateUserById()` para alterar o email de um usuário. Validações:
-- Verificar que o chamador é admin
-- Validar formato do email
-- Verificar duplicidade chamando `admin.listUsers()` e checando se outro user já tem o email
-- Se o usuário editado é o logado, o frontend mostra confirmação antes de chamar
+### Mudanças
 
-#### 3. `ConfiguracoesPage.tsx` — mudanças
+#### 1. `src/pages/ConfiguracoesPage.tsx`
 
-**fetchUsers**: Após buscar profiles e roles, chamar `admin-list-users` para obter emails e incluir no array `users`.
+- Adicionar states `newRole` (default `"user"`) e `newForcePassword` (default `false`)
+- No `onOpenChange` do Dialog de criação: quando `open = true`, resetar todos os campos (`newFullName=""`, `newEmail=""`, `newPassword=""`, `newRole="user"`, `newForcePassword=false`)
+- Adicionar ao form:
+  - Campo **Perfil** (Select: Admin / Usuário) — entre Email e Senha
+  - Checkbox **"Solicitar troca de senha no primeiro acesso"** — após Senha
+- Em `handleCreateUser`: enviar `role` e `force_password_change` no body da edge function
 
-**Estado do edit modal**: Adicionar `editEmail` state.
+#### 2. `supabase/functions/admin-create-user/index.ts`
 
-**openEditUser**: Setar `editEmail` com o email do usuário.
-
-**handleSaveEdit**: Se `editEmail` mudou, chamar `admin-update-email`. Se o usuário editado é o logado (`editUser.id === currentUser.id`), mostrar `confirm("Alterar o email pode impactar o acesso ao sistema. Deseja continuar?")` antes de prosseguir.
-
-**Modal UI**: Adicionar campo Email (type="email", required) entre "Nome Completo" e "Data de cadastro".
+- Aceitar campos opcionais `role` (default `"user"`) e `force_password_change` (default `false`)
+- Usar o `role` recebido no insert de `user_roles` (validando que é `"admin"` ou `"user"`)
+- Após criar o profile, fazer update de `force_password_change` no profile
 
 ### Arquivos afetados
-- `supabase/functions/admin-list-users/index.ts` — **novo** — listar emails
-- `supabase/functions/admin-update-email/index.ts` — **novo** — atualizar email
-- `src/pages/ConfiguracoesPage.tsx` — campo email no modal, fetch emails, save email
+- `src/pages/ConfiguracoesPage.tsx`
+- `supabase/functions/admin-create-user/index.ts`
 
 ### O que NÃO muda
-- Layout geral, botões, permissões, login flow
-- Schema do banco (sem migrations)
-- Outros módulos
+- Layout, autenticação, edit modal (já funciona), dashboard
 
