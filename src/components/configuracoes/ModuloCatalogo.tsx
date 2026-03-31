@@ -32,6 +32,7 @@ export default function ModuloCatalogo() {
   const [formDescricao, setFormDescricao] = useState("");
   const [saving, setSaving] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+  const [reportOpen, setReportOpen] = useState(false);
 
   const fetchModules = useCallback(async () => {
     setLoading(true);
