@@ -68,6 +68,7 @@ export function ClienteModuloForm({ open, onOpenChange, clientId, existingModule
     };
   };
 
+  // Rehydrate form when modal opens or module changes
   useEffect(() => {
     if (open) {
       setForm(buildForm(existingModule));
@@ -77,6 +78,13 @@ export function ClienteModuloForm({ open, onOpenChange, clientId, existingModule
       });
     }
   }, [open, existingModule?.id]);
+
+  // Also rehydrate if the existingModule object updates while modal is already open
+  useEffect(() => {
+    if (open && existingModule) {
+      setForm(buildForm(existingModule));
+    }
+  }, [open, existingModule?.valor_contratado, existingModule?.valor_faturado, existingModule?.data_assinatura, existingModule?.vencimento_contrato, existingModule?.status_contrato, existingModule?.faturado_flag, existingModule?.observacoes, existingModule?.ativo_no_cliente]);
 
   const handleSave = async () => {
     let moduleId = form.modulo_id;
