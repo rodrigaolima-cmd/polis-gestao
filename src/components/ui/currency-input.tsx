@@ -23,7 +23,9 @@ export function CurrencyInput({ value: rawValue, onChange, className, placeholde
   }, [value, focused]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setDisplay(e.target.value);
+    const raw = e.target.value;
+    setDisplay(raw);
+    onChange(parseCurrencyInput(raw));
   };
 
   const handleBlur = () => {
