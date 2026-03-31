@@ -329,6 +329,7 @@ export default function ClienteDetailPage() {
           onOpenChange={handleModuleFormOpenChange}
           clientId={id}
           existingModuleId={editingModuleId}
+          initialData={editingModuleId ? modules.find(m => m.id === editingModuleId) || null : null}
           onSaved={reloadModules}
         />
       )}
