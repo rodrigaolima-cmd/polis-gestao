@@ -36,19 +36,21 @@ interface ClienteModuloFormProps {
   onSaved: () => void;
 }
 
+const defaultForm: ClientModuleData = {
+  modulo_id: "",
+  valor_contratado: 0,
+  valor_faturado: 0,
+  data_assinatura: "",
+  vencimento_contrato: "",
+  faturado_flag: false,
+  status_contrato: "Ativo",
+  observacoes: "",
+  ativo_no_cliente: true,
+};
+
 export function ClienteModuloForm({ open, onOpenChange, clientId, existingModule, onSaved }: ClienteModuloFormProps) {
   const [modules, setModules] = useState<ModuleOption[]>([]);
-  const [form, setForm] = useState<ClientModuleData>({
-    modulo_id: "",
-    valor_contratado: 0,
-    valor_faturado: 0,
-    data_assinatura: "",
-    vencimento_contrato: "",
-    faturado_flag: false,
-    status_contrato: "Ativo",
-    observacoes: "",
-    ativo_no_cliente: true,
-  });
+  const [form, setForm] = useState<ClientModuleData>({ ...defaultForm });
   const [newModuleName, setNewModuleName] = useState("");
   const [saving, setSaving] = useState(false);
 
@@ -57,20 +59,20 @@ export function ClienteModuloForm({ open, onOpenChange, clientId, existingModule
       supabase.from("modules").select("id, nome_modulo").order("nome_modulo").then(({ data }) => {
         if (data) setModules(data);
       });
+      setNewModuleName("");
       if (existingModule) {
-        setForm(existingModule);
-      } else {
         setForm({
-          modulo_id: "",
-          valor_contratado: 0,
-          valor_faturado: 0,
-          data_assinatura: "",
-          vencimento_contrato: "",
-          faturado_flag: false,
-          status_contrato: "Ativo",
-          observacoes: "",
-          ativo_no_cliente: true,
+          ...defaultForm,
+          ...existingModule,
+          valor_contratado: existingModule.valor_contratado ?? 0,
+          valor_faturado: existingModule.valor_faturado ?? 0,
+          observacoes: existingModule.observacoes ?? "",
+          status_contrato: existingModule.status_contrato ?? "Ativo",
+          data_assinatura: existingModule.data_assinatura ?? "",
+          vencimento_contrato: existingModule.vencimento_contrato ?? "",
         });
+      } else {
+        setForm({ ...defaultForm });
       }
     }
   }, [open, existingModule?.id]);
