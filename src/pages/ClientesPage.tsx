@@ -81,6 +81,7 @@ export default function ClientesPage() {
 
         return {
           id: c.id,
+          codigo_cliente: c.codigo_cliente ?? null,
           nome_cliente: fixMojibake(c.nome_cliente),
           tipo_ug: fixMojibake(c.tipo_ug || ""),
           regiao: fixMojibake(c.regiao || ""),
