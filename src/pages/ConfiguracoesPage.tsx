@@ -29,7 +29,7 @@ interface UserProfile {
 
 export default function ConfiguracoesPage() {
   const navigate = useNavigate();
-  const { isAdmin } = useAuth();
+  const { isAdmin, user: currentUser } = useAuth();
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -42,6 +42,7 @@ export default function ConfiguracoesPage() {
   // Edit user dialog
   const [editUser, setEditUser] = useState<UserProfile | null>(null);
   const [editName, setEditName] = useState("");
+  const [editEmail, setEditEmail] = useState("");
   const [editRole, setEditRole] = useState("user");
   const [editForcePassword, setEditForcePassword] = useState(false);
   const [savingEdit, setSavingEdit] = useState(false);
@@ -57,15 +58,18 @@ export default function ConfiguracoesPage() {
       return;
     }
 
-    const { data: roles } = await supabase
-      .from("user_roles")
-      .select("user_id, role");
+    const [rolesRes, emailsRes] = await Promise.all([
+      supabase.from("user_roles").select("user_id, role"),
+      supabase.functions.invoke("admin-list-users"),
+    ]);
 
-    const roleMap = new Map(roles?.map((r) => [r.user_id, r.role]) ?? []);
+    const roleMap = new Map(rolesRes.data?.map((r) => [r.user_id, r.role]) ?? []);
+    const emailMap: Record<string, string> = emailsRes.data?.emails ?? {};
 
     const mapped: UserProfile[] = profiles.map((p) => ({
       ...p,
       role: roleMap.get(p.id) ?? "user",
+      email: emailMap[p.id] ?? "",
       force_password_change: p.force_password_change ?? false,
     }));
 
