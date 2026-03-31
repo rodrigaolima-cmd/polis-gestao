@@ -141,6 +141,7 @@ export default function ConfiguracoesPage() {
   const openEditUser = (u: UserProfile) => {
     setEditUser(u);
     setEditName(u.full_name);
+    setEditEmail(u.email || "");
     setEditRole(u.role || "user");
     setEditForcePassword(u.force_password_change || false);
   };
