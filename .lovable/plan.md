@@ -2,34 +2,39 @@
 
 ## Problema
 
-O projeto foi remixado (copiado). O schema do banco foi copiado, mas os **usuários de autenticação não**. O usuário `rodrigo.lima@polisgestao.com.br` não existe no sistema de autenticação deste projeto, por isso todas as tentativas de login retornam "Invalid login credentials".
+A importação criou **~65 clientes duplicados** no banco. Para cada par, um registro tem os módulos vinculados e o outro tem 0 módulos (registro fantasma). Isso aconteceu porque a lógica de importação (`useContracts.ts`) faz lookup por `nome_cliente=ilike.X` mas durante a importação o mesmo cliente pode ter sido criado antes do lookup encontrá-lo (race condition na inserção sequencial).
 
-## Solução
+## Plano
 
-### 1. Criar o usuário admin via edge function
+### 1. Limpar duplicatas existentes no banco (SQL migration)
 
-Usar a edge function `admin-create-user` existente **não funciona** aqui porque ela exige um caller autenticado como admin — e não temos nenhum usuário.
+Executar um SQL que para cada `nome_cliente` duplicado:
+- Identifica o registro "keeper" (o que tem mais `client_modules`)
+- Move quaisquer `client_modules` órfãos do duplicado para o keeper
+- Deleta o registro duplicado (com 0 módulos)
 
-**Criar uma edge function temporária `bootstrap-admin`** que usa o service role key para:
-- Criar o usuário `rodrigo.lima@polisgestao.com.br` com senha `Mudar123@` e `email_confirm: true`
-- Criar o profile com `is_active: true`, `force_password_change: true`
-- Atribuir role `admin`
+```sql
+-- Para cada nome duplicado, manter o que tem mais módulos e deletar o vazio
+WITH ranked AS (
+  SELECT id, nome_cliente,
+    ROW_NUMBER() OVER (PARTITION BY nome_cliente ORDER BY 
+      (SELECT COUNT(*) FROM client_modules cm WHERE cm.client_id = clients.id) DESC
+    ) as rn
+  FROM clients
+  WHERE nome_cliente IN (SELECT nome_cliente FROM clients GROUP BY nome_cliente HAVING COUNT(*) > 1)
+)
+-- Primeiro: mover client_modules órfãos para o keeper
+-- Depois: deletar os duplicados (rn > 1)
+```
 
-### 2. Executar a edge function uma vez
+### 2. Corrigir lógica de importação para evitar futuras duplicatas
 
-Chamar a function via curl para criar o usuário.
-
-### 3. Remover a edge function temporária
-
-Deletar `bootstrap-admin` após uso — ela é um risco de segurança se mantida.
-
-### Resultado
-
-- Usuário `rodrigo.lima@polisgestao.com.br` criado como admin ativo
-- Senha temporária: `Mudar123@`
-- Será solicitada troca de senha no primeiro acesso
-- Sem necessidade de email de confirmação (confirmado automaticamente)
+**Edição: `src/hooks/useContracts.ts`** — No passo 2 (find or create clients), mudar a estratégia:
+- Antes de iniciar o loop, fazer um único SELECT de todos os clientes existentes
+- Usar um Map local para lookup em memória (sem depender de queries individuais durante a inserção)
+- Isso elimina a race condition e é mais rápido
 
 ### Arquivos afetados
-- 1 edge function temporária criada e depois removida: `supabase/functions/bootstrap-admin/index.ts`
+- 1 SQL migration para limpeza de duplicatas
+- 1 arquivo editado: `src/hooks/useContracts.ts` (otimizar lookup de clientes na importação)
 
