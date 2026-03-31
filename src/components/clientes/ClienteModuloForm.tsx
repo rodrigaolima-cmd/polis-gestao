@@ -46,6 +46,7 @@ interface ClienteModuloFormProps {
   onOpenChange: (open: boolean) => void;
   clientId: string;
   existingModuleId?: string | null;
+  initialData?: Record<string, any> | null;
   onSaved: () => void;
 }
 
@@ -76,9 +77,9 @@ function dataToForm(data: any): ClientModuleData {
   };
 }
 
-export function ClienteModuloForm({ open, onOpenChange, clientId, existingModuleId, onSaved }: ClienteModuloFormProps) {
+export function ClienteModuloForm({ open, onOpenChange, clientId, existingModuleId, initialData, onSaved }: ClienteModuloFormProps) {
   const [modules, setModules] = useState<ModuleOption[]>([]);
-  const [form, setForm] = useState<ClientModuleData>({ ...defaultForm });
+  const [form, setForm] = useState<ClientModuleData>(initialData ? dataToForm(initialData) : { ...defaultForm });
   const [newModuleName, setNewModuleName] = useState("");
   const [saving, setSaving] = useState(false);
   const valorContratadoRef = useRef<HTMLInputElement>(null);

@@ -162,7 +162,7 @@ export default function ClienteDetailPage() {
   const totalFaturado = modules.reduce((s, m) => s + m.valor_faturado, 0);
   const totalDiff = totalContratado - totalFaturado;
 
-  const editingRow = modules.find(m => m.id === editingModuleId) || null;
+  
 
   return (
     <div className="min-h-screen bg-background">
@@ -329,6 +329,7 @@ export default function ClienteDetailPage() {
           onOpenChange={handleModuleFormOpenChange}
           clientId={id}
           existingModuleId={editingModuleId}
+          initialData={editingModuleId ? modules.find(m => m.id === editingModuleId) || null : null}
           onSaved={reloadModules}
         />
       )}
