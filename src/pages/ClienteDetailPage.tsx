@@ -70,8 +70,7 @@ export default function ClienteDetailPage() {
 
       if (modulesError) throw modulesError;
 
-      setModules(
-        (modulesData || []).map((m: any) => ({
+      const mapped = (modulesData || []).map((m: any) => ({
           id: m.id,
           modulo_id: m.modulo_id,
           nome_modulo: m.modules?.nome_modulo || "",
