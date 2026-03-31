@@ -45,7 +45,7 @@ export default function ClienteDetailPage() {
   const [loading, setLoading] = useState(true);
   const [editClientOpen, setEditClientOpen] = useState(false);
   const [moduleFormOpen, setModuleFormOpen] = useState(false);
-  const [editingModule, setEditingModule] = useState<ClientModuleRow | null>(null);
+  const [editingModuleId, setEditingModuleId] = useState<string | null>(null);
   const [copyDatesOpen, setCopyDatesOpen] = useState(false);
   const [multiModuleFormOpen, setMultiModuleFormOpen] = useState(false);
 
