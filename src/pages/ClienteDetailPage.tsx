@@ -302,18 +302,7 @@ export default function ClienteDetailPage() {
           open={moduleFormOpen}
           onOpenChange={setModuleFormOpen}
           clientId={id}
-          existingModule={editingModule ? {
-            id: editingModule.id,
-            modulo_id: editingModule.modulo_id,
-            valor_contratado: editingModule.valor_contratado,
-            valor_faturado: editingModule.valor_faturado,
-            data_assinatura: editingModule.data_assinatura,
-            vencimento_contrato: editingModule.vencimento_contrato,
-            faturado_flag: editingModule.faturado_flag,
-            status_contrato: editingModule.status_contrato,
-            observacoes: editingModule.observacoes,
-            ativo_no_cliente: editingModule.ativo_no_cliente,
-          } : null}
+          existingModule={editingModule}
           onSaved={loadData}
         />
       )}

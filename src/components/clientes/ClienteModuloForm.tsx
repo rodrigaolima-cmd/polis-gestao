@@ -73,7 +73,7 @@ export function ClienteModuloForm({ open, onOpenChange, clientId, existingModule
         });
       }
     }
-  }, [open, existingModule]);
+  }, [open, existingModule?.id]);
 
   const handleSave = async () => {
     let moduleId = form.modulo_id;
