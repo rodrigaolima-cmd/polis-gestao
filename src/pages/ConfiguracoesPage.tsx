@@ -36,6 +36,8 @@ export default function ConfiguracoesPage() {
   const [newEmail, setNewEmail] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [newFullName, setNewFullName] = useState("");
+  const [newRole, setNewRole] = useState("user");
+  const [newForcePassword, setNewForcePassword] = useState(false);
   const [creating, setCreating] = useState(false);
   const [fixingEncoding, setFixingEncoding] = useState(false);
 
