@@ -1,33 +1,47 @@
 
 
-## Problema raiz
+## Diagnóstico
 
-A sequência ao clicar "Editar contrato":
-1. `setEditingModule(mod)` + `setModuleFormOpen(true)`
-2. A `key` do `ClienteModuloForm` muda → React **desmonta** a instância anterior
-3. O Dialog do Radix dispara `onOpenChange(false)` durante o desmonte
-4. `handleModuleFormOpenChange(false)` executa → `setEditingModule(null)`
-5. A nova instância monta com `existingModule = null`
-6. `buildForm(null)` retorna `defaultForm` → tudo zerado
+O problema persiste porque a hidratação do form depende de `existingModule` como prop (objeto em memória), que fica stale ou é limpo por `handleModuleFormOpenChange(false)` antes do novo mount completar. As tentativas anteriores com `useEffect` + deps não resolveram de forma confiável.
 
-## Correção
+## Abordagem definitiva
 
-### `src/pages/ClienteDetailPage.tsx`
+Eliminar a dependência de `existingModule` como objeto. Em vez disso, passar apenas o **ID** e fazer o form **buscar seus próprios dados do banco** ao abrir.
 
-1. **Remover a prop `key`** do `ClienteModuloForm` — não forçar mais remount
-2. **Ajustar `handleModuleFormOpenChange`** para só limpar `editingModule` quando o modal realmente fechar por ação do usuário (não por desmonte forçado)
+### 1. `ClienteDetailPage.tsx`
 
-### `src/components/clientes/ClienteModuloForm.tsx`
+- Trocar `editingModule` de `ClientModuleRow | null` para `string | null` (apenas o ID)
+- `handleEditModule(mod)` → `setEditingModule(mod.id)`
+- Passar `existingModuleId={editingModule}` em vez de `existingModule={editingModule}`
+- No module name cell, adicionar `onClick={() => handleEditModule(m)}` com estilo clicável (cursor-pointer, hover:underline)
 
-1. Manter o `useEffect` com `[open, existingModule?.id]` que já chama `buildForm(existingModule)`
-2. Adicionar um **segundo `useEffect`** que observe mudanças no objeto `existingModule` completo (serializado ou por campos-chave) para reidratar o form caso o módulo mude enquanto o modal já está aberto — cenário de trocar de módulo sem fechar
-3. Resultado: sem `key`, a reidratação fica 100% controlada pelo `useEffect`
+### 2. `ClienteModuloForm.tsx`
 
-### Resumo das mudanças
-- `ClienteDetailPage.tsx`: remover `key={}`, simplificar `handleModuleFormOpenChange`
-- `ClienteModuloForm.tsx`: reforçar `useEffect` para cobrir troca de módulo sem remount
+- Trocar prop `existingModule` por `existingModuleId?: string | null`
+- Quando `open` muda para `true` e `existingModuleId` existe:
+  - Fazer `SELECT * FROM client_modules WHERE id = existingModuleId` direto do banco
+  - Hidratar o form com dados frescos do DB (nunca stale)
+- Quando `open` e sem `existingModuleId`: form default (novo módulo)
+- Após salvar com sucesso: chamar `onSaved()` + `onOpenChange(false)` como já faz
 
-### Arquivos afetados
-- 2 arquivos: `ClienteDetailPage.tsx`, `ClienteModuloForm.tsx`
-- Sem alteração no banco, layout ou dashboard
+### 3. `CurrencyInput.tsx`
+
+- Já está correto (onChange por keystroke, select-all no focus)
+- Sem alterações necessárias
+
+### 4. Click no nome do módulo para editar
+
+- Na `TableCell` do nome do módulo em `ClienteDetailPage.tsx`:
+  - Adicionar `onClick={() => handleEditModule(m)}`
+  - Adicionar classes: `cursor-pointer hover:underline hover:text-primary transition-colors`
+
+## Arquivos afetados
+- `src/pages/ClienteDetailPage.tsx` — simplificar estado, adicionar click no nome
+- `src/components/clientes/ClienteModuloForm.tsx` — fetch próprio por ID, eliminar dependência de prop objeto
+
+## Resultado
+- Modal sempre abre com dados frescos do banco (impossível ficar stale)
+- Salvamento reflete imediatamente (loadData já é chamado via onSaved)
+- Click no nome do módulo abre edição
+- Campos monetários com select-all no focus para digitação rápida
 
