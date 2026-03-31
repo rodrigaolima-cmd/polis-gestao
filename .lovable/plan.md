@@ -1,36 +1,55 @@
 
 
-## Bugfix — Novo Usuário modal
+## Corrigir usuário ausente na lista
 
-### Problemas identificados
+### Causa raiz
 
-1. **Modal "Novo Usuário" não reseta campos** — os states `newEmail`, `newFullName`, `newPassword` são limpos após criar, mas não ao abrir o dialog. Se o user fechou sem criar, os valores anteriores permanecem. Além disso, não há campo Perfil nem checkbox de troca de senha.
+A função `handle_new_user()` existe no banco mas **não há trigger** vinculando-a à tabela `auth.users`. Quando Tatiane foi criada via `admin-create-user`, o Supabase Auth inseriu em `auth.users`, mas nenhum trigger disparou para criar o registro em `profiles`. Sem profile, ela não aparece na lista.
 
-2. **Faltam campos**: Perfil (Admin/Usuário) e "Solicitar troca de senha no primeiro acesso" no modal de criação.
-
-3. **Edge function `admin-create-user`** sempre atribui role `"user"` — precisa aceitar o role escolhido e o flag `force_password_change`.
+O update na linha 103-106 do `admin-create-user` (`update profiles ... eq id`) silenciosamente não atualiza nada porque o registro não existe.
 
 ### Mudanças
 
-#### 1. `src/pages/ConfiguracoesPage.tsx`
+#### 1. Migration: Criar trigger + backfill (SQL)
 
-- Adicionar states `newRole` (default `"user"`) e `newForcePassword` (default `false`)
-- No `onOpenChange` do Dialog de criação: quando `open = true`, resetar todos os campos (`newFullName=""`, `newEmail=""`, `newPassword=""`, `newRole="user"`, `newForcePassword=false`)
-- Adicionar ao form:
-  - Campo **Perfil** (Select: Admin / Usuário) — entre Email e Senha
-  - Checkbox **"Solicitar troca de senha no primeiro acesso"** — após Senha
-- Em `handleCreateUser`: enviar `role` e `force_password_change` no body da edge function
+```sql
+-- Criar o trigger que estava faltando
+CREATE TRIGGER on_auth_user_created
+  AFTER INSERT ON auth.users
+  FOR EACH ROW
+  EXECUTE FUNCTION public.handle_new_user();
 
-#### 2. `supabase/functions/admin-create-user/index.ts`
+-- Backfill: criar profiles para users que existem em auth.users mas não em profiles
+INSERT INTO public.profiles (id, full_name, is_active)
+SELECT u.id, COALESCE(u.raw_user_meta_data->>'full_name', ''), false
+FROM auth.users u
+LEFT JOIN public.profiles p ON p.id = u.id
+WHERE p.id IS NULL;
+```
 
-- Aceitar campos opcionais `role` (default `"user"`) e `force_password_change` (default `false`)
-- Usar o `role` recebido no insert de `user_roles` (validando que é `"admin"` ou `"user"`)
-- Após criar o profile, fazer update de `force_password_change` no profile
+#### 2. Edge function `admin-create-user/index.ts` — hardening
+
+Alterar o fluxo pós-criação: em vez de apenas `update`, usar `upsert` para garantir que o profile exista mesmo se o trigger falhar:
+
+```ts
+// Linha ~103: trocar update por upsert
+await supabaseAdmin
+  .from("profiles")
+  .upsert({
+    id: newUser.user.id,
+    full_name: full_name,
+    is_active: true,
+    force_password_change: forcePwChange,
+  });
+```
+
+### Resultado esperado
+
+- Tatiane aparecerá na lista imediatamente após o backfill
+- Futuros usuários criados terão profile garantido (trigger + upsert como fallback)
+- Nenhuma mudança de layout ou lógica de autenticação
 
 ### Arquivos afetados
-- `src/pages/ConfiguracoesPage.tsx`
-- `supabase/functions/admin-create-user/index.ts`
-
-### O que NÃO muda
-- Layout, autenticação, edit modal (já funciona), dashboard
+- Nova migration SQL (trigger + backfill)
+- `supabase/functions/admin-create-user/index.ts` — upsert em vez de update
 
