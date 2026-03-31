@@ -203,6 +203,7 @@ export default function ClientesPage() {
           <Table>
             <TableHeader>
               <TableRow className="border-border/30">
+                <TableHead className="text-xs text-center w-[70px]">Código</TableHead>
                 <TableHead className="text-xs">Cliente</TableHead>
                 <TableHead className="text-xs">Tipo UG</TableHead>
                 <TableHead className="text-xs">Região</TableHead>
