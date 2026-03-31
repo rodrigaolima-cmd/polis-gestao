@@ -1,52 +1,69 @@
 
-Objetivo: corrigir de forma incremental o formulário de edição de módulo para que os valores já existentes apareçam sempre ao abrir o modal, sem alterar layout, banco ou cálculos do dashboard.
+Objetivo: corrigir só os dois pontos relatados, sem refazer layout, sem mexer no banco e sem alterar cálculos do dashboard.
 
-### Diagnóstico
-Pelo código atual, a referência de `existingModule` já foi estabilizada, então o problema restante está no próprio `CurrencyInput`:
-- ele mantém um estado interno `display`
-- ao abrir o dialog, o primeiro campo pode receber foco automático do Radix
-- quando isso acontece, o `handleFocus` troca a exibição para modo de edição antes da sincronização visual ficar estável
-- como o componente também usa estado interno, isso pode prender o input em `0,00` mesmo com `value` correto vindo do form
+### Diagnóstico confirmado
 
-As imagens batem com esse cenário: a tabela mostra os valores corretos, mas o modal abre com ambos zerados.
+1. Edição de módulo ainda abre zerada
+- O problema não está só no `CurrencyInput`.
+- Pela captura, também as datas vêm vazias, o que indica que o `form` inteiro está abrindo com `defaultForm`, não com os dados do módulo selecionado.
+- O `ClienteModuloForm` hoje hidrata o estado apenas dentro de um `useEffect([open, existingModule?.id])`. Isso é frágil quando o dialog abre e o módulo é trocado muito próximo do mount/re-render.
+- A consulta no banco confirma que os valores existem para o cliente/módulo; então a falha é de sincronização da UI.
 
-### Correção principal
-**Arquivo: `src/components/ui/currency-input.tsx`**
+2. Cards do HERO “Total Contratado” e “Total Faturado”
+- Os relatórios continuam implementados em `SectionReportDialog` (`contractedVsBilled` existe).
+- No `Dashboard.tsx`, os dois cards perderam o `onClick` após o remix.
+- Ou seja: o relatório existe, mas os cards não disparam mais a abertura.
 
-Ajustar o componente para ser mais confiável com valor controlado:
-- sincronizar `display` sempre que `value` mudar e o conteúdo exibido estiver divergente
-- no `handleFocus`, exibir o valor bruto formatado a partir de `value`, inclusive quando for `0`
-- evitar depender do estado inicial do `useState` para refletir dados vindos depois
-- opcionalmente aceitar `value?: number | null` e normalizar internamente para evitar edge cases
+### Correções planejadas
+
+#### 1. Reforçar a hidratação do modal de edição
+Arquivos:
+- `src/components/clientes/ClienteModuloForm.tsx`
+- opcionalmente `src/pages/ClienteDetailPage.tsx`
+
+Ajustes:
+- Separar claramente dois cenários:
+  - abertura para novo módulo
+  - abertura para editar módulo existente
+- Reidratar o `form` sempre que o modal abrir com `existingModule`, usando uma função de normalização dedicada.
+- Evitar depender só de `existingModule?.id`; incluir uma estratégia que sincronize também quando o objeto chegar depois da abertura.
+- Se necessário, forçar remontagem controlada do `ClienteModuloForm` por `editingModule?.id ?? "new"` para garantir que cada edição abra com estado limpo e correto.
+- Manter o `CurrencyInput`, mas fazer a fonte da verdade ser o `form` já corretamente carregado.
 
 Resultado esperado:
-- ao abrir “Editar Módulo”, `Valor Contratado` e `Valor Faturado` passam a refletir imediatamente os números do registro selecionado
-- ao focar no campo, o valor continua editável sem resetar para zero
+- Ao clicar em “Editar contrato”, devem aparecer corretamente:
+  - valor contratado
+  - valor faturado
+  - data de assinatura
+  - vencimento
+  - status / switches / observações
 
-### Ajuste complementar
-**Arquivo: `src/components/clientes/ClienteModuloForm.tsx`**
+#### 2. Restaurar clique nos cards do HERO
+Arquivo:
+- `src/components/dashboard/Dashboard.tsx`
 
-Fazer um pequeno reforço na hidratação do formulário:
-- extrair um `defaultForm` constante para evitar duplicação
-- ao carregar `existingModule`, usar `setForm({ ...existingModule })`
-- limpar `newModuleName` quando o modal abrir/fechar para evitar resíduo de estado
+Ajustes:
+- Adicionar `onClick={() => setSectionReport("contractedVsBilled")}` em:
+  - `Total Contratado`
+  - `Total Faturado`
+- Manter os mesmos valores, sparklines e layout atual.
+- Não alterar cálculo nem conteúdo do relatório.
 
-Isso não muda comportamento funcional principal, mas elimina ruído de estado entre aberturas.
-
-### O que não será alterado
-- layout do modal
-- estrutura do banco
-- lógica do dashboard
-- tabela de clientes
-- fluxo de importação
+Resultado esperado:
+- Ambos os cards voltam a ser clicáveis.
+- Ambos abrem o relatório já existente de “Contratado vs Faturado”.
 
 ### Arquivos afetados
-- `src/components/ui/currency-input.tsx` — correção principal
-- `src/components/clientes/ClienteModuloForm.tsx` — reforço de sincronização do form
+- `src/components/clientes/ClienteModuloForm.tsx`
+- `src/pages/ClienteDetailPage.tsx` (se necessário para chave/remount estável)
+- `src/components/dashboard/Dashboard.tsx`
 
 ### Validação após implementar
-1. Abrir um cliente com módulos que tenham valores preenchidos.
-2. Clicar em “Editar contrato” em diferentes linhas.
-3. Confirmar que os dois campos monetários abrem já preenchidos.
-4. Testar um caso com valor `0,00` real para garantir que continua funcionando.
-5. Editar, salvar e reabrir para confirmar persistência visual correta.
+1. Abrir um cliente com módulos já cadastrados.
+2. Clicar em editar em 3 módulos diferentes.
+3. Confirmar que valores e datas aparecem preenchidos imediatamente.
+4. Fechar e reabrir o modal para garantir que não volta a zerar.
+5. No dashboard, clicar em:
+   - Total Contratado
+   - Total Faturado
+6. Confirmar que ambos abrem o relatório corretamente e continuam sensíveis ao filtro atual.
