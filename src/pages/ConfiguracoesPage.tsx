@@ -267,8 +267,28 @@ export default function ConfiguracoesPage() {
                     <Input type="email" value={newEmail} onChange={(e) => setNewEmail(e.target.value)} placeholder="email@exemplo.com" required />
                   </div>
                   <div className="space-y-2">
+                    <Label>Perfil</Label>
+                    <Select value={newRole} onValueChange={setNewRole}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="admin">Admin</SelectItem>
+                        <SelectItem value="user">Usuário</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
                     <Label>Senha</Label>
                     <Input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="Mínimo 6 caracteres" required minLength={6} />
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <Checkbox
+                      checked={newForcePassword}
+                      onCheckedChange={(v) => setNewForcePassword(!!v)}
+                      id="newForcePassword"
+                    />
+                    <Label htmlFor="newForcePassword" className="text-sm cursor-pointer">
+                      Solicitar troca de senha no primeiro acesso
+                    </Label>
                   </div>
                   <Button type="submit" className="w-full" disabled={creating}>
                     {creating ? "Criando..." : "Criar Usuário"}

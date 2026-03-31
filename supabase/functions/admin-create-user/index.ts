@@ -86,16 +86,16 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Activate the user profile
+    // Activate the user profile and set force_password_change
     await supabaseAdmin
       .from("profiles")
-      .update({ is_active: true })
+      .update({ is_active: true, force_password_change: forcePwChange })
       .eq("id", newUser.user.id);
 
-    // Assign 'user' role by default
+    // Assign chosen role
     await supabaseAdmin.from("user_roles").insert({
       user_id: newUser.user.id,
-      role: "user",
+      role: validRole,
     });
 
     return new Response(
