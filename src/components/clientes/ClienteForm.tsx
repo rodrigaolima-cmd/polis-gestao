@@ -80,6 +80,10 @@ export function ClienteForm({ open, onOpenChange, cliente, onSaved }: ClienteFor
       toast.error("Nome do cliente é obrigatório");
       return;
     }
+
+    // Check if changing to Inativo from another status
+    const isInactivating = form.status_cliente === "Inativo" && cliente?.status_cliente !== "Inativo";
+
     setSaving(true);
     try {
       if (cliente?.id) {
@@ -92,6 +96,22 @@ export function ClienteForm({ open, onOpenChange, cliente, onSaved }: ClienteFor
           observacoes_cliente: form.observacoes_cliente,
         }).eq("id", cliente.id);
         if (error) throw error;
+
+        // Cascade inactivation of all modules
+        if (isInactivating) {
+          const shouldCascade = confirm(
+            "Deseja inativar todos os módulos deste cliente?\n\nIsso irá:\n• Marcar todos como inativos\n• Zerar valor faturado\n• Desmarcar faturado\n• Alterar status para Inativo"
+          );
+          if (shouldCascade) {
+            await supabase.from("client_modules").update({
+              ativo_no_cliente: false,
+              faturado_flag: false,
+              valor_faturado: 0,
+              status_contrato: "Inativo",
+            }).eq("client_id", cliente.id);
+          }
+        }
+
         toast.success("Cliente atualizado");
       } else {
         const { error } = await supabase.from("clients").insert({

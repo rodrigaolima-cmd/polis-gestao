@@ -1,4 +1,5 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
+import { Search } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -49,6 +50,15 @@ export function ClienteMultiModuloForm({ open, onOpenChange, clientId, onSaved }
   // Bulk value helpers
   const [bulkContratado, setBulkContratado] = useState("");
   const [bulkFaturado, setBulkFaturado] = useState("");
+  const [moduleSearch, setModuleSearch] = useState("");
+
+  const normalize = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+
+  const filteredModules = useMemo(() => {
+    if (!moduleSearch.trim()) return allModules;
+    const term = normalize(moduleSearch.trim());
+    return allModules.filter((m) => normalize(m.nome_modulo).includes(term));
+  }, [allModules, moduleSearch]);
 
   useEffect(() => {
     if (!open) return;
@@ -63,6 +73,7 @@ export function ClienteMultiModuloForm({ open, onOpenChange, clientId, onSaved }
     setAtivoNoCliente(true);
     setBulkContratado("");
     setBulkFaturado("");
+    setModuleSearch("");
 
     // Load catalog + existing
     Promise.all([
@@ -192,7 +203,7 @@ export function ClienteMultiModuloForm({ open, onOpenChange, clientId, onSaved }
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-3xl bg-card border-border max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Adicionar Vários Sistemas</DialogTitle>
+          <DialogTitle>Adicionar Módulos</DialogTitle>
           <DialogDescription>Selecione os módulos e preencha os dados do contrato.</DialogDescription>
         </DialogHeader>
 
@@ -200,8 +211,17 @@ export function ClienteMultiModuloForm({ open, onOpenChange, clientId, onSaved }
           {/* Module selection */}
           <div className="space-y-2">
             <Label className="text-xs font-semibold">Selecionar Módulos</Label>
+            <div className="relative">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+              <Input
+                placeholder="Buscar módulo..."
+                value={moduleSearch}
+                onChange={(e) => setModuleSearch(e.target.value)}
+                className="h-8 text-xs pl-8"
+              />
+            </div>
             <div className="border border-border/50 rounded-lg p-3 max-h-40 overflow-y-auto grid grid-cols-2 md:grid-cols-3 gap-2">
-              {allModules.map((m) => {
+              {filteredModules.map((m) => {
                 const isLinked = existingModuleIds.has(m.id);
                 return (
                   <label
@@ -244,6 +264,7 @@ export function ClienteMultiModuloForm({ open, onOpenChange, clientId, onSaved }
                     <SelectItem value="Cancelado">Cancelado</SelectItem>
                     <SelectItem value="Suspenso">Suspenso</SelectItem>
                     <SelectItem value="Vencido">Vencido</SelectItem>
+                    <SelectItem value="A vencer">A vencer</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

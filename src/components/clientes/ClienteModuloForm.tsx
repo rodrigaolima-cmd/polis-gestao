@@ -244,16 +244,29 @@ export function ClienteModuloForm({ open, onOpenChange, clientId, existingModule
                   <SelectItem value="Cancelado">Cancelado</SelectItem>
                   <SelectItem value="Suspenso">Suspenso</SelectItem>
                   <SelectItem value="Vencido">Vencido</SelectItem>
+                  <SelectItem value="A vencer">A vencer</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             <div className="space-y-1.5 flex flex-col justify-end">
               <div className="flex items-center gap-2">
-                <Switch checked={form.faturado_flag} onCheckedChange={(v) => setForm({ ...form, faturado_flag: v })} />
+                <Switch checked={form.faturado_flag} onCheckedChange={(v) => {
+                  if (v) {
+                    setForm({ ...form, faturado_flag: true, valor_faturado: form.valor_contratado, status_contrato: "Ativo" });
+                  } else {
+                    setForm({ ...form, faturado_flag: false });
+                  }
+                }} />
                 <Label className="text-xs">Faturado?</Label>
               </div>
               <div className="flex items-center gap-2">
-                <Switch checked={form.ativo_no_cliente} onCheckedChange={(v) => setForm({ ...form, ativo_no_cliente: v })} />
+                <Switch checked={form.ativo_no_cliente} onCheckedChange={(v) => {
+                  if (!v) {
+                    setForm({ ...form, ativo_no_cliente: false, valor_faturado: 0, faturado_flag: false, status_contrato: "Inativo" });
+                  } else {
+                    setForm({ ...form, ativo_no_cliente: true, status_contrato: "Ativo" });
+                  }
+                }} />
                 <Label className="text-xs">Ativo no cliente</Label>
               </div>
             </div>
