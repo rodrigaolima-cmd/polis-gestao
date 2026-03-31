@@ -145,6 +145,10 @@ export default function Dashboard() {
                 Olá, <span className="font-medium text-foreground">{profile.full_name}</span>
               </span>
             )}
+            <Button variant="outline" size="sm" className="gap-2 text-xs" onClick={toggleTheme}>
+              {theme === 'dark' ? <Sun className="h-3.5 w-3.5" /> : <Moon className="h-3.5 w-3.5" />}
+              {theme === 'dark' ? 'Modo Claro' : 'Modo Escuro'}
+            </Button>
             <Button variant="default" size="sm" className="gap-2 text-xs" onClick={() => navigate("/clientes")}>
               <Users className="h-3.5 w-3.5" /> Clientes
             </Button>
