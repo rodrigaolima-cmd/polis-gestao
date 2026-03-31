@@ -1,47 +1,68 @@
 
 
-## Diagnóstico
+## Refinamento UX — Edição de Módulos do Cliente
 
-O problema persiste porque a hidratação do form depende de `existingModule` como prop (objeto em memória), que fica stale ou é limpo por `handleModuleFormOpenChange(false)` antes do novo mount completar. As tentativas anteriores com `useEffect` + deps não resolveram de forma confiável.
+### Problema crítico (runtime error)
+Há um erro `editingModule is not defined` que pode ser de um build stale. Será resolvido implicitamente pelas mudanças abaixo.
 
-## Abordagem definitiva
+### Mudanças planejadas
 
-Eliminar a dependência de `existingModule` como objeto. Em vez disso, passar apenas o **ID** e fazer o form **buscar seus próprios dados do banco** ao abrir.
+#### 1. Eliminar flash "Carregando dados..." (`ClienteDetailPage.tsx` + `ClienteModuloForm.tsx`)
 
-### 1. `ClienteDetailPage.tsx`
+**ClienteDetailPage.tsx**: Passar os dados da row como `initialData` prop para o form, além do `existingModuleId`:
+```tsx
+const editingRow = modules.find(m => m.id === editingModuleId) || null;
+// ...
+<ClienteModuloForm
+  initialData={editingRow}
+  existingModuleId={editingModuleId}
+  ...
+/>
+```
 
-- Trocar `editingModule` de `ClientModuleRow | null` para `string | null` (apenas o ID)
-- `handleEditModule(mod)` → `setEditingModule(mod.id)`
-- Passar `existingModuleId={editingModule}` em vez de `existingModule={editingModule}`
-- No module name cell, adicionar `onClick={() => handleEditModule(m)}` com estilo clicável (cursor-pointer, hover:underline)
+**ClienteModuloForm.tsx**: Usar `initialData` para preencher o form imediatamente (sem loading). Buscar dados frescos do banco em background silenciosamente e atualizar o form só se houver diferenças. Remover o estado `loadingData` e o texto "Carregando dados...".
 
-### 2. `ClienteModuloForm.tsx`
+#### 2. Auto-focus e select no campo Valor Contratado (`ClienteModuloForm.tsx`)
 
-- Trocar prop `existingModule` por `existingModuleId?: string | null`
-- Quando `open` muda para `true` e `existingModuleId` existe:
-  - Fazer `SELECT * FROM client_modules WHERE id = existingModuleId` direto do banco
-  - Hidratar o form com dados frescos do DB (nunca stale)
-- Quando `open` e sem `existingModuleId`: form default (novo módulo)
-- Após salvar com sucesso: chamar `onSaved()` + `onOpenChange(false)` como já faz
+Adicionar `ref` ao primeiro `CurrencyInput` e chamar `.focus()` + `.select()` após o modal abrir, usando `useEffect` com pequeno delay (`setTimeout 100ms`) para aguardar a animação do Dialog.
 
-### 3. `CurrencyInput.tsx`
+**CurrencyInput.tsx**: Adicionar `React.forwardRef` e expor a `ref` do input interno. Manter comportamento de select-all no focus.
 
-- Já está correto (onChange por keystroke, select-all no focus)
-- Sem alterações necessárias
+#### 3. "Salvar" e "Salvar e fechar" (`ClienteModuloForm.tsx`)
 
-### 4. Click no nome do módulo para editar
+Trocar o botão único "Salvar" por dois:
+- **Salvar**: salva, atualiza o form com valores salvos, mantém modal aberto, chama `onSaved()` para atualizar grid
+- **Salvar e fechar**: salva e fecha o modal
 
-- Na `TableCell` do nome do módulo em `ClienteDetailPage.tsx`:
-  - Adicionar `onClick={() => handleEditModule(m)}`
-  - Adicionar classes: `cursor-pointer hover:underline hover:text-primary transition-colors`
+Após salvar com sucesso: toast "✓ Alterações salvas" (já usa sonner, só ajustar texto).
 
-## Arquivos afetados
-- `src/pages/ClienteDetailPage.tsx` — simplificar estado, adicionar click no nome
-- `src/components/clientes/ClienteModuloForm.tsx` — fetch próprio por ID, eliminar dependência de prop objeto
+Desabilitar ambos os botões durante `saving` para prevenir duplicatas.
 
-## Resultado
-- Modal sempre abre com dados frescos do banco (impossível ficar stale)
-- Salvamento reflete imediatamente (loadData já é chamado via onSaved)
-- Click no nome do módulo abre edição
-- Campos monetários com select-all no focus para digitação rápida
+#### 4. Keyboard navigation (`ClienteModuloForm.tsx`)
+
+Adicionar `onKeyDown` no form container:
+- `Enter` → `handleSave()` (salvar e fechar)
+- `Escape` já é tratado pelo Dialog
+
+TAB/Shift+TAB já funcionam nativamente entre inputs.
+
+#### 5. Preservar scroll após save
+
+`onSaved` (que é `loadData`) já não altera scroll. Confirmar que `loadData` não chama `setLoading(true)` para reloads parciais — criar `reloadModules()` que só recarrega módulos sem o loading spinner da página inteira.
+
+**ClienteDetailPage.tsx**: Extrair `reloadModules()` que faz só o fetch de módulos (sem `setLoading(true)`), e usar essa função no `onSaved`.
+
+#### 6. Optimistic UI update (`ClienteModuloForm.tsx` + `ClienteDetailPage.tsx`)
+
+Após salvar, atualizar o estado local `modules` imediatamente com os valores do form (optimistic), e depois confirmar com o reload do banco. Se falhar, reverter e mostrar erro.
+
+### Arquivos afetados
+- `src/pages/ClienteDetailPage.tsx` — passar `initialData`, extrair `reloadModules`, optimistic update
+- `src/components/clientes/ClienteModuloForm.tsx` — eliminar loading flash, auto-focus, dois botões save, keyboard, forwardRef no CurrencyInput
+- `src/components/ui/currency-input.tsx` — adicionar `forwardRef`
+
+### O que NÃO muda
+- Dashboard, relatórios, importações, cálculos financeiros
+- Schema do banco
+- Layout geral
 
