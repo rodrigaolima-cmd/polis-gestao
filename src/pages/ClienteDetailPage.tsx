@@ -324,11 +324,11 @@ export default function ClienteDetailPage() {
 
       {id && (
         <ClienteModuloForm
+          key={editingModuleId || 'new'}
           open={moduleFormOpen}
           onOpenChange={handleModuleFormOpenChange}
           clientId={id}
           existingModuleId={editingModuleId}
-          initialData={editingRow}
           onSaved={reloadModules}
         />
       )}
