@@ -254,6 +254,7 @@ export function ClienteMultiModuloForm({ open, onOpenChange, clientId, onSaved }
                     <SelectItem value="Cancelado">Cancelado</SelectItem>
                     <SelectItem value="Suspenso">Suspenso</SelectItem>
                     <SelectItem value="Vencido">Vencido</SelectItem>
+                    <SelectItem value="A vencer">A vencer</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
