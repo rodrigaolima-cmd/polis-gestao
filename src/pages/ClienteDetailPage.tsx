@@ -299,6 +299,7 @@ export default function ClienteDetailPage() {
 
       {id && (
         <ClienteModuloForm
+          key={editingModule?.id ?? "new"}
           open={moduleFormOpen}
           onOpenChange={setModuleFormOpen}
           clientId={id}
