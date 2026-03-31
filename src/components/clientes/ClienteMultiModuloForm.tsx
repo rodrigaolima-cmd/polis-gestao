@@ -50,6 +50,15 @@ export function ClienteMultiModuloForm({ open, onOpenChange, clientId, onSaved }
   // Bulk value helpers
   const [bulkContratado, setBulkContratado] = useState("");
   const [bulkFaturado, setBulkFaturado] = useState("");
+  const [moduleSearch, setModuleSearch] = useState("");
+
+  const normalize = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+
+  const filteredModules = useMemo(() => {
+    if (!moduleSearch.trim()) return allModules;
+    const term = normalize(moduleSearch.trim());
+    return allModules.filter((m) => normalize(m.nome_modulo).includes(term));
+  }, [allModules, moduleSearch]);
 
   useEffect(() => {
     if (!open) return;
