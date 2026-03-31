@@ -73,6 +73,7 @@ export function ClienteMultiModuloForm({ open, onOpenChange, clientId, onSaved }
     setAtivoNoCliente(true);
     setBulkContratado("");
     setBulkFaturado("");
+    setModuleSearch("");
 
     // Load catalog + existing
     Promise.all([
