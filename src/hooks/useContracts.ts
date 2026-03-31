@@ -216,24 +216,39 @@ export function useContracts() {
         if (r.product.trim()) uniqueModules.add(r.product.trim());
       });
 
-      // 2. Find or create clients
+      // 2. Pre-load ALL existing clients and modules in one query each
+      onProgress?.("Carregando clientes existentes...", 5);
+      const existingClients: { id: string; nome_cliente: string }[] = await withTimeout(
+        restSelect(token, "clients", "select=id,nome_cliente&limit=10000", signal),
+        OP_TIMEOUT, "load all clients"
+      );
       const clientMap = new Map<string, string>();
+      for (const c of existingClients) {
+        clientMap.set(c.nome_cliente.trim().toLowerCase(), c.id);
+      }
+
+      onProgress?.("Carregando módulos existentes...", 8);
+      const existingModules: { id: string; nome_modulo: string }[] = await withTimeout(
+        restSelect(token, "modules", "select=id,nome_modulo&limit=10000", signal),
+        OP_TIMEOUT, "load all modules"
+      );
+      const moduleMap = new Map<string, string>();
+      for (const m of existingModules) {
+        moduleMap.set(m.nome_modulo.trim().toLowerCase(), m.id);
+      }
+
+      // 3. Find or create clients (using in-memory map to avoid duplicates)
       let clientIdx = 0;
       const totalClients = uniqueClients.size;
 
       for (const [key, row] of uniqueClients) {
         clientIdx++;
-        onProgress?.(`Processando clientes... ${clientIdx}/${totalClients}`, Math.round((clientIdx / totalClients) * 30));
+        onProgress?.(`Processando clientes... ${clientIdx}/${totalClients}`, 10 + Math.round((clientIdx / totalClients) * 20));
 
-        const existing = await withTimeout(
-          restSelect(token, "clients", `nome_cliente=ilike.${encodeURIComponent(row.clientName.trim())}&select=id&limit=1`, signal),
-          OP_TIMEOUT, `client lookup ${clientIdx}`
-        );
-
-        if (existing && existing.length > 0) {
-          clientMap.set(key, existing[0].id);
+        if (clientMap.has(key)) {
+          // Update existing client metadata
           await withTimeout(
-            restUpdate(token, "clients", `id=eq.${existing[0].id}`, {
+            restUpdate(token, "clients", `id=eq.${clientMap.get(key)}`, {
               tipo_ug: row.ugType || undefined,
               regiao: row.regiao || undefined,
               consultor: row.consultor || undefined,
@@ -254,8 +269,7 @@ export function useContracts() {
         }
       }
 
-      // 3. Find or create modules
-      const moduleMap = new Map<string, string>();
+      // 4. Find or create modules (using in-memory map)
       let modIdx = 0;
       const totalMods = uniqueModules.size;
 
@@ -263,14 +277,7 @@ export function useContracts() {
         modIdx++;
         onProgress?.(`Processando módulos... ${modIdx}/${totalMods}`, 30 + Math.round((modIdx / totalMods) * 20));
 
-        const existing = await withTimeout(
-          restSelect(token, "modules", `nome_modulo=ilike.${encodeURIComponent(moduleName)}&select=id&limit=1`, signal),
-          OP_TIMEOUT, `module lookup ${modIdx}`
-        );
-
-        if (existing && existing.length > 0) {
-          moduleMap.set(moduleName.toLowerCase(), existing[0].id);
-        } else {
+        if (!moduleMap.has(moduleName.toLowerCase())) {
           const created = await withTimeout(
             restInsert(token, "modules", { nome_modulo: normalizeText(moduleName) }, signal, true),
             OP_TIMEOUT, `module insert ${modIdx}`
