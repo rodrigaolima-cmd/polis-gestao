@@ -35,14 +35,15 @@ export function CurrencyInput({ value: rawValue, onChange, className, placeholde
     setDisplay(formatCurrencyInput(parsed));
   };
 
-  const handleFocus = () => {
+  const handleFocus = (e: React.FocusEvent<HTMLInputElement>) => {
     setFocused(true);
-    // Always derive from the current prop value, not stale state
     if (value) {
       setDisplay(String(value).replace(".", ","));
     } else {
       setDisplay("");
     }
+    // Select all text so user can just type to replace
+    requestAnimationFrame(() => e.target.select());
   };
 
   return (

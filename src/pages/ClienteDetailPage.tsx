@@ -70,8 +70,7 @@ export default function ClienteDetailPage() {
 
       if (modulesError) throw modulesError;
 
-      setModules(
-        (modulesData || []).map((m: any) => ({
+      const mapped = (modulesData || []).map((m: any) => ({
           id: m.id,
           modulo_id: m.modulo_id,
           nome_modulo: m.modules?.nome_modulo || "",
@@ -83,8 +82,9 @@ export default function ClienteDetailPage() {
           status_contrato: m.status_contrato || "",
           observacoes: m.observacoes || "",
           ativo_no_cliente: m.ativo_no_cliente,
-        }))
-      );
+        }));
+      mapped.sort((a, b) => a.nome_modulo.localeCompare(b.nome_modulo, "pt-BR"));
+      setModules(mapped);
     } catch (err) {
       console.error(err);
       toast.error("Erro ao carregar dados do cliente");
@@ -116,6 +116,11 @@ export default function ClienteDetailPage() {
   const handleAddModule = () => {
     setEditingModule(null);
     setModuleFormOpen(true);
+  };
+
+  const handleModuleFormOpenChange = (open: boolean) => {
+    setModuleFormOpen(open);
+    if (!open) setEditingModule(null);
   };
 
   if (loading) {
@@ -301,7 +306,7 @@ export default function ClienteDetailPage() {
         <ClienteModuloForm
           key={editingModule?.id ?? "new"}
           open={moduleFormOpen}
-          onOpenChange={setModuleFormOpen}
+          onOpenChange={handleModuleFormOpenChange}
           clientId={id}
           existingModule={editingModule}
           onSaved={loadData}
