@@ -106,7 +106,7 @@ export default function ConfiguracoesPage() {
     setCreating(true);
 
     const res = await supabase.functions.invoke("admin-create-user", {
-      body: { email: newEmail, password: newPassword, full_name: newFullName },
+      body: { email: newEmail, password: newPassword, full_name: newFullName, role: newRole, force_password_change: newForcePassword },
     });
 
     setCreating(false);
