@@ -118,6 +118,11 @@ export default function ClienteDetailPage() {
     setModuleFormOpen(true);
   };
 
+  const handleModuleFormOpenChange = (open: boolean) => {
+    setModuleFormOpen(open);
+    if (!open) setEditingModule(null);
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
