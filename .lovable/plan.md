@@ -1,19 +1,23 @@
 
 
-## Row click para editar módulo — ClienteDetailPage
+## Fix KPI card value truncation
 
-### Mudança
+### Problem
+Line 60 in `KPICard.tsx` has `truncate` which clips long values like `R$ 1.640.345,00`. The 9-column grid on XL screens makes cards narrow.
 
-No `src/pages/ClienteDetailPage.tsx`, na tabela de módulos:
+### Changes — `src/components/dashboard/KPICard.tsx`
 
-1. **Mover o `onClick` do `<TableCell>` do nome para o `<TableRow>`** — `onClick={() => handleEditModule(m)}` com `cursor-pointer` e hover highlight
-2. **Remover o handler de click e estilos hover/underline do `<TableCell>` do nome** (já não precisa, pois a row inteira é clicável)
-3. **Adicionar `e.stopPropagation()`** no `<DropdownMenuTrigger>` (menu de ações) para evitar abrir o modal ao clicar no menu
-4. **Estilos da row**: `cursor-pointer hover:bg-muted/50 transition-colors` (o hover já existe parcialmente via Table component)
+1. **Remove `truncate`** from the value `<p>` tag (line 60)
+2. **Use auto-scaling font size**: replace fixed `text-base sm:text-lg xl:text-2xl` with smaller responsive sizes that fit: `text-sm sm:text-base xl:text-lg`
+3. **Reduce icon margin** from `ml-3` to `ml-2` to give more space to the value
+4. **Reduce icon padding** from `p-2.5` to `p-2` and icon size from `h-5 w-5` to `h-4 w-4`
+5. **Allow text to wrap** as last resort with `break-all` removed — just let natural word break happen via `whitespace-nowrap` removal
 
-### Arquivo afetado
-- `src/pages/ClienteDetailPage.tsx` — ~5 linhas alteradas na seção de renderização dos módulos
+Resulting value line:
+```tsx
+<p className="text-sm sm:text-base xl:text-lg font-bold tracking-tight mono">{value}</p>
+```
 
-### O que NÃO muda
-- Cálculos, totais, lógica de status, toggle, delete, dashboard
+### What does NOT change
+- KPI calculations, card order, layout grid, sparklines, variants, colors
 
