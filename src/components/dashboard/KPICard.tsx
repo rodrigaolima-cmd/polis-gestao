@@ -50,14 +50,19 @@ export function KPICard({ title, value, subtitle, icon: Icon, variant = "default
 
   return (
     <div
-      className={`glass-card rounded-xl p-5 ${variantStyles[variant]} animate-fade-in ${onClick ? 'cursor-pointer hover:scale-[1.02] transition-transform' : ''}`}
+      className={`glass-card rounded-xl p-4 ${variantStyles[variant]} animate-fade-in ${onClick ? 'cursor-pointer hover:scale-[1.02] transition-transform' : ''}`}
       style={{ animationDelay: `${animationDelay}ms` }}
       onClick={onClick}
     >
       <div className="flex items-start justify-between">
-        <div className="space-y-1 min-w-0 flex-1">
+        <div className="flex flex-col gap-0.5 min-w-0 flex-1">
           <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{title}</p>
-          <p className="text-sm sm:text-base xl:text-lg font-bold tracking-tight mono">{value}</p>
+          <p 
+            className="font-bold tracking-tight mono leading-tight break-all"
+            style={{ fontSize: value.length > 14 ? '0.75rem' : value.length > 8 ? '0.85rem' : '1rem' }}
+          >
+            {value}
+          </p>
           {subtitle && <p className="text-xs text-muted-foreground">{subtitle}</p>}
         </div>
         <div className={`rounded-lg p-2 ${iconBgStyles[variant]} shrink-0 ml-2`}>
