@@ -140,6 +140,7 @@ export default function ModuloCatalogo() {
   };
 
   return (
+    <>
     <Card>
       <CardHeader className="flex flex-row items-center justify-between gap-4 flex-wrap">
         <CardTitle className="text-lg flex items-center gap-2">
