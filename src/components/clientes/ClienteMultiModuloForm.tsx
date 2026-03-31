@@ -201,8 +201,17 @@ export function ClienteMultiModuloForm({ open, onOpenChange, clientId, onSaved }
           {/* Module selection */}
           <div className="space-y-2">
             <Label className="text-xs font-semibold">Selecionar Módulos</Label>
+            <div className="relative">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+              <Input
+                placeholder="Buscar módulo..."
+                value={moduleSearch}
+                onChange={(e) => setModuleSearch(e.target.value)}
+                className="h-8 text-xs pl-8"
+              />
+            </div>
             <div className="border border-border/50 rounded-lg p-3 max-h-40 overflow-y-auto grid grid-cols-2 md:grid-cols-3 gap-2">
-              {allModules.map((m) => {
+              {filteredModules.map((m) => {
                 const isLinked = existingModuleIds.has(m.id);
                 return (
                   <label
