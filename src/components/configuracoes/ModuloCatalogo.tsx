@@ -146,7 +146,9 @@ export default function ModuloCatalogo() {
           <Package className="h-5 w-5" /> Catálogo de Módulos
         </CardTitle>
         <div className="flex items-center gap-2">
-          <div className="relative">
+          <Button size="sm" variant="outline" className="gap-2" onClick={() => setReportOpen(true)}>
+            <FileText className="h-4 w-4" /> Relatório
+          </Button>
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input
               placeholder="Buscar módulo..."
