@@ -188,7 +188,9 @@ export default function ClienteDetailPage() {
               <ArrowLeft className="h-4 w-4" />
             </Button>
             <div>
-              <h1 className="text-xl font-bold tracking-tight">{client.nome_cliente}</h1>
+              <h1 className="text-xl font-bold tracking-tight">
+                {client.codigo_cliente ? `#${client.codigo_cliente} — ` : ""}{client.nome_cliente}
+              </h1>
               <p className="text-xs text-muted-foreground">Detalhes do Cliente</p>
             </div>
           </div>
