@@ -50,7 +50,20 @@ const defaultForm: ClientModuleData = {
 
 export function ClienteModuloForm({ open, onOpenChange, clientId, existingModule, onSaved }: ClienteModuloFormProps) {
   const [modules, setModules] = useState<ModuleOption[]>([]);
-  const [form, setForm] = useState<ClientModuleData>({ ...defaultForm });
+  const initialForm = existingModule
+    ? {
+        ...defaultForm,
+        ...existingModule,
+        valor_contratado: existingModule.valor_contratado ?? 0,
+        valor_faturado: existingModule.valor_faturado ?? 0,
+        observacoes: existingModule.observacoes ?? "",
+        status_contrato: existingModule.status_contrato ?? "Ativo",
+        data_assinatura: existingModule.data_assinatura ?? "",
+        vencimento_contrato: existingModule.vencimento_contrato ?? "",
+      }
+    : { ...defaultForm };
+
+  const [form, setForm] = useState<ClientModuleData>(initialForm);
   const [newModuleName, setNewModuleName] = useState("");
   const [saving, setSaving] = useState(false);
 
@@ -59,23 +72,8 @@ export function ClienteModuloForm({ open, onOpenChange, clientId, existingModule
       supabase.from("modules").select("id, nome_modulo").order("nome_modulo").then(({ data }) => {
         if (data) setModules(data);
       });
-      setNewModuleName("");
-      if (existingModule) {
-        setForm({
-          ...defaultForm,
-          ...existingModule,
-          valor_contratado: existingModule.valor_contratado ?? 0,
-          valor_faturado: existingModule.valor_faturado ?? 0,
-          observacoes: existingModule.observacoes ?? "",
-          status_contrato: existingModule.status_contrato ?? "Ativo",
-          data_assinatura: existingModule.data_assinatura ?? "",
-          vencimento_contrato: existingModule.vencimento_contrato ?? "",
-        });
-      } else {
-        setForm({ ...defaultForm });
-      }
     }
-  }, [open, existingModule?.id]);
+  }, [open]);
 
   const handleSave = async () => {
     let moduleId = form.modulo_id;
