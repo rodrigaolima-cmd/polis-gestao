@@ -50,30 +50,33 @@ const defaultForm: ClientModuleData = {
 
 export function ClienteModuloForm({ open, onOpenChange, clientId, existingModule, onSaved }: ClienteModuloFormProps) {
   const [modules, setModules] = useState<ModuleOption[]>([]);
-  const initialForm = existingModule
-    ? {
-        ...defaultForm,
-        ...existingModule,
-        valor_contratado: existingModule.valor_contratado ?? 0,
-        valor_faturado: existingModule.valor_faturado ?? 0,
-        observacoes: existingModule.observacoes ?? "",
-        status_contrato: existingModule.status_contrato ?? "Ativo",
-        data_assinatura: existingModule.data_assinatura ?? "",
-        vencimento_contrato: existingModule.vencimento_contrato ?? "",
-      }
-    : { ...defaultForm };
-
-  const [form, setForm] = useState<ClientModuleData>(initialForm);
+  const [form, setForm] = useState<ClientModuleData>({ ...defaultForm });
   const [newModuleName, setNewModuleName] = useState("");
   const [saving, setSaving] = useState(false);
 
+  const buildForm = (mod: ClientModuleData | null | undefined): ClientModuleData => {
+    if (!mod) return { ...defaultForm };
+    return {
+      ...defaultForm,
+      ...mod,
+      valor_contratado: mod.valor_contratado ?? 0,
+      valor_faturado: mod.valor_faturado ?? 0,
+      observacoes: mod.observacoes ?? "",
+      status_contrato: mod.status_contrato ?? "Ativo",
+      data_assinatura: mod.data_assinatura ?? "",
+      vencimento_contrato: mod.vencimento_contrato ?? "",
+    };
+  };
+
   useEffect(() => {
     if (open) {
+      setForm(buildForm(existingModule));
+      setNewModuleName("");
       supabase.from("modules").select("id, nome_modulo").order("nome_modulo").then(({ data }) => {
         if (data) setModules(data);
       });
     }
-  }, [open]);
+  }, [open, existingModule?.id]);
 
   const handleSave = async () => {
     let moduleId = form.modulo_id;
