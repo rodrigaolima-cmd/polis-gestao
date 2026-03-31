@@ -257,5 +257,7 @@ export default function ModuloCatalogo() {
         <p className="text-xs text-muted-foreground mt-2">{modules.length} módulos cadastrados</p>
       </CardContent>
     </Card>
+    <ModuloCatalogoReport modules={modules} open={reportOpen} onOpenChange={setReportOpen} />
+    </>
   );
 }
