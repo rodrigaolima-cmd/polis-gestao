@@ -1,41 +1,54 @@
 
 
-## Adicionar código sequencial aos clientes
+## Catálogo de Módulos — Relatório + Inserção de módulos
 
-### O que será feito
+### 1. Inserir módulos no banco (sem duplicatas)
 
-Adicionar um campo `codigo_cliente` numérico e auto-incrementável à tabela `clients`, preenchendo automaticamente os clientes existentes.
-
-### Mudanças
-
-#### 1. Migration SQL
+Usar o insert tool para adicionar os 26 módulos listados. Query com `ON CONFLICT` ou `INSERT ... WHERE NOT EXISTS` para evitar duplicatas (match por `nome_modulo`).
 
 ```sql
--- Adicionar coluna com sequência automática
-ALTER TABLE public.clients 
-ADD COLUMN codigo_cliente SERIAL;
-
--- Criar índice único para garantir unicidade
-CREATE UNIQUE INDEX idx_clients_codigo ON public.clients (codigo_cliente);
+INSERT INTO public.modules (nome_modulo, categoria_modulo, status_modulo, descricao)
+SELECT v.nome, v.cat, 'Ativo', ''
+FROM (VALUES
+  ('GSP - Portal de Terceiros','GSP'),
+  ('GSP - Pronto Atendimento','GSP'),
+  -- ... todos os 26 módulos
+  ('GSP - Gestão Completa','GSP')
+) AS v(nome, cat)
+WHERE NOT EXISTS (
+  SELECT 1 FROM public.modules m WHERE m.nome_modulo = v.nome
+);
 ```
 
-O `SERIAL` auto-preenche todos os registros existentes com valores sequenciais (1, 2, 3...) na ordem de inserção e garante auto-incremento para novos clientes.
+### 2. Relatório do Catálogo — novo componente `ModuloCatalogoReport.tsx`
 
-#### 2. Exibição na interface
+Criar um dialog de relatório seguindo o padrão visual existente (`ChartReportDialog`, `ClientesReportDialog`):
 
-- **`ClientesPage.tsx`**: Adicionar coluna "Código" como primeira coluna da tabela, antes do nome
-- **`ClienteDetailPage.tsx`**: Exibir o código no cabeçalho do cliente (ex: `#42 — Nome do Cliente`)
+- **Dialog** com classe `print-report`, max-width, scroll
+- **Header**: título "Relatório do Catálogo de Módulos" + botão "Exportar PDF" (`window.print()`)
+- **Subtítulo**: quantidade total de módulos
+- **Tabela** com colunas: Nome do Módulo | Categoria | Status | Descrição
+- **Footer**: total de módulos
+- Ordenação alfabética pt-BR por `nome_modulo`
+- Recebe `modules: Module[]` como prop (reutiliza dados já carregados)
 
-#### 3. Exportação da lista
+### 3. Integrar botão no `ModuloCatalogo.tsx`
 
-Após a migration, gerar um CSV em `/mnt/documents/` com `codigo_cliente` e `nome_cliente` para consulta.
+No header do card, adicionar botão "Relatório" (ícone `FileText`) ao lado de "Novo Módulo":
+
+```tsx
+<Button size="sm" variant="outline" className="gap-2" onClick={() => setReportOpen(true)}>
+  <FileText className="h-4 w-4" /> Relatório
+</Button>
+```
+
+State `reportOpen` controla o dialog. Passa `modules` (todos, sem filtro de busca) para o relatório.
 
 ### Arquivos afetados
-- Nova migration SQL (add column)
-- `src/pages/ClientesPage.tsx` — coluna Código na tabela
-- `src/pages/ClienteDetailPage.tsx` — exibir código no header
+- `src/components/configuracoes/ModuloCatalogoReport.tsx` — **novo** — dialog de relatório
+- `src/components/configuracoes/ModuloCatalogo.tsx` — botão + state para abrir relatório
+- Insert SQL (26 módulos, sem duplicatas)
 
 ### O que NÃO muda
-- Dashboard, relatórios, módulos, autenticação
-- Nenhuma coluna existente é alterada
+- Layout, dashboard, autenticação, outros relatórios
 
