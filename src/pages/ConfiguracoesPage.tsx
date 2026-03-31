@@ -337,6 +337,10 @@ export default function ConfiguracoesPage() {
                 <Label>Nome Completo</Label>
                 <Input value={editName} onChange={(e) => setEditName(e.target.value)} placeholder="Nome" />
               </div>
+              <div className="space-y-2">
+                <Label>Email</Label>
+                <Input type="email" value={editEmail} onChange={(e) => setEditEmail(e.target.value)} placeholder="email@exemplo.com" required />
+              </div>
               {editUser?.created_at && (
                 <div className="space-y-1">
                   <Label className="text-xs text-muted-foreground">Data de cadastro</Label>
