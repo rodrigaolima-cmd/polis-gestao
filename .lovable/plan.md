@@ -1,27 +1,19 @@
 
 
-## Relatório sensível aos filtros aplicados
+## Row click para editar módulo — ClienteDetailPage
 
-### Problema
-Atualmente o relatório recebe `modules` (todos) quando não há seleção por checkbox, ignorando os filtros de busca e categoria ativos.
+### Mudança
 
-### Solução
-Na linha 611 de `ModuloCatalogo.tsx`, alterar a lógica de passagem de dados para o componente `ModuloCatalogoReport`:
+No `src/pages/ClienteDetailPage.tsx`, na tabela de módulos:
 
-**Prioridade:**
-1. Se há módulos selecionados via checkbox → passa `selectedModules`
-2. Senão → passa `filtered` (resultado da busca + filtro de categoria)
+1. **Mover o `onClick` do `<TableCell>` do nome para o `<TableRow>`** — `onClick={() => handleEditModule(m)}` com `cursor-pointer` e hover highlight
+2. **Remover o handler de click e estilos hover/underline do `<TableCell>` do nome** (já não precisa, pois a row inteira é clicável)
+3. **Adicionar `e.stopPropagation()`** no `<DropdownMenuTrigger>` (menu de ações) para evitar abrir o modal ao clicar no menu
+4. **Estilos da row**: `cursor-pointer hover:bg-muted/50 transition-colors` (o hover já existe parcialmente via Table component)
 
-Isso é uma mudança de uma única linha:
-```tsx
-// De:
-modules={selectedIds.size > 0 ? selectedModules : modules}
-// Para:
-modules={selectedIds.size > 0 ? selectedModules : filtered}
-```
+### Arquivo afetado
+- `src/pages/ClienteDetailPage.tsx` — ~5 linhas alteradas na seção de renderização dos módulos
 
-O `filtered` já existe como `useMemo` (linha 92) e já aplica busca + filtro de categoria + ordenação. Nenhuma outra mudança necessária.
-
-### Arquivos afetados
-- `src/components/configuracoes/ModuloCatalogo.tsx` — 1 linha alterada
+### O que NÃO muda
+- Cálculos, totais, lógica de status, toggle, delete, dashboard
 
