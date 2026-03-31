@@ -29,7 +29,7 @@ interface UserProfile {
 
 export default function ConfiguracoesPage() {
   const navigate = useNavigate();
-  const { isAdmin } = useAuth();
+  const { isAdmin, user: currentUser } = useAuth();
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -42,6 +42,7 @@ export default function ConfiguracoesPage() {
   // Edit user dialog
   const [editUser, setEditUser] = useState<UserProfile | null>(null);
   const [editName, setEditName] = useState("");
+  const [editEmail, setEditEmail] = useState("");
   const [editRole, setEditRole] = useState("user");
   const [editForcePassword, setEditForcePassword] = useState(false);
   const [savingEdit, setSavingEdit] = useState(false);
@@ -57,15 +58,18 @@ export default function ConfiguracoesPage() {
       return;
     }
 
-    const { data: roles } = await supabase
-      .from("user_roles")
-      .select("user_id, role");
+    const [rolesRes, emailsRes] = await Promise.all([
+      supabase.from("user_roles").select("user_id, role"),
+      supabase.functions.invoke("admin-list-users"),
+    ]);
 
-    const roleMap = new Map(roles?.map((r) => [r.user_id, r.role]) ?? []);
+    const roleMap = new Map(rolesRes.data?.map((r) => [r.user_id, r.role]) ?? []);
+    const emailMap: Record<string, string> = emailsRes.data?.emails ?? {};
 
     const mapped: UserProfile[] = profiles.map((p) => ({
       ...p,
       role: roleMap.get(p.id) ?? "user",
+      email: emailMap[p.id] ?? "",
       force_password_change: p.force_password_change ?? false,
     }));
 
@@ -137,6 +141,7 @@ export default function ConfiguracoesPage() {
   const openEditUser = (u: UserProfile) => {
     setEditUser(u);
     setEditName(u.full_name);
+    setEditEmail(u.email || "");
     setEditRole(u.role || "user");
     setEditForcePassword(u.force_password_change || false);
   };
@@ -147,6 +152,20 @@ export default function ConfiguracoesPage() {
       toast.error("Nome é obrigatório");
       return;
     }
+    if (!editEmail.trim()) {
+      toast.error("Email é obrigatório");
+      return;
+    }
+
+    // Check if editing own email
+    const emailChanged = editEmail.trim().toLowerCase() !== (editUser.email || "").toLowerCase();
+    if (emailChanged && currentUser && editUser.id === currentUser.id) {
+      const confirmed = window.confirm(
+        "Alterar o email pode impactar o acesso ao sistema. Deseja continuar?"
+      );
+      if (!confirmed) return;
+    }
+
     setSavingEdit(true);
     try {
       // Update profile
@@ -162,12 +181,21 @@ export default function ConfiguracoesPage() {
       // Update role
       const currentRole = editUser.role || "user";
       if (editRole !== currentRole) {
-        // Delete existing then insert new
         await supabase.from("user_roles").delete().eq("user_id", editUser.id);
         const { error: roleError } = await supabase
           .from("user_roles")
           .insert({ user_id: editUser.id, role: editRole as any });
         if (roleError) throw roleError;
+      }
+
+      // Update email if changed
+      if (emailChanged) {
+        const res = await supabase.functions.invoke("admin-update-email", {
+          body: { user_id: editUser.id, new_email: editEmail.trim() },
+        });
+        if (res.error || res.data?.error) {
+          throw new Error(res.data?.error || res.error?.message || "Erro ao atualizar email");
+        }
       }
 
       toast.success("Usuário atualizado");
@@ -308,6 +336,10 @@ export default function ConfiguracoesPage() {
               <div className="space-y-2">
                 <Label>Nome Completo</Label>
                 <Input value={editName} onChange={(e) => setEditName(e.target.value)} placeholder="Nome" />
+              </div>
+              <div className="space-y-2">
+                <Label>Email</Label>
+                <Input type="email" value={editEmail} onChange={(e) => setEditEmail(e.target.value)} placeholder="email@exemplo.com" required />
               </div>
               {editUser?.created_at && (
                 <div className="space-y-1">
