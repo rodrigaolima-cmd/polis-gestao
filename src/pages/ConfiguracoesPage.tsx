@@ -121,6 +121,8 @@ export default function ConfiguracoesPage() {
     setNewEmail("");
     setNewPassword("");
     setNewFullName("");
+    setNewRole("user");
+    setNewForcePassword(false);
     fetchUsers();
   };
 
