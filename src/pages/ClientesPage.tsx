@@ -15,6 +15,7 @@ import { normalizeForSearch, fixMojibake } from "@/utils/textUtils";
 
 interface ClientRow {
   id: string;
+  codigo_cliente: number | null;
   nome_cliente: string;
   tipo_ug: string;
   regiao: string;
@@ -80,6 +81,7 @@ export default function ClientesPage() {
 
         return {
           id: c.id,
+          codigo_cliente: c.codigo_cliente ?? null,
           nome_cliente: fixMojibake(c.nome_cliente),
           tipo_ug: fixMojibake(c.tipo_ug || ""),
           regiao: fixMojibake(c.regiao || ""),
@@ -201,6 +203,7 @@ export default function ClientesPage() {
           <Table>
             <TableHeader>
               <TableRow className="border-border/30">
+                <TableHead className="text-xs text-center w-[70px]">Código</TableHead>
                 <TableHead className="text-xs">Cliente</TableHead>
                 <TableHead className="text-xs">Tipo UG</TableHead>
                 <TableHead className="text-xs">Região</TableHead>
@@ -216,14 +219,14 @@ export default function ClientesPage() {
             </TableHeader>
             <TableBody>
               {loading ? (
-                <TableRow><TableCell colSpan={11} className="text-center text-xs text-muted-foreground py-8">Carregando...</TableCell></TableRow>
+                <TableRow><TableCell colSpan={12} className="text-center text-xs text-muted-foreground py-8">Carregando...</TableCell></TableRow>
               ) : loadError ? (
-                <TableRow><TableCell colSpan={11} className="text-center py-8">
+                <TableRow><TableCell colSpan={12} className="text-center py-8">
                   <p className="text-xs text-destructive mb-2">Erro ao carregar dados</p>
                   <Button variant="outline" size="sm" onClick={loadClients} className="text-xs">Tentar novamente</Button>
                 </TableCell></TableRow>
               ) : filtered.length === 0 ? (
-                <TableRow><TableCell colSpan={11} className="text-center text-xs text-muted-foreground py-8">Nenhum cliente encontrado</TableCell></TableRow>
+                <TableRow><TableCell colSpan={12} className="text-center text-xs text-muted-foreground py-8">Nenhum cliente encontrado</TableCell></TableRow>
               ) : (
                 filtered.map((c) => {
                   const diff = c.total_contratado - c.total_faturado;
@@ -232,6 +235,7 @@ export default function ClientesPage() {
 
                   return (
                     <TableRow key={c.id} className="border-border/20 hover:bg-muted/30 cursor-pointer" onClick={() => navigate(`/clientes/${c.id}`)}>
+                      <TableCell className="text-xs text-center text-muted-foreground">{c.codigo_cliente ?? "—"}</TableCell>
                       <TableCell className="text-xs font-medium">{c.nome_cliente}</TableCell>
                       <TableCell className="text-xs text-muted-foreground">{c.tipo_ug}</TableCell>
                       <TableCell className="text-xs text-muted-foreground">{c.regiao}</TableCell>
