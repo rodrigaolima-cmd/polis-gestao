@@ -1,69 +1,29 @@
 
-Objetivo: corrigir só os dois pontos relatados, sem refazer layout, sem mexer no banco e sem alterar cálculos do dashboard.
 
-### Diagnóstico confirmado
+## Problema identificado
 
-1. Edição de módulo ainda abre zerada
-- O problema não está só no `CurrencyInput`.
-- Pela captura, também as datas vêm vazias, o que indica que o `form` inteiro está abrindo com `defaultForm`, não com os dados do módulo selecionado.
-- O `ClienteModuloForm` hoje hidrata o estado apenas dentro de um `useEffect([open, existingModule?.id])`. Isso é frágil quando o dialog abre e o módulo é trocado muito próximo do mount/re-render.
-- A consulta no banco confirma que os valores existem para o cliente/módulo; então a falha é de sincronização da UI.
+O bug é uma **race condition entre blur e click**. O `CurrencyInput` só chama `onChange` (que atualiza `form`) no evento `onBlur`. Quando o usuário digita "300" e clica em "Salvar":
 
-2. Cards do HERO “Total Contratado” e “Total Faturado”
-- Os relatórios continuam implementados em `SectionReportDialog` (`contractedVsBilled` existe).
-- No `Dashboard.tsx`, os dois cards perderam o `onClick` após o remix.
-- Ou seja: o relatório existe, mas os cards não disparam mais a abertura.
+1. O `onBlur` do input dispara e chama `onChange(300)` → `setForm({...form, valor_contratado: 300})`
+2. O `onClick` do botão "Salvar" dispara `handleSave()` que lê `form.valor_contratado`
+3. Mas o `setForm` do passo 1 é **assíncrono** (React batching) — o state ainda não atualizou quando `handleSave` executa
+4. Resultado: o payload enviado ao banco contém o **valor antigo** (400), não o novo (300)
 
-### Correções planejadas
+Por isso: a tabela mostra 300 (valor do form local após render), mas ao reabrir a edição mostra 400 (valor real do banco, que nunca foi atualizado).
 
-#### 1. Reforçar a hidratação do modal de edição
-Arquivos:
-- `src/components/clientes/ClienteModuloForm.tsx`
-- opcionalmente `src/pages/ClienteDetailPage.tsx`
+## Correção
 
-Ajustes:
-- Separar claramente dois cenários:
-  - abertura para novo módulo
-  - abertura para editar módulo existente
-- Reidratar o `form` sempre que o modal abrir com `existingModule`, usando uma função de normalização dedicada.
-- Evitar depender só de `existingModule?.id`; incluir uma estratégia que sincronize também quando o objeto chegar depois da abertura.
-- Se necessário, forçar remontagem controlada do `ClienteModuloForm` por `editingModule?.id ?? "new"` para garantir que cada edição abra com estado limpo e correto.
-- Manter o `CurrencyInput`, mas fazer a fonte da verdade ser o `form` já corretamente carregado.
+### `src/components/ui/currency-input.tsx`
 
-Resultado esperado:
-- Ao clicar em “Editar contrato”, devem aparecer corretamente:
-  - valor contratado
-  - valor faturado
-  - data de assinatura
-  - vencimento
-  - status / switches / observações
+Chamar `onChange` **a cada keystroke** (não só no blur), para que o `form` esteja sempre sincronizado:
 
-#### 2. Restaurar clique nos cards do HERO
-Arquivo:
-- `src/components/dashboard/Dashboard.tsx`
+- No `handleChange`: fazer parse do valor digitado e chamar `onChange(parsed)` imediatamente
+- No `handleBlur`: manter a formatação visual, mas não depender dele para propagar o valor
+- No `handleFocus`: manter comportamento atual (mostrar valor editável)
 
-Ajustes:
-- Adicionar `onClick={() => setSectionReport("contractedVsBilled")}` em:
-  - `Total Contratado`
-  - `Total Faturado`
-- Manter os mesmos valores, sparklines e layout atual.
-- Não alterar cálculo nem conteúdo do relatório.
-
-Resultado esperado:
-- Ambos os cards voltam a ser clicáveis.
-- Ambos abrem o relatório já existente de “Contratado vs Faturado”.
+Isso elimina a race condition porque quando o usuário clica "Salvar", o `form` já tem o valor correto.
 
 ### Arquivos afetados
-- `src/components/clientes/ClienteModuloForm.tsx`
-- `src/pages/ClienteDetailPage.tsx` (se necessário para chave/remount estável)
-- `src/components/dashboard/Dashboard.tsx`
+- 1 arquivo: `src/components/ui/currency-input.tsx` (apenas ~5 linhas alteradas)
+- Sem alteração no banco, layout ou lógica do dashboard
 
-### Validação após implementar
-1. Abrir um cliente com módulos já cadastrados.
-2. Clicar em editar em 3 módulos diferentes.
-3. Confirmar que valores e datas aparecem preenchidos imediatamente.
-4. Fechar e reabrir o modal para garantir que não volta a zerar.
-5. No dashboard, clicar em:
-   - Total Contratado
-   - Total Faturado
-6. Confirmar que ambos abrem o relatório corretamente e continuam sensíveis ao filtro atual.
