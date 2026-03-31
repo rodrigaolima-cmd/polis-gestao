@@ -152,6 +152,20 @@ export default function ConfiguracoesPage() {
       toast.error("Nome é obrigatório");
       return;
     }
+    if (!editEmail.trim()) {
+      toast.error("Email é obrigatório");
+      return;
+    }
+
+    // Check if editing own email
+    const emailChanged = editEmail.trim().toLowerCase() !== (editUser.email || "").toLowerCase();
+    if (emailChanged && currentUser && editUser.id === currentUser.id) {
+      const confirmed = window.confirm(
+        "Alterar o email pode impactar o acesso ao sistema. Deseja continuar?"
+      );
+      if (!confirmed) return;
+    }
+
     setSavingEdit(true);
     try {
       // Update profile
@@ -167,12 +181,21 @@ export default function ConfiguracoesPage() {
       // Update role
       const currentRole = editUser.role || "user";
       if (editRole !== currentRole) {
-        // Delete existing then insert new
         await supabase.from("user_roles").delete().eq("user_id", editUser.id);
         const { error: roleError } = await supabase
           .from("user_roles")
           .insert({ user_id: editUser.id, role: editRole as any });
         if (roleError) throw roleError;
+      }
+
+      // Update email if changed
+      if (emailChanged) {
+        const res = await supabase.functions.invoke("admin-update-email", {
+          body: { user_id: editUser.id, new_email: editEmail.trim() },
+        });
+        if (res.error || res.data?.error) {
+          throw new Error(res.data?.error || res.error?.message || "Erro ao atualizar email");
+        }
       }
 
       toast.success("Usuário atualizado");
