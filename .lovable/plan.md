@@ -1,71 +1,72 @@
 
 
-## Etapa 1 — AppSidebar + AppLayout + Migrar todas as páginas
+## Etapa 2 — KPI Cards redesign + Login split-screen
 
-Esta é a primeira etapa da padronização visual. Cria o sistema de layout com sidebar persistente e migra todas as páginas protegidas para usá-lo.
+### Arquivos afetados
+1. **`src/components/dashboard/KPICard.tsx`** — Redesign visual no padrão Polis Hub
+2. **`src/pages/LoginPage.tsx`** — Layout split-screen
 
-### Arquivos novos
-1. **`src/components/layout/AppSidebar.tsx`** — Sidebar de navegação lateral
-2. **`src/components/layout/AppLayout.tsx`** — Layout wrapper (sidebar + header + content)
+### 1. KPICard.tsx — Novo design Polis Hub
 
-### Arquivos alterados
-3. **`src/App.tsx`** — Envolver rotas protegidas com `AppLayout`
-4. **`src/components/dashboard/Dashboard.tsx`** — Remover header inline, usar props do layout
-5. **`src/pages/ClientesPage.tsx`** — Remover header inline
-6. **`src/pages/ClienteDetailPage.tsx`** — Remover header inline
-7. **`src/pages/ConfiguracoesPage.tsx`** — Remover header inline
-8. **`src/index.css`** — Adicionar variáveis de sidebar escuro (dark sidebar sempre, como Polis Hub)
+Substituir `glass-card` por card com borda colorida à esquerda (4px):
 
-### Detalhes
+- Fundo `bg-card` (branco no light, card no dark) com `rounded-xl shadow-sm border`
+- Borda esquerda colorida por variant: `border-l-4 border-l-{variant-color}`
+- Remover `glass-card`, `backdrop-blur`, gradients inline
+- Label: `text-xs uppercase tracking-wider text-muted-foreground`
+- Valor: manter lógica de fontSize dinâmico existente (funciona bem)
+- Ícone: fundo sutil circular à direita
+- Sparklines: mantidas sem alteração
+- Props `size` e `variant`: mantidos
 
-#### AppSidebar
-- Fundo escuro fixo (`bg-[#0F1D2F]`) independente do tema — igual ao Polis Hub
-- Logo "Polis Gestão" no topo
-- Seções de navegação:
-  - **PRINCIPAL**: Dashboard (LayoutDashboard)
-  - **SISTEMA**: Clientes (Users), Configurações (Settings, só admin)
-- Item ativo com destaque azul (bg-primary)
-- Footer: botão "Sair" + nome do usuário
-- Usa componentes `Sidebar*` do shadcn já existentes
-- `collapsible="icon"` para mini-mode
-
-#### AppLayout
+Estilo resultante:
 ```text
-+--sidebar--+---------------------------+
-|  logo      |  breadcrumb / título      |
-|  nav       |  + ações da página        |
-|  items     |  + theme toggle           |
-|            |---------------------------|
-|  footer    |  {children}               |
-+------------+---------------------------+
+┌─────────────────────────────┐
+│▌ TOTAL CONTRATADO      [📊] │
+│▌ R$ 1.635.859,31            │
+│▌ ~~sparkline~~              │
+└─────────────────────────────┘
+  4px borda azul à esquerda
 ```
-- Recebe `title`, `subtitle`, `children`, `headerActions`
-- Header fino com título à esquerda, ações à direita
-- Theme toggle (Modo Claro/Escuro) no header
-- Nome do usuário + role badge no header
-- Em mobile: sidebar hidden, MobileMenu permanece via Sheet
 
-#### Migração das páginas
-Cada página perde seu `<header>` inline e `<div className="min-h-screen">` wrapper. O conteúdo fica dentro do `<main>` do AppLayout.
+### 2. LoginPage.tsx — Split-screen Polis Hub
 
-- **Dashboard.tsx**: Remove linhas 126-173 (header), passa `title="Dashboard"` e `headerActions` (botão Importar, Dados Demo) como props
-- **ClientesPage.tsx**: Remove header (linhas 136-159), passa `title="Clientes"` e botões Relatório/Novo Cliente como `headerActions`
-- **ClienteDetailPage.tsx**: Remove header (linhas 184-201), passa título dinâmico do cliente e botão Editar como `headerActions`
-- **ConfiguracoesPage.tsx**: Remove header (linhas 225-235), passa `title="Configurações"`
+Layout dividido em duas metades:
 
-#### App.tsx
-- Envolver as rotas protegidas com `SidebarProvider` + `AppLayout`
-- LoginPage e ResetPasswordPage ficam fora (sem sidebar)
+- **Esquerda** (hidden em mobile): fundo escuro `bg-[#0F1D2F]` com texto institucional "Polis Gestão" + "Plataforma Integrada de Gestão Operacional" + descrição do sistema
+- **Direita**: fundo claro/card com formulário de login existente (toda lógica preservada)
+- Mobile: só mostra o lado direito com o form
+- Manter toda lógica de auth (handleLogin, handleForgotPassword, hydrateFromSession, redirect)
 
-#### CSS
-- Adicionar variável `--sidebar-bg: #0F1D2F` para sidebar sempre escuro
-- Sidebar text/icons em tons claros independente do tema
+```text
+Desktop:
++---------------------------+---------------------------+
+|  bg-[#0F1D2F]             |  bg-background            |
+|                           |                           |
+|  Polis Gestão             |  [logo text]              |
+|  Plataforma Integrada     |                           |
+|  de Gestão Operacional    |  E-MAIL CORPORATIVO       |
+|                           |  [____________]           |
+|  Sistema de gestão de     |  SENHA                    |
+|  contratos e módulos      |  [____________]           |
+|                           |  [    Entrar    ]         |
+|                           |  Esqueci minha senha      |
++---------------------------+---------------------------+
+
+Mobile:
++---------------------------+
+|  Polis Gestão             |
+|  E-MAIL CORPORATIVO       |
+|  [____________]           |
+|  SENHA                    |
+|  [____________]           |
+|  [    Entrar    ]         |
++---------------------------+
+```
 
 ### O que NÃO muda
-- Lógica funcional, cálculos, validações
-- Comportamento de negócio
-- Database, RLS, edge functions
-- KPI cards (serão refinados na Etapa 2)
-- Login page (será redesenhado na Etapa 2)
-- Cores gerais do tema (já implementadas)
+- Cálculos de KPI, sparklines, dados
+- Lógica de autenticação (login, forgot password, redirect)
+- Dashboard grid layout (2 rows de KPIs)
+- Rotas, RLS, edge functions
 
