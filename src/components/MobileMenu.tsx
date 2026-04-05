@@ -3,7 +3,8 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
-import { Menu, LayoutDashboard, Users, Upload, Settings, LogOut } from "lucide-react";
+import { Menu, LayoutDashboard, Users, Upload, Settings, LogOut, Sun, Moon } from "lucide-react";
+import { useTheme } from "@/hooks/useTheme";
 
 interface MobileMenuProps {
   onImport?: () => void;
