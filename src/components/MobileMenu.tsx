@@ -15,6 +15,7 @@ export function MobileMenu({ onImport }: MobileMenuProps) {
   const navigate = useNavigate();
   const location = useLocation();
   const { isAdmin, signOut } = useAuth();
+  const { theme, toggleTheme } = useTheme();
 
   const go = (path: string) => {
     navigate(path);
@@ -57,8 +58,15 @@ export function MobileMenu({ onImport }: MobileMenuProps) {
               </button>
             ))}
             <button
+              onClick={() => { toggleTheme(); }}
+              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-foreground hover:bg-muted transition-colors mt-4"
+            >
+              {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+              {theme === 'dark' ? 'Modo Claro' : 'Modo Escuro'}
+            </button>
+            <button
               onClick={() => { signOut(); setOpen(false); }}
-              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-destructive hover:bg-destructive/10 transition-colors mt-4"
+              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-destructive hover:bg-destructive/10 transition-colors"
             >
               <LogOut className="h-4 w-4" />
               Sair
