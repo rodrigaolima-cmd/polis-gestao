@@ -5,9 +5,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
-import { LogIn, KeyRound } from "lucide-react";
+import { LogIn, KeyRound, Shield, BarChart3, Users } from "lucide-react";
 
 type Mode = "login" | "forgot";
 
@@ -20,7 +19,6 @@ export default function LoginPage() {
   const [submitting, setSubmitting] = useState(false);
   const navigatedRef = useRef(false);
 
-  // Redirect when fully authenticated
   useEffect(() => {
     if (!loading && profileLoaded && user && isActive && !navigatedRef.current) {
       navigatedRef.current = true;
@@ -36,11 +34,9 @@ export default function LoginPage() {
         toast.error(error.message);
         return;
       }
-      // Use the session returned directly - don't wait for onAuthStateChange
       if (data.session) {
         await hydrateFromSession(data.session);
       }
-      // useEffect will navigate when user + profileLoaded + isActive
     } finally {
       setSubmitting(false);
     }
@@ -81,16 +77,60 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background px-4">
-      <Card className="w-full max-w-md border-border/50 bg-card/80 backdrop-blur-xl">
-        <CardHeader className="text-center space-y-1">
-          <CardTitle className="text-2xl font-bold tracking-tight">{titles[mode]}</CardTitle>
-          <CardDescription>{descriptions[mode]}</CardDescription>
-        </CardHeader>
-        <CardContent>
+    <div className="min-h-screen flex">
+      {/* Left panel — institutional */}
+      <div className="hidden lg:flex lg:w-1/2 bg-[#0F1D2F] text-white flex-col justify-between p-12">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Polis Gestão</h1>
+          <p className="text-white/60 text-sm mt-1">Plataforma Integrada de Gestão Operacional</p>
+        </div>
+
+        <div className="space-y-8">
+          <p className="text-lg text-white/80 leading-relaxed max-w-md">
+            Sistema completo para gestão de contratos, módulos e acompanhamento financeiro da sua organização.
+          </p>
+          <div className="space-y-4">
+            <div className="flex items-center gap-3 text-white/70">
+              <div className="rounded-lg bg-white/10 p-2">
+                <BarChart3 className="h-5 w-5" />
+              </div>
+              <span className="text-sm">Dashboard financeiro em tempo real</span>
+            </div>
+            <div className="flex items-center gap-3 text-white/70">
+              <div className="rounded-lg bg-white/10 p-2">
+                <Users className="h-5 w-5" />
+              </div>
+              <span className="text-sm">Gestão completa de clientes e módulos</span>
+            </div>
+            <div className="flex items-center gap-3 text-white/70">
+              <div className="rounded-lg bg-white/10 p-2">
+                <Shield className="h-5 w-5" />
+              </div>
+              <span className="text-sm">Controle de acesso e auditoria</span>
+            </div>
+          </div>
+        </div>
+
+        <p className="text-white/40 text-xs">© 2025 Polis Gestão. Todos os direitos reservados.</p>
+      </div>
+
+      {/* Right panel — login form */}
+      <div className="flex-1 flex items-center justify-center bg-background px-6">
+        <div className="w-full max-w-sm space-y-8">
+          {/* Mobile-only branding */}
+          <div className="lg:hidden text-center space-y-1">
+            <h1 className="text-2xl font-bold tracking-tight text-foreground">Polis Gestão</h1>
+            <p className="text-muted-foreground text-sm">Plataforma Integrada de Gestão Operacional</p>
+          </div>
+
+          <div className="space-y-2 text-center lg:text-left">
+            <h2 className="text-2xl font-bold tracking-tight text-foreground">{titles[mode]}</h2>
+            <p className="text-muted-foreground text-sm">{descriptions[mode]}</p>
+          </div>
+
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="email">E-mail</Label>
+              <Label htmlFor="email" className="text-xs uppercase tracking-wider text-muted-foreground">E-mail corporativo</Label>
               <Input
                 id="email"
                 type="email"
@@ -98,11 +138,12 @@ export default function LoginPage() {
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="seu@email.com"
                 required
+                className="h-11"
               />
             </div>
             {mode === "login" && (
               <div className="space-y-2">
-                <Label htmlFor="password">Senha</Label>
+                <Label htmlFor="password" className="text-xs uppercase tracking-wider text-muted-foreground">Senha</Label>
                 <Input
                   id="password"
                   type="password"
@@ -111,10 +152,11 @@ export default function LoginPage() {
                   placeholder="••••••••"
                   required
                   minLength={6}
+                  className="h-11"
                 />
               </div>
             )}
-            <Button type="submit" className="w-full gap-2" disabled={submitting}>
+            <Button type="submit" className="w-full h-11 gap-2 font-medium" disabled={submitting}>
               {submitting ? (
                 <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary-foreground" />
               ) : mode === "login" ? (
@@ -126,7 +168,7 @@ export default function LoginPage() {
             </Button>
           </form>
 
-          <div className="mt-4 text-center text-sm space-y-2">
+          <div className="text-center text-sm">
             {mode === "login" ? (
               <button
                 type="button"
@@ -145,8 +187,8 @@ export default function LoginPage() {
               </button>
             )}
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </div>
   );
 }

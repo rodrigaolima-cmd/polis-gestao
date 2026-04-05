@@ -13,24 +13,24 @@ interface KPICardProps {
   sparklineData?: number[];
 }
 
-const variantStyles = {
-  default: "border-border/50",
-  success: "border-success/30",
-  danger: "border-danger/30",
-  warning: "border-warning/30",
-  info: "border-info/30",
+const borderColors = {
+  default: "border-l-primary",
+  success: "border-l-success",
+  danger: "border-l-danger",
+  warning: "border-l-warning",
+  info: "border-l-info",
 };
 
 const iconBgStyles = {
-  default: "bg-muted",
-  success: "bg-success/15",
-  danger: "bg-danger/15",
-  warning: "bg-warning/15",
-  info: "bg-info/15",
+  default: "bg-primary/10",
+  success: "bg-success/10",
+  danger: "bg-danger/10",
+  warning: "bg-warning/10",
+  info: "bg-info/10",
 };
 
 const iconColorStyles = {
-  default: "text-foreground",
+  default: "text-primary",
   success: "text-success",
   danger: "text-danger",
   warning: "text-warning",
@@ -38,7 +38,7 @@ const iconColorStyles = {
 };
 
 const sparklineColors: Record<string, string> = {
-  default: "hsl(var(--foreground))",
+  default: "hsl(var(--primary))",
   success: "hsl(var(--success))",
   danger: "hsl(var(--danger))",
   warning: "hsl(var(--warning))",
@@ -52,14 +52,8 @@ export function KPICard({ title, value, subtitle, icon: Icon, variant = "default
 
   return (
     <div
-      className={`glass-card rounded-xl ${isLarge ? 'p-5 min-h-[150px]' : 'p-4'} ${variantStyles[variant]} animate-fade-in ${onClick ? 'cursor-pointer hover:scale-[1.02] transition-transform' : ''} ${isLarge ? 'shadow-lg' : ''}`}
-      style={{
-        animationDelay: `${animationDelay}ms`,
-        ...(isLarge ? {
-          background: 'linear-gradient(180deg, hsl(var(--card) / 0.95), hsl(var(--card) / 0.8))',
-          boxShadow: '0 6px 16px hsl(var(--background) / 0.4)',
-        } : {}),
-      }}
+      className={`bg-card rounded-xl border border-border/50 shadow-sm border-l-4 ${borderColors[variant]} ${isLarge ? 'p-5 min-h-[150px]' : 'p-4'} animate-fade-in ${onClick ? 'cursor-pointer hover:shadow-md transition-shadow' : ''}`}
+      style={{ animationDelay: `${animationDelay}ms` }}
       onClick={onClick}
     >
       <div className="flex items-start justify-between">
@@ -80,7 +74,7 @@ export function KPICard({ title, value, subtitle, icon: Icon, variant = "default
           </p>
           {subtitle && <p className={`text-muted-foreground ${isLarge ? 'text-xs sm:text-sm' : 'text-xs'}`}>{subtitle}</p>}
         </div>
-        <div className={`rounded-lg ${isLarge ? 'p-2.5' : 'p-2'} ${iconBgStyles[variant]} shrink-0 ml-2`}>
+        <div className={`rounded-full ${isLarge ? 'p-2.5' : 'p-2'} ${iconBgStyles[variant]} shrink-0 ml-2`}>
           <Icon className={`${isLarge ? 'h-5 w-5' : 'h-4 w-4'} ${iconColorStyles[variant]}`} />
         </div>
       </div>
