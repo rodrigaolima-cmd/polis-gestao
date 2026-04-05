@@ -130,7 +130,7 @@ export default function Dashboard() {
   return (
     <AppLayout
       title="Dashboard"
-      subtitle={dataSource === "database" ? `Dados do banco (${contracts.length} registros)` : "Painel Executivo"}
+      subtitle={dataSource === "database" ? `Dados do banco (${contracts.length} contratos)` : "Painel Executivo"}
       headerActions={headerActions}
       onImport={() => setImportOpen(true)}
     >

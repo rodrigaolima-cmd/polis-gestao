@@ -47,7 +47,7 @@ export function AppLayout({ children, title, subtitle, headerActions, onImport }
               <div className="flex items-center gap-2 flex-shrink-0">
                 {headerActions}
 
-                <Button variant="outline" size="sm" className="gap-1.5 text-xs hidden sm:flex" onClick={toggleTheme}>
+                <Button variant="outline" size="icon" className="h-8 w-8 sm:h-auto sm:w-auto sm:gap-1.5 sm:text-xs sm:px-3 sm:py-1.5" onClick={toggleTheme}>
                   {theme === 'dark' ? <Sun className="h-3.5 w-3.5" /> : <Moon className="h-3.5 w-3.5" />}
                   <span className="hidden lg:inline">{theme === 'dark' ? 'Modo Claro' : 'Modo Escuro'}</span>
                 </Button>
