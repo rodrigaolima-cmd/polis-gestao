@@ -8,6 +8,7 @@ import {
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Printer } from "lucide-react";
+import polisLogo from "@/assets/Logo_Polis_Hub.png";
 
 interface ChartReportDialogProps {
   title: string;
@@ -30,9 +31,12 @@ export function ChartReportDialog({ title, contracts, open, onOpenChange }: Char
       <DialogContent className="max-w-[900px] max-h-[85vh] overflow-y-auto print-report">
         <DialogHeader className="flex flex-row items-center justify-between gap-4">
           <DialogTitle className="text-lg">{title}</DialogTitle>
-          <Button variant="outline" size="sm" className="gap-2 text-xs print:hidden" onClick={handlePrint}>
-            <Printer className="h-3.5 w-3.5" /> Exportar PDF
-          </Button>
+          <div className="flex items-center gap-3">
+            <img src={polisLogo} alt="Polis Hub" className="h-10 w-auto hidden print:block" />
+            <Button variant="outline" size="sm" className="gap-2 text-xs print:hidden" onClick={handlePrint}>
+              <Printer className="h-3.5 w-3.5" /> Exportar PDF
+            </Button>
+          </div>
         </DialogHeader>
 
         <div className="text-xs text-muted-foreground mb-2 print:text-black">

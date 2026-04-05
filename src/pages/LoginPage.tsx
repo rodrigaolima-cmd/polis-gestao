@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { LogIn, KeyRound, Shield, BarChart3, Users } from "lucide-react";
+import polisLogo from "@/assets/Logo_Polis_Hub.png";
 
 type Mode = "login" | "forgot";
 
@@ -81,8 +82,8 @@ export default function LoginPage() {
       {/* Left panel — institutional */}
       <div className="hidden lg:flex lg:w-1/2 bg-[#0F1D2F] text-white flex-col justify-between p-12">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Polis Gestão</h1>
-          <p className="text-white/60 text-sm mt-1">Plataforma Integrada de Gestão Operacional</p>
+          <img src={polisLogo} alt="Polis Hub" className="h-20 w-auto" />
+          <p className="text-white/60 text-sm mt-2">Plataforma Integrada de Gestão Operacional</p>
         </div>
 
         <div className="space-y-8">
@@ -111,7 +112,10 @@ export default function LoginPage() {
           </div>
         </div>
 
-        <p className="text-white/40 text-xs">© 2025 Polis Gestão. Todos os direitos reservados.</p>
+        <div className="text-white/40 text-xs space-y-1">
+          <p>© 2026 Polis Gestão. Todos os direitos reservados.</p>
+          <p>Pólis Hub v1.0 - Beta | Ambiente: Produção</p>
+        </div>
       </div>
 
       {/* Right panel — login form */}
@@ -119,7 +123,7 @@ export default function LoginPage() {
         <div className="w-full max-w-sm space-y-8">
           {/* Mobile-only branding */}
           <div className="lg:hidden text-center space-y-1">
-            <h1 className="text-2xl font-bold tracking-tight text-foreground">Polis Gestão</h1>
+            <img src={polisLogo} alt="Polis Hub" className="h-12 w-auto mx-auto" />
             <p className="text-muted-foreground text-sm">Plataforma Integrada de Gestão Operacional</p>
           </div>
 
