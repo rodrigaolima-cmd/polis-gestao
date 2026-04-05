@@ -1,72 +1,61 @@
 
 
-## Etapa 2 — KPI Cards redesign + Login split-screen
+## Etapa 3 — Padronizar tabelas, cards e badges no padrão Polis Hub
 
-### Arquivos afetados
-1. **`src/components/dashboard/KPICard.tsx`** — Redesign visual no padrão Polis Hub
-2. **`src/pages/LoginPage.tsx`** — Layout split-screen
+### Objetivo
+Substituir `glass-card` por cards sólidos (`bg-card border rounded-xl shadow-sm`) e padronizar badges de status em todos os componentes. Sem alterar lógica funcional.
 
-### 1. KPICard.tsx — Novo design Polis Hub
+### Mudanças
 
-Substituir `glass-card` por card com borda colorida à esquerda (4px):
+#### 1. Substituir `glass-card` por card sólido
+Todos os usos de `glass-card` serão trocados por `bg-card border border-border rounded-xl shadow-sm`.
 
-- Fundo `bg-card` (branco no light, card no dark) com `rounded-xl shadow-sm border`
-- Borda esquerda colorida por variant: `border-l-4 border-l-{variant-color}`
-- Remover `glass-card`, `backdrop-blur`, gradients inline
-- Label: `text-xs uppercase tracking-wider text-muted-foreground`
-- Valor: manter lógica de fontSize dinâmico existente (funciona bem)
-- Ícone: fundo sutil circular à direita
-- Sparklines: mantidas sem alteração
-- Props `size` e `variant`: mantidos
+Arquivos afetados:
+- `src/pages/ClientesPage.tsx` (linha 185) — tabela de clientes
+- `src/pages/ClienteDetailPage.tsx` (linhas 194, 220) — info card + tabela de módulos
+- `src/components/dashboard/ActionTables.tsx` (linhas 27, 69) — ranking e contratos críticos
+- `src/components/dashboard/CommercialAnalysis.tsx` (linhas 51, 86) — análises comerciais
+- `src/components/dashboard/FiltersBar.tsx` (linha 43) — barra de filtros
 
-Estilo resultante:
-```text
-┌─────────────────────────────┐
-│▌ TOTAL CONTRATADO      [📊] │
-│▌ R$ 1.635.859,31            │
-│▌ ~~sparkline~~              │
-└─────────────────────────────┘
-  4px borda azul à esquerda
-```
+#### 2. Padronizar badges de status
+Criar um padrão visual consistente para badges em todas as páginas:
 
-### 2. LoginPage.tsx — Split-screen Polis Hub
+- **Ativo**: `bg-success/10 text-success border-success/30`
+- **Inativo**: `bg-muted text-muted-foreground`
+- **Prospect**: `bg-info/10 text-info border-info/30`
+- **Vencido/Crítico**: mantém padrão já existente no `StatusBadge` de `ActionTables`
 
-Layout dividido em duas metades:
+Aplicar em:
+- `ClientesPage.tsx` (linha 241) — badge de status do cliente
+- `ClienteDetailPage.tsx` (linha 209) — badge de status do cliente
+- `ClienteDetailPage.tsx` (linha 272) — badge de status do módulo
 
-- **Esquerda** (hidden em mobile): fundo escuro `bg-[#0F1D2F]` com texto institucional "Polis Gestão" + "Plataforma Integrada de Gestão Operacional" + descrição do sistema
-- **Direita**: fundo claro/card com formulário de login existente (toda lógica preservada)
-- Mobile: só mostra o lado direito com o form
-- Manter toda lógica de auth (handleLogin, handleForgotPassword, hydrateFromSession, redirect)
+#### 3. Padronizar headers de tabela
+Adicionar `bg-muted/50` ao `TableHeader` para consistência visual com Polis Hub:
+- `ClientesPage.tsx`
+- `ClienteDetailPage.tsx`
+- `ActionTables.tsx`
+- `CommercialAnalysis.tsx`
+- `ConsultorDashboard.tsx`
+- `ConfiguracoesPage.tsx`
 
-```text
-Desktop:
-+---------------------------+---------------------------+
-|  bg-[#0F1D2F]             |  bg-background            |
-|                           |                           |
-|  Polis Gestão             |  [logo text]              |
-|  Plataforma Integrada     |                           |
-|  de Gestão Operacional    |  E-MAIL CORPORATIVO       |
-|                           |  [____________]           |
-|  Sistema de gestão de     |  SENHA                    |
-|  contratos e módulos      |  [____________]           |
-|                           |  [    Entrar    ]         |
-|                           |  Esqueci minha senha      |
-+---------------------------+---------------------------+
+#### 4. Remover `glass-card` do CSS
+Remover a utility class `.glass-card` de `src/index.css` (linha 114) já que não será mais usada.
 
-Mobile:
-+---------------------------+
-|  Polis Gestão             |
-|  E-MAIL CORPORATIVO       |
-|  [____________]           |
-|  SENHA                    |
-|  [____________]           |
-|  [    Entrar    ]         |
-+---------------------------+
-```
+### Arquivos afetados (8)
+1. `src/pages/ClientesPage.tsx`
+2. `src/pages/ClienteDetailPage.tsx`
+3. `src/pages/ConfiguracoesPage.tsx`
+4. `src/components/dashboard/ActionTables.tsx`
+5. `src/components/dashboard/CommercialAnalysis.tsx`
+6. `src/components/dashboard/FiltersBar.tsx`
+7. `src/components/dashboard/ConsultorDashboard.tsx`
+8. `src/index.css`
 
 ### O que NÃO muda
-- Cálculos de KPI, sparklines, dados
-- Lógica de autenticação (login, forgot password, redirect)
-- Dashboard grid layout (2 rows de KPIs)
-- Rotas, RLS, edge functions
+- Cálculos, validações, lógica de negócio
+- Estrutura de dados, RLS, edge functions
+- KPI cards (já redesenhados na Etapa 2)
+- Login page (já redesenhado na Etapa 2)
+- Layout sidebar/header (já implementado na Etapa 1)
 
