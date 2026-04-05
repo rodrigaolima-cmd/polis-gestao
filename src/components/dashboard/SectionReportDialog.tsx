@@ -6,6 +6,7 @@ import {
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Printer } from "lucide-react";
+import polisLogo from "@/assets/Logo_Polis_Hub.png";
 
 export type SectionReportType =
   | "top10"
@@ -60,9 +61,12 @@ export function SectionReportDialog({ reportType, clients, contracts, open, onOp
       <DialogContent className="max-w-5xl max-h-[90vh] overflow-auto print-report">
         <DialogHeader className="flex flex-row items-center justify-between print:mb-4">
           <DialogTitle className="text-lg">{TITLES[reportType]}</DialogTitle>
-          <Button variant="outline" size="sm" className="gap-2 print:hidden" onClick={() => window.print()}>
-            <Printer className="h-3.5 w-3.5" /> Exportar PDF
-          </Button>
+          <div className="flex items-center gap-3">
+            <img src={polisLogo} alt="Polis Hub" className="h-10 w-auto hidden print:block" />
+            <Button variant="outline" size="sm" className="gap-2 print:hidden" onClick={() => window.print()}>
+              <Printer className="h-3.5 w-3.5" /> Exportar PDF
+            </Button>
+          </div>
         </DialogHeader>
         <div className="print:block">
           {reportType === "top10" && <Top10Report clients={clients} />}

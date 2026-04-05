@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/sidebar";
 import { LayoutDashboard, Users, Settings, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import polisLogo from "@/assets/Logo_Polis_Hub.png";
 
 export function AppSidebar() {
   const { state } = useSidebar();
@@ -36,9 +37,7 @@ export function AppSidebar() {
     <Sidebar collapsible="icon" className="border-r-0">
       <SidebarHeader className="bg-[#0F1D2F] border-b border-white/10 px-4 py-5">
         <div className="flex items-center gap-2.5">
-          <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center flex-shrink-0">
-            <span className="text-primary-foreground font-bold text-sm">P</span>
-          </div>
+          <img src={polisLogo} alt="Polis Hub" className="h-8 w-auto flex-shrink-0" />
           {!collapsed && (
             <div>
               <h2 className="font-bold text-sm text-white tracking-tight">Polis Gestão</h2>
