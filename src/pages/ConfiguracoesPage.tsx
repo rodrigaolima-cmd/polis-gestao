@@ -13,9 +13,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { ArrowLeft, UserPlus, Shield, User as UserIcon, Wrench } from "lucide-react";
+import { UserPlus, Shield, User as UserIcon, Wrench } from "lucide-react";
 import ModuloCatalogo from "@/components/configuracoes/ModuloCatalogo";
-import { MobileMenu } from "@/components/MobileMenu";
+import { AppLayout } from "@/components/layout/AppLayout";
 
 interface UserProfile {
   id: string;
@@ -41,7 +41,6 @@ export default function ConfiguracoesPage() {
   const [creating, setCreating] = useState(false);
   const [fixingEncoding, setFixingEncoding] = useState(false);
 
-  // Edit user dialog
   const [editUser, setEditUser] = useState<UserProfile | null>(null);
   const [editName, setEditName] = useState("");
   const [editEmail, setEditEmail] = useState("");
@@ -161,7 +160,6 @@ export default function ConfiguracoesPage() {
       return;
     }
 
-    // Check if editing own email
     const emailChanged = editEmail.trim().toLowerCase() !== (editUser.email || "").toLowerCase();
     if (emailChanged && currentUser && editUser.id === currentUser.id) {
       const confirmed = window.confirm(
@@ -172,7 +170,6 @@ export default function ConfiguracoesPage() {
 
     setSavingEdit(true);
     try {
-      // Update profile
       const { error: profileError } = await supabase
         .from("profiles")
         .update({
@@ -182,7 +179,6 @@ export default function ConfiguracoesPage() {
         .eq("id", editUser.id);
       if (profileError) throw profileError;
 
-      // Update role
       const currentRole = editUser.role || "user";
       if (editRole !== currentRole) {
         await supabase.from("user_roles").delete().eq("user_id", editUser.id);
@@ -192,7 +188,6 @@ export default function ConfiguracoesPage() {
         if (roleError) throw roleError;
       }
 
-      // Update email if changed
       if (emailChanged) {
         const res = await supabase.functions.invoke("admin-update-email", {
           body: { user_id: editUser.id, new_email: editEmail.trim() },
@@ -214,27 +209,17 @@ export default function ConfiguracoesPage() {
 
   if (!isAdmin) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <p className="text-muted-foreground">Acesso restrito a administradores.</p>
-      </div>
+      <AppLayout title="Configurações">
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <p className="text-muted-foreground">Acesso restrito a administradores.</p>
+        </div>
+      </AppLayout>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <header className="border-b border-border/50 bg-card/50 backdrop-blur-xl sticky top-0 z-50">
-        <div className="max-w-[1200px] mx-auto px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between">
-          <div className="flex items-center gap-2 sm:gap-3">
-            <MobileMenu />
-            <Button variant="ghost" size="sm" onClick={() => navigate("/")} className="hidden md:flex">
-              <ArrowLeft className="h-4 w-4 mr-1" /> Voltar
-            </Button>
-            <h1 className="text-lg sm:text-xl font-bold tracking-tight">Configurações</h1>
-          </div>
-        </div>
-      </header>
-
-      <main className="max-w-[1200px] mx-auto px-4 sm:px-6 py-4 sm:py-6 space-y-6">
+    <AppLayout title="Configurações" subtitle="Administração do Sistema">
+      <div className="max-w-[1200px] space-y-6">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="text-lg">Gerenciar Usuários</CardTitle>
@@ -359,7 +344,6 @@ export default function ConfiguracoesPage() {
           </CardContent>
         </Card>
 
-        {/* Edit user dialog */}
         <Dialog open={editUser !== null} onOpenChange={(open) => { if (!open) setEditUser(null); }}>
           <DialogContent>
             <DialogHeader>
@@ -432,7 +416,7 @@ export default function ConfiguracoesPage() {
         </Card>
 
         <ModuloCatalogo />
-      </main>
-    </div>
+      </div>
+    </AppLayout>
   );
 }
