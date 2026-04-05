@@ -1,88 +1,71 @@
 
 
-## Dashboard KPI Layout + Light/Dark Mode Toggle
+## Etapa 1 — AppSidebar + AppLayout + Migrar todas as páginas
 
-### Arquivos afetados
-- `src/components/dashboard/Dashboard.tsx` — split KPI grid into 2 rows, add theme toggle button
-- `src/components/dashboard/KPICard.tsx` — add `size` prop ("lg" | "sm") for financial vs operational cards
-- `src/index.css` — add `.light` class with light mode CSS variables
-- `src/hooks/useTheme.ts` — **novo** — theme state hook with localStorage persistence
-- `src/main.tsx` — apply saved theme class on mount
+Esta é a primeira etapa da padronização visual. Cria o sistema de layout com sidebar persistente e migra todas as páginas protegidas para usá-lo.
 
-### 1. Theme system (`src/hooks/useTheme.ts`)
+### Arquivos novos
+1. **`src/components/layout/AppSidebar.tsx`** — Sidebar de navegação lateral
+2. **`src/components/layout/AppLayout.tsx`** — Layout wrapper (sidebar + header + content)
 
-New hook:
-- Reads `localStorage.getItem('theme')` on mount
-- Defaults to `'dark'` if not set
-- Toggles between `'dark'` and `'light'`
-- Applies/removes `.light` class on `document.documentElement`
-- Persists to localStorage
+### Arquivos alterados
+3. **`src/App.tsx`** — Envolver rotas protegidas com `AppLayout`
+4. **`src/components/dashboard/Dashboard.tsx`** — Remover header inline, usar props do layout
+5. **`src/pages/ClientesPage.tsx`** — Remover header inline
+6. **`src/pages/ClienteDetailPage.tsx`** — Remover header inline
+7. **`src/pages/ConfiguracoesPage.tsx`** — Remover header inline
+8. **`src/index.css`** — Adicionar variáveis de sidebar escuro (dark sidebar sempre, como Polis Hub)
 
-### 2. Light mode CSS variables (`src/index.css`)
+### Detalhes
 
-Add a `.light` selector with light theme variables:
+#### AppSidebar
+- Fundo escuro fixo (`bg-[#0F1D2F]`) independente do tema — igual ao Polis Hub
+- Logo "Polis Gestão" no topo
+- Seções de navegação:
+  - **PRINCIPAL**: Dashboard (LayoutDashboard)
+  - **SISTEMA**: Clientes (Users), Configurações (Settings, só admin)
+- Item ativo com destaque azul (bg-primary)
+- Footer: botão "Sair" + nome do usuário
+- Usa componentes `Sidebar*` do shadcn já existentes
+- `collapsible="icon"` para mini-mode
 
-```css
-.light {
-  --background: 220 20% 97%;      /* #F5F7FA */
-  --foreground: 220 20% 15%;      /* #1F2937 */
-  --card: 0 0% 100%;              /* #FFFFFF */
-  --card-foreground: 220 20% 15%;
-  --border: 220 13% 90%;          /* #E5E7EB */
-  --muted: 220 14% 94%;
-  --muted-foreground: 215 15% 45%;
-  /* ... all other variables mapped to light equivalents */
-}
+#### AppLayout
+```text
++--sidebar--+---------------------------+
+|  logo      |  breadcrumb / título      |
+|  nav       |  + ações da página        |
+|  items     |  + theme toggle           |
+|            |---------------------------|
+|  footer    |  {children}               |
++------------+---------------------------+
 ```
+- Recebe `title`, `subtitle`, `children`, `headerActions`
+- Header fino com título à esquerda, ações à direita
+- Theme toggle (Modo Claro/Escuro) no header
+- Nome do usuário + role badge no header
+- Em mobile: sidebar hidden, MobileMenu permanece via Sheet
 
-This uses the same CSS variable names so all components adapt automatically.
+#### Migração das páginas
+Cada página perde seu `<header>` inline e `<div className="min-h-screen">` wrapper. O conteúdo fica dentro do `<main>` do AppLayout.
 
-### 3. KPICard size prop
+- **Dashboard.tsx**: Remove linhas 126-173 (header), passa `title="Dashboard"` e `headerActions` (botão Importar, Dados Demo) como props
+- **ClientesPage.tsx**: Remove header (linhas 136-159), passa `title="Clientes"` e botões Relatório/Novo Cliente como `headerActions`
+- **ClienteDetailPage.tsx**: Remove header (linhas 184-201), passa título dinâmico do cliente e botão Editar como `headerActions`
+- **ConfiguracoesPage.tsx**: Remove header (linhas 225-235), passa `title="Configurações"`
 
-Add optional `size?: "lg" | "sm"` prop (default `"sm"`):
+#### App.tsx
+- Envolver as rotas protegidas com `SidebarProvider` + `AppLayout`
+- LoginPage e ResetPasswordPage ficam fora (sem sidebar)
 
-- **`lg` (financial)**: `min-h-[150px] p-5`, value font `clamp(1.25rem, 2.2vw, 2rem)`, `font-semibold`, icon `h-5 w-5 p-2.5`, premium gradient background + stronger shadow
-- **`sm` (operational)**: current styling (p-4, current font sizing)
-
-Keep `wordBreak: 'keep-all'` and `overflowWrap: 'normal'` for both sizes.
-
-### 4. Dashboard KPI grid split
-
-Replace the single 9-column grid with two grids:
-
-**Row 1 — Financial (4 cards, `size="lg"`):**
-```tsx
-<div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-  <KPICard size="lg" title="Total Contratado" ... />
-  <KPICard size="lg" title="Total Faturado" ... />
-  <KPICard size="lg" title="Não Faturado" ... />
-  <KPICard size="lg" title="Ticket Médio" ... />
-</div>
-```
-
-**Row 2 — Operational (5 cards, `size="sm"`):**
-```tsx
-<div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-5 gap-4">
-  <KPICard title="Vencidos" ... />
-  <KPICard title="Vencer 90 dias" ... />
-  <KPICard title="Vencer 30 dias" ... />
-  <KPICard title="Total Módulos" ... />
-  <KPICard title="Relatório Geral" ... />
-</div>
-```
-
-### 5. Theme toggle in header
-
-Add a button in the header actions (next to Clientes/Importar/Configurações):
-
-```tsx
-<Button variant="outline" size="sm" className="gap-2 text-xs" onClick={toggleTheme}>
-  {theme === 'dark' ? <Sun /> : <Moon />}
-  {theme === 'dark' ? 'Modo Claro' : 'Modo Escuro'}
-</Button>
-```
+#### CSS
+- Adicionar variável `--sidebar-bg: #0F1D2F` para sidebar sempre escuro
+- Sidebar text/icons em tons claros independente do tema
 
 ### O que NÃO muda
-- Cálculos, dados, filtros, gráficos, métricas, lógica de negócio
-- Database, autenticação, outras páginas
+- Lógica funcional, cálculos, validações
+- Comportamento de negócio
+- Database, RLS, edge functions
+- KPI cards (serão refinados na Etapa 2)
+- Login page (será redesenhado na Etapa 2)
+- Cores gerais do tema (já implementadas)
 
