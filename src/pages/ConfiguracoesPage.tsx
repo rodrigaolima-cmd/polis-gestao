@@ -290,7 +290,7 @@ export default function ConfiguracoesPage() {
             ) : (
               <div className="overflow-x-auto">
                 <Table>
-                  <TableHeader>
+                  <TableHeader className="bg-muted/50">
                     <TableRow>
                       <TableHead>Nome</TableHead>
                       <TableHead>Perfil</TableHead>

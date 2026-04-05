@@ -40,7 +40,7 @@ export function FiltersBar({ filters, contracts, onFilterChange, onReset }: Filt
     + (filters.expireInDays !== null ? 1 : 0);
 
   return (
-    <div className="glass-card rounded-xl p-4 space-y-4 animate-fade-in" style={{ animationDelay: "100ms" }}>
+    <div className="bg-card border border-border rounded-xl shadow-sm p-4 space-y-4 animate-fade-in" style={{ animationDelay: "100ms" }}>
       {/* Search + toggle */}
       <div className="flex items-center gap-3">
         <div className="relative flex-1 max-w-sm">
