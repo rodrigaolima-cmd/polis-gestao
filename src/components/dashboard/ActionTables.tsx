@@ -24,7 +24,7 @@ export function ActionTables({ clients, onClientClick, onRankingReport, onCritic
   return (
     <div className="grid grid-cols-1 xl:grid-cols-2 gap-5">
       {/* Ranking não faturado */}
-      <div className="glass-card rounded-xl p-5 animate-fade-in">
+      <div className="bg-card border border-border rounded-xl shadow-sm p-5 animate-fade-in">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             <ArrowDown className="h-4 w-4 text-danger" />
@@ -38,7 +38,7 @@ export function ActionTables({ clients, onClientClick, onRankingReport, onCritic
         </div>
         <div className="overflow-auto max-h-[400px]">
           <Table>
-            <TableHeader>
+            <TableHeader className="bg-muted/50">
               <TableRow className="border-border/50 hover:bg-transparent">
                 <TableHead className="text-xs text-muted-foreground">#</TableHead>
                 <TableHead className="text-xs text-muted-foreground">Cliente</TableHead>
@@ -66,7 +66,7 @@ export function ActionTables({ clients, onClientClick, onRankingReport, onCritic
       </div>
 
       {/* Contratos Críticos */}
-      <div className="glass-card rounded-xl p-5 animate-fade-in">
+      <div className="bg-card border border-border rounded-xl shadow-sm p-5 animate-fade-in">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             <AlertTriangle className="h-4 w-4 text-warning" />
@@ -80,7 +80,7 @@ export function ActionTables({ clients, onClientClick, onRankingReport, onCritic
         </div>
         <div className="overflow-auto max-h-[400px]">
           <Table>
-            <TableHeader>
+            <TableHeader className="bg-muted/50">
               <TableRow className="border-border/50 hover:bg-transparent">
                 <TableHead className="text-xs text-muted-foreground">Cliente</TableHead>
                 <TableHead className="text-xs text-muted-foreground">Produtos</TableHead>
