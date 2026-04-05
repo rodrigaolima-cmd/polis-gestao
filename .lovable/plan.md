@@ -1,61 +1,35 @@
 
 
-## Etapa 3 — Padronizar tabelas, cards e badges no padrão Polis Hub
+## Implementar logo Polis Hub + informações na tela de login
 
-### Objetivo
-Substituir `glass-card` por cards sólidos (`bg-card border rounded-xl shadow-sm`) e padronizar badges de status em todos os componentes. Sem alterar lógica funcional.
+### Arquivos afetados
+1. **Logo**: Copiar `user-uploads://Logo_Polis_Hub.png` para `src/assets/Logo_Polis_Hub.png`
+2. **`src/pages/LoginPage.tsx`** — Adicionar logo + atualizar informações do footer
+3. **`src/components/layout/AppSidebar.tsx`** — Substituir ícone "P" pelo logo
+4. **`src/components/dashboard/SectionReportDialog.tsx`** — Adicionar logo nos relatórios (topo direito)
+5. **`src/components/dashboard/ChartReportDialog.tsx`** — Adicionar logo nos relatórios (topo direito)
 
-### Mudanças
+### Detalhes
 
-#### 1. Substituir `glass-card` por card sólido
-Todos os usos de `glass-card` serão trocados por `bg-card border border-border rounded-xl shadow-sm`.
+#### 1. Login Page
+- **Painel esquerdo**: Substituir texto "Polis Gestão" pelo logo (altura ~80px, proporcional)
+- **Painel direito (mobile)**: Logo menor (~48px) acima do formulário
+- **Footer do painel esquerdo**: Atualizar para:
+  ```
+  © 2026 Polis Gestão. Todos os direitos reservados.
+  Pólis Hub v1.0 - Beta | Ambiente: Produção
+  ```
 
-Arquivos afetados:
-- `src/pages/ClientesPage.tsx` (linha 185) — tabela de clientes
-- `src/pages/ClienteDetailPage.tsx` (linhas 194, 220) — info card + tabela de módulos
-- `src/components/dashboard/ActionTables.tsx` (linhas 27, 69) — ranking e contratos críticos
-- `src/components/dashboard/CommercialAnalysis.tsx` (linhas 51, 86) — análises comerciais
-- `src/components/dashboard/FiltersBar.tsx` (linha 43) — barra de filtros
+#### 2. AppSidebar
+- Substituir o quadrado azul com "P" pela imagem do logo (altura ~32px, proporcional)
+- Manter texto "Polis Gestão" e "Gestão de Contratos" ao lado quando expandido
 
-#### 2. Padronizar badges de status
-Criar um padrão visual consistente para badges em todas as páginas:
-
-- **Ativo**: `bg-success/10 text-success border-success/30`
-- **Inativo**: `bg-muted text-muted-foreground`
-- **Prospect**: `bg-info/10 text-info border-info/30`
-- **Vencido/Crítico**: mantém padrão já existente no `StatusBadge` de `ActionTables`
-
-Aplicar em:
-- `ClientesPage.tsx` (linha 241) — badge de status do cliente
-- `ClienteDetailPage.tsx` (linha 209) — badge de status do cliente
-- `ClienteDetailPage.tsx` (linha 272) — badge de status do módulo
-
-#### 3. Padronizar headers de tabela
-Adicionar `bg-muted/50` ao `TableHeader` para consistência visual com Polis Hub:
-- `ClientesPage.tsx`
-- `ClienteDetailPage.tsx`
-- `ActionTables.tsx`
-- `CommercialAnalysis.tsx`
-- `ConsultorDashboard.tsx`
-- `ConfiguracoesPage.tsx`
-
-#### 4. Remover `glass-card` do CSS
-Remover a utility class `.glass-card` de `src/index.css` (linha 114) já que não será mais usada.
-
-### Arquivos afetados (8)
-1. `src/pages/ClientesPage.tsx`
-2. `src/pages/ClienteDetailPage.tsx`
-3. `src/pages/ConfiguracoesPage.tsx`
-4. `src/components/dashboard/ActionTables.tsx`
-5. `src/components/dashboard/CommercialAnalysis.tsx`
-6. `src/components/dashboard/FiltersBar.tsx`
-7. `src/components/dashboard/ConsultorDashboard.tsx`
-8. `src/index.css`
+#### 3. Relatórios (SectionReportDialog + ChartReportDialog)
+- Adicionar logo no topo direito do cabeçalho de impressão
+- Altura ~40px, manter proporção original
+- Posição: `float: right` ou `flex justify-between` no header do relatório
 
 ### O que NÃO muda
-- Cálculos, validações, lógica de negócio
-- Estrutura de dados, RLS, edge functions
-- KPI cards (já redesenhados na Etapa 2)
-- Login page (já redesenhado na Etapa 2)
-- Layout sidebar/header (já implementado na Etapa 1)
+- Lógica de autenticação, cálculos, dados, RLS, edge functions
+- Layout geral, cores, tipografia
 
