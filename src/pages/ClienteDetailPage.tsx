@@ -191,7 +191,7 @@ export default function ClienteDetailPage() {
     <AppLayout title={clientTitle} subtitle="Detalhes do Cliente" headerActions={headerActions}>
       <div className="space-y-6">
         {/* Client Info */}
-        <div className="glass-card rounded-xl p-5 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+        <div className="bg-card border border-border rounded-xl shadow-sm p-5 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
           <div>
             <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Tipo UG</p>
             <p className="text-sm font-medium">{client.tipo_ug || "—"}</p>
@@ -206,7 +206,7 @@ export default function ClienteDetailPage() {
           </div>
           <div>
             <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Status</p>
-            <Badge variant={client.status_cliente === "Ativo" ? "default" : "secondary"} className="text-[10px] mt-0.5">
+            <Badge variant="outline" className={`text-[10px] mt-0.5 ${client.status_cliente === "Ativo" ? "bg-success/10 text-success border-success/30" : client.status_cliente === "Prospect" ? "bg-info/10 text-info border-info/30" : "bg-muted text-muted-foreground"}`}>
               {client.status_cliente}
             </Badge>
           </div>
@@ -217,7 +217,7 @@ export default function ClienteDetailPage() {
         </div>
 
         {/* Modules */}
-        <div className="glass-card rounded-xl overflow-hidden">
+        <div className="bg-card border border-border rounded-xl shadow-sm overflow-hidden">
           <div className="px-5 py-4 border-b border-border/30 flex items-center justify-between">
             <h2 className="text-sm font-semibold">Módulos do Cliente</h2>
             <div className="flex items-center gap-2">
@@ -232,7 +232,7 @@ export default function ClienteDetailPage() {
             </div>
           </div>
           <Table>
-            <TableHeader>
+            <TableHeader className="bg-muted/50">
               <TableRow className="border-border/30">
                 <TableHead className="text-xs">Módulo</TableHead>
                 <TableHead className="text-xs text-right">Contratado</TableHead>
@@ -269,7 +269,7 @@ export default function ClienteDetailPage() {
                         </span>
                       </TableCell>
                       <TableCell className="text-center">
-                        <Badge variant="secondary" className="text-[10px]">{m.status_contrato}</Badge>
+                        <Badge variant="outline" className={`text-[10px] ${m.status_contrato === "Ativo" ? "bg-success/10 text-success border-success/30" : m.status_contrato === "Inativo" ? "bg-muted text-muted-foreground" : "bg-info/10 text-info border-info/30"}`}>{m.status_contrato}</Badge>
                       </TableCell>
                       <TableCell className="text-center">
                         {m.ativo_no_cliente ? (

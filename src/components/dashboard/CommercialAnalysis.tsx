@@ -48,7 +48,7 @@ export function CommercialAnalysis({ clients, onConsultorReport, onRegiaoReport 
       </div>
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-5">
         {/* Por Consultor */}
-        <div className="glass-card rounded-xl p-5">
+        <div className="bg-card border border-border rounded-xl shadow-sm p-5">
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Dinheiro na Mesa por Consultor</h3>
             {onConsultorReport && (
@@ -59,7 +59,7 @@ export function CommercialAnalysis({ clients, onConsultorReport, onRegiaoReport 
           </div>
           <div className="overflow-auto max-h-[300px]">
             <Table>
-              <TableHeader>
+              <TableHeader className="bg-muted/50">
                 <TableRow className="border-border/50 hover:bg-transparent">
                   <TableHead className="text-xs text-muted-foreground">Consultor</TableHead>
                   <TableHead className="text-xs text-muted-foreground text-right">Total Pendência</TableHead>
@@ -83,7 +83,7 @@ export function CommercialAnalysis({ clients, onConsultorReport, onRegiaoReport 
         </div>
 
         {/* Por Região */}
-        <div className="glass-card rounded-xl p-5">
+        <div className="bg-card border border-border rounded-xl shadow-sm p-5">
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Dinheiro na Mesa por Região</h3>
             {onRegiaoReport && (
@@ -94,7 +94,7 @@ export function CommercialAnalysis({ clients, onConsultorReport, onRegiaoReport 
           </div>
           <div className="overflow-auto max-h-[300px]">
             <Table>
-              <TableHeader>
+              <TableHeader className="bg-muted/50">
                 <TableRow className="border-border/50 hover:bg-transparent">
                   <TableHead className="text-xs text-muted-foreground">Região</TableHead>
                   <TableHead className="text-xs text-muted-foreground text-right">Total Pendência</TableHead>

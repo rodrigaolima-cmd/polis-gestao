@@ -75,7 +75,7 @@ export function ConsultorDashboard({ clients, contracts, onReport }: ConsultorDa
 
           {/* Table */}
           <Table>
-            <TableHeader>
+            <TableHeader className="bg-muted/50">
               <TableRow className="border-border/50">
                 <TableHead className="text-xs">Cliente</TableHead>
                 <TableHead className="text-xs">Tipo UG</TableHead>

@@ -194,7 +194,7 @@ export function DashboardCharts({
 
 function ChartCard({ title, children, onReport }: { title: string; children: React.ReactNode; onReport?: () => void }) {
   return (
-    <div className="glass-card rounded-xl p-5 animate-fade-in">
+    <div className="bg-card border border-border rounded-xl shadow-sm p-5 animate-fade-in">
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-sm font-semibold text-foreground">{title}</h3>
         {onReport && (

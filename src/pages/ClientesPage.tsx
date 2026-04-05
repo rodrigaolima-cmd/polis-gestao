@@ -182,10 +182,10 @@ export default function ClientesPage() {
         </div>
 
         {/* Table */}
-        <div className="glass-card rounded-xl overflow-hidden">
+        <div className="bg-card border border-border rounded-xl shadow-sm overflow-hidden">
           <div className="overflow-x-auto">
           <Table>
-            <TableHeader>
+            <TableHeader className="bg-muted/50">
               <TableRow className="border-border/30">
                 <TableHead className="text-xs text-center w-[70px]">Código</TableHead>
                 <TableHead className="text-xs">Cliente</TableHead>
@@ -238,7 +238,7 @@ export default function ClientesPage() {
                         ) : "—"}
                       </TableCell>
                       <TableCell className="text-center">
-                        <Badge variant={c.status_cliente === "Ativo" ? "default" : "secondary"} className="text-[10px]">
+                        <Badge variant="outline" className={`text-[10px] ${c.status_cliente === "Ativo" ? "bg-success/10 text-success border-success/30" : c.status_cliente === "Prospect" ? "bg-info/10 text-info border-info/30" : "bg-muted text-muted-foreground"}`}>
                           {c.status_cliente}
                         </Badge>
                       </TableCell>
