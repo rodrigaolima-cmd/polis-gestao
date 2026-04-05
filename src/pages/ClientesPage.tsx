@@ -8,8 +8,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { ClienteForm } from "@/components/clientes/ClienteForm";
 import { ClientesReportDialog } from "@/components/clientes/ClientesReportDialog";
-import { Users, Plus, Search, Eye, Pencil, ArrowLeft, FileText } from "lucide-react";
-import { MobileMenu } from "@/components/MobileMenu";
+import { AppLayout } from "@/components/layout/AppLayout";
+import { Plus, Search, Eye, Pencil, FileText } from "lucide-react";
 import { formatCurrency, formatDate, getDaysToExpire, getExpirationStatus } from "@/utils/contractUtils";
 import { normalizeForSearch, fixMojibake } from "@/utils/textUtils";
 
@@ -53,7 +53,6 @@ export default function ClientesPage() {
 
       if (error) throw error;
 
-      // Get aggregated module data for each client
       const { data: modulesData } = await supabase
         .from("client_modules")
         .select("client_id, valor_contratado, valor_faturado, vencimento_contrato, ativo_no_cliente");
@@ -70,7 +69,6 @@ export default function ClientesPage() {
         const activeMods = mods.filter((m: any) => m.ativo_no_cliente);
         const totalContratado = mods.reduce((s: number, m: any) => s + (Number(m.valor_contratado) || 0), 0);
         const totalFaturado = mods.reduce((s: number, m: any) => {
-          // Módulos inativos não contam como faturado
           if (m.ativo_no_cliente === false) return s;
           return s + (Number(m.valor_faturado) || 0);
         }, 0);
@@ -131,34 +129,20 @@ export default function ClientesPage() {
     setFormOpen(true);
   };
 
-  return (
-    <div className="min-h-screen bg-background">
-      <header className="border-b border-border/50 bg-card/50 backdrop-blur-xl sticky top-0 z-50">
-        <div className="max-w-[1600px] mx-auto px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between">
-          <div className="flex items-center gap-2 sm:gap-3">
-            <MobileMenu />
-            <Button variant="ghost" size="icon" onClick={() => navigate("/")} className="h-8 w-8 hidden md:flex">
-              <ArrowLeft className="h-4 w-4" />
-            </Button>
-            <div>
-              <h1 className="text-lg sm:text-xl font-bold tracking-tight flex items-center gap-2">
-                <Users className="h-5 w-5 text-primary hidden sm:block" /> Clientes
-              </h1>
-              <p className="text-xs text-muted-foreground hidden sm:block">Polis Gestão • Cadastro de Clientes</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" className="gap-2 text-xs hidden sm:flex" onClick={() => setReportOpen(true)}>
-              <FileText className="h-3.5 w-3.5" /> Relatório
-            </Button>
-            <Button size="sm" className="gap-2 text-xs" onClick={handleNew}>
-              <Plus className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Novo Cliente</span><span className="sm:hidden">Novo</span>
-            </Button>
-          </div>
-        </div>
-      </header>
+  const headerActions = (
+    <>
+      <Button variant="outline" size="sm" className="gap-2 text-xs hidden sm:flex" onClick={() => setReportOpen(true)}>
+        <FileText className="h-3.5 w-3.5" /> Relatório
+      </Button>
+      <Button size="sm" className="gap-2 text-xs" onClick={handleNew}>
+        <Plus className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Novo Cliente</span><span className="sm:hidden">Novo</span>
+      </Button>
+    </>
+  );
 
-      <main className="max-w-[1600px] mx-auto px-4 sm:px-6 py-4 sm:py-6 space-y-4">
+  return (
+    <AppLayout title="Clientes" subtitle="Cadastro de Clientes" headerActions={headerActions}>
+      <div className="space-y-4">
         {/* Filters */}
         <div className="flex flex-wrap gap-2 sm:gap-3 items-end">
           <div className="relative flex-1 min-w-[160px]">
@@ -281,7 +265,7 @@ export default function ClientesPage() {
             </div>
           )}
         </div>
-      </main>
+      </div>
 
       <ClienteForm
         open={formOpen}
@@ -295,6 +279,6 @@ export default function ClientesPage() {
         onOpenChange={setReportOpen}
         filteredClientIds={filtered.map(c => c.id)}
       />
-    </div>
+    </AppLayout>
   );
 }

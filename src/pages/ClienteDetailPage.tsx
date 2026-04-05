@@ -9,7 +9,8 @@ import { ClienteForm } from "@/components/clientes/ClienteForm";
 import { ClienteModuloForm } from "@/components/clientes/ClienteModuloForm";
 import { ClienteMultiModuloForm } from "@/components/clientes/ClienteMultiModuloForm";
 import { CopyDatesDialog } from "@/components/clientes/CopyDatesDialog";
-import { ArrowLeft, Pencil, Plus, MoreVertical, CheckCircle, XCircle, Trash2, Copy, ListPlus } from "lucide-react";
+import { AppLayout } from "@/components/layout/AppLayout";
+import { Pencil, Plus, MoreVertical, CheckCircle, XCircle, Trash2, Copy } from "lucide-react";
 import { formatCurrency, formatDate, getDaysToExpire, getExpirationStatus } from "@/utils/contractUtils";
 import { toast } from "sonner";
 
@@ -96,7 +97,6 @@ export default function ClienteDetailPage() {
     }
   };
 
-  // Reload only modules without full-page loading spinner (preserves scroll)
   const reloadModules = useCallback(async () => {
     if (!id) return;
     try {
@@ -116,7 +116,6 @@ export default function ClienteDetailPage() {
 
   const toggleActive = async (mod: ClientModuleRow) => {
     if (mod.ativo_no_cliente) {
-      // Inativando: cascata
       await supabase.from("client_modules").update({
         ativo_no_cliente: false,
         faturado_flag: false,
@@ -153,23 +152,26 @@ export default function ClienteDetailPage() {
 
   const handleModuleFormOpenChange = (open: boolean) => {
     setModuleFormOpen(open);
-    // Do NOT clear editingModuleId here — it's set by handleEditModule/handleAddModule
   };
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <p className="text-muted-foreground text-sm">Carregando...</p>
-      </div>
+      <AppLayout title="Carregando...">
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <p className="text-muted-foreground text-sm">Carregando...</p>
+        </div>
+      </AppLayout>
     );
   }
 
   if (!client) {
     return (
-      <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-4">
-        <p className="text-muted-foreground">Cliente não encontrado</p>
-        <Button variant="outline" onClick={() => navigate("/clientes")}>Voltar</Button>
-      </div>
+      <AppLayout title="Cliente não encontrado">
+        <div className="flex flex-col items-center justify-center gap-4 min-h-[60vh]">
+          <p className="text-muted-foreground">Cliente não encontrado</p>
+          <Button variant="outline" onClick={() => navigate("/clientes")}>Voltar</Button>
+        </div>
+      </AppLayout>
     );
   }
 
@@ -177,30 +179,17 @@ export default function ClienteDetailPage() {
   const totalFaturado = modules.reduce((s, m) => s + m.valor_faturado, 0);
   const totalDiff = totalContratado - totalFaturado;
 
-  
+  const clientTitle = `${client.codigo_cliente ? `#${client.codigo_cliente} — ` : ""}${client.nome_cliente}`;
+
+  const headerActions = (
+    <Button variant="outline" size="sm" className="gap-2 text-xs" onClick={() => setEditClientOpen(true)}>
+      <Pencil className="h-3.5 w-3.5" /> Editar Cliente
+    </Button>
+  );
 
   return (
-    <div className="min-h-screen bg-background">
-      <header className="border-b border-border/50 bg-card/50 backdrop-blur-xl sticky top-0 z-50">
-        <div className="max-w-[1600px] mx-auto px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Button variant="ghost" size="icon" onClick={() => navigate("/clientes")} className="h-8 w-8">
-              <ArrowLeft className="h-4 w-4" />
-            </Button>
-            <div>
-              <h1 className="text-xl font-bold tracking-tight">
-                {client.codigo_cliente ? `#${client.codigo_cliente} — ` : ""}{client.nome_cliente}
-              </h1>
-              <p className="text-xs text-muted-foreground">Detalhes do Cliente</p>
-            </div>
-          </div>
-          <Button variant="outline" size="sm" className="gap-2 text-xs" onClick={() => setEditClientOpen(true)}>
-            <Pencil className="h-3.5 w-3.5" /> Editar Cliente
-          </Button>
-        </div>
-      </header>
-
-      <main className="max-w-[1600px] mx-auto px-6 py-6 space-y-6">
+    <AppLayout title={clientTitle} subtitle="Detalhes do Cliente" headerActions={headerActions}>
+      <div className="space-y-6">
         {/* Client Info */}
         <div className="glass-card rounded-xl p-5 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
           <div>
@@ -327,7 +316,7 @@ export default function ClienteDetailPage() {
             )}
           </Table>
         </div>
-      </main>
+      </div>
 
       <ClienteForm
         open={editClientOpen}
@@ -368,6 +357,6 @@ export default function ClienteDetailPage() {
           onSaved={reloadModules}
         />
       )}
-    </div>
+    </AppLayout>
   );
 }
