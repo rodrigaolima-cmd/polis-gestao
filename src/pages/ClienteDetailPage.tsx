@@ -401,13 +401,14 @@ export default function ClienteDetailPage() {
 
       {id && (
         <ClienteModuloForm
+          key={moduleFormModal.entityId || "new"}
           open={moduleFormModal.isOpen}
           onOpenChange={(v) => { if (!v) moduleFormModal.close(); }}
           clientId={id}
           existingModuleId={moduleFormModal.entityId}
           initialData={moduleFormModal.entityId ? modules.find(m => m.id === moduleFormModal.entityId) || null : null}
           onSaved={reloadModules}
-          persistKey={`detail:${id}:module-form`}
+          persistKey={`detail:${id}:module-form:${moduleFormModal.entityId || "new"}`}
         />
       )}
 
