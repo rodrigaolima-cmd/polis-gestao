@@ -100,6 +100,7 @@ export function ClienteModuloForm({ open, onOpenChange, clientId, existingModule
   useEffect(() => {
     if (!open) {
       setInitialized(false);
+      draft.clearDraft();
       return;
     }
     if (initialized) return;
