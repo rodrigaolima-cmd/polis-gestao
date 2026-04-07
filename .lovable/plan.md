@@ -1,48 +1,67 @@
 
-## Correção real do modal ao trocar de aba
 
-### O que identifiquei
-- O bloqueio em `dialog.tsx` já existe para `onPointerDownOutside`, `onInteractOutside` e `onFocusOutside`, então o problema não é mais só “clicar fora”.
-- Os modais ainda estão usando `onOpenChange={setState}` diretamente. Se o Radix disparar `false` ao perder foco/alternar aba, o estado local aceita esse fechamento e o modal some, mostrando a tela de Clientes por trás.
-- Há também sinal de instabilidade de sessão/autenticação nos logs (`SIGNED_OUT`), então preciso blindar esse fluxo para garantir que trocar de aba não derrube a tela atual.
+## Correção definitiva: sessão derrubada ao trocar de aba
 
-### Implementação
-1. **Fortalecer o componente base de modal**
-   - Em `src/components/ui/dialog.tsx`, complementar a proteção com:
-     - `onEscapeKeyDown={(e) => e.preventDefault()}`
-     - `onCloseAutoFocus={(e) => e.preventDefault()}`
-   - Ajustar o botão `X` para continuar funcionando como fechamento explícito do usuário.
+### Causa raiz real
 
-2. **Parar de aceitar fechamento automático**
-   - Nos modais de cliente, trocar o `onOpenChange={set...}` por um handler protegido:
-     - ignora fechamentos automáticos
-     - só fecha por ação explícita: `Cancelar`, `Salvar`, `X`
-   - Aplicar em:
-     - `src/components/clientes/ClienteForm.tsx`
-     - `src/components/clientes/ClienteModuloForm.tsx`
-     - `src/components/clientes/ClienteMultiModuloForm.tsx`
-     - `src/components/clientes/CopyDatesDialog.tsx`
+O problema **não é o Dialog/Radix** — os modais já estão protegidos contra fechamento automático. O problema é que ao trocar de aba:
 
-3. **Blindar a sessão para não “derrubar” a tela ao trocar de aba**
-   - Revisar `src/contexts/AuthContext.tsx` e `src/components/ProtectedRoute.tsx`
-   - Garantir que perda momentânea de foco/rehydration não cause redirecionamento ou reset indevido da interface.
-   - Só sair da tela em caso de logout real do usuário.
+1. Supabase dispara `SIGNED_OUT` espúrio
+2. O código atual tenta preservar o snapshot, mas chama `getSession()` no setTimeout
+3. Se `getSession()` retorna `null` transientemente, o snapshot é preservado... mas na volta da aba, o `reconcileVisibleSession` pode chamar `hydrateUser(null, null)` se `getSession()` ainda retorna null
+4. `hydrateUser(null, null)` na linha 116-120 chama `clearAuthState()` **incondicionalmente** → user fica null → `ProtectedRoute` redireciona para `/login` → toda a página (e o modal) é desmontada
 
-4. **Ajuste de acessibilidade e ruído de console**
-   - Corrigir o warning de dialogs sem descrição:
-     - manter `DialogDescription` onde existir texto
-     - quando não houver descrição, definir `aria-describedby={undefined}`
+### Solução
+
+**Arquivo**: `src/contexts/AuthContext.tsx`
+
+Duas mudanças cirúrgicas:
+
+1. **`hydrateUser`**: Quando recebe `null` user/token, verificar se `manualSignOutRef.current` é true. Se não for e já tivermos um snapshot válido (refs com dados), **não limpar** — simplesmente retornar sem fazer nada:
+
+```typescript
+if (!currentUser || !token) {
+  // Only clear if this is a manual sign-out
+  if (manualSignOutRef.current && thisRequest === requestIdRef.current) {
+    clearAuthState();
+  }
+  return;
+}
+```
+
+2. **`reconcileVisibleSession`**: Remover a chamada que pode acidentalmente disparar hydration com dados nulos. Só chamar hydrateUser se a sessão existir:
+
+```typescript
+const reconcileVisibleSession = () => {
+  if (document.visibilityState === "hidden" || !userRef.current || manualSignOutRef.current) {
+    return;
+  }
+  // Already have valid snapshot, no need to re-fetch on every focus
+  // Only reconcile token silently
+  void supabase.auth.getSession().then(({ data: { session } }) => {
+    if (session?.user && session.access_token) {
+      // Just update token ref, don't re-hydrate
+      accessTokenRef.current = session.access_token;
+      setAccessToken(session.access_token);
+    }
+    // If no session, do NOT clear — keep snapshot
+  });
+};
+```
+
+### Resultado
+
+- `clearAuthState()` só é chamado quando o usuário clica "Sair" (`manualSignOutRef = true`)
+- Eventos espúrios `SIGNED_OUT` do Supabase são ignorados completamente
+- Ao voltar de outra aba, o token é atualizado silenciosamente sem derrubar o estado
+- O modal permanece aberto porque a página não é desmontada
 
 ### Arquivos afetados
-- `src/components/ui/dialog.tsx`
-- `src/components/clientes/ClienteForm.tsx`
-- `src/components/clientes/ClienteModuloForm.tsx`
-- `src/components/clientes/ClienteMultiModuloForm.tsx`
-- `src/components/clientes/CopyDatesDialog.tsx`
-- `src/contexts/AuthContext.tsx`
-- `src/components/ProtectedRoute.tsx`
+- `src/contexts/AuthContext.tsx` (única mudança)
 
-### Resultado esperado
-- Ao abrir **Editar Cliente** e trocar para outra aba do navegador, o modal permanece aberto.
-- O sistema não “volta” para a tela por trás sem ordem do usuário.
-- A tela atual não é perdida por instabilidade de autenticação.
+### O que NÃO muda
+- Dialog/modal (já está protegido)
+- ProtectedRoute (já está correto)
+- Formulários de cliente
+- Dashboard, layout, RLS
+
