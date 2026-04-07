@@ -416,6 +416,8 @@ export default function ConfiguracoesPage() {
         </Card>
 
         <ModuloCatalogo />
+
+        <UgTypeCatalogo />
       </div>
     </AppLayout>
   );
