@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { ClienteForm } from "@/components/clientes/ClienteForm";
 import { ClientesReportDialog } from "@/components/clientes/ClientesReportDialog";
 import { AppLayout } from "@/components/layout/AppLayout";
-import { Plus, Search, Eye, Pencil, FileText } from "lucide-react";
+import { Plus, Search, Eye, Pencil, FileText, Upload } from "lucide-react";
 import { normalizeForSearch, fixMojibake } from "@/utils/textUtils";
 import { usePersistentModal } from "@/hooks/usePersistentModal";
 
@@ -145,6 +145,9 @@ export default function ClientesPage() {
 
   const headerActions = (
     <>
+      <Button variant="outline" size="sm" className="gap-2 text-xs hidden sm:flex" onClick={() => navigate("/importar-clientes")}>
+        <Upload className="h-3.5 w-3.5" /> Importar
+      </Button>
       <Button variant="outline" size="sm" className="gap-2 text-xs hidden sm:flex" onClick={() => setReportOpen(true)}>
         <FileText className="h-3.5 w-3.5" /> Relatório
       </Button>

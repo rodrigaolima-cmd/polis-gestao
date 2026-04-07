@@ -257,8 +257,12 @@ export function ClienteForm({ open, onOpenChange, cliente, onSaved, persistKey }
     <Dialog open={open} onOpenChange={(v) => { if (!v) return; onOpenChange(v); }}>
       <DialogContent className="max-w-2xl bg-card border-border max-h-[90vh] p-0 flex flex-col overflow-hidden" onClose={handleCancel}>
         <DialogHeader className="px-6 pt-6 pb-2 flex-shrink-0">
-          <DialogTitle>{cliente?.id ? "Editar Cliente" : "Novo Cliente"}</DialogTitle>
-          <DialogDescription>Preencha os dados do cliente.</DialogDescription>
+          <DialogTitle>
+            {cliente?.id ? `Editar Cliente #${(cliente as any).codigo_cliente ?? ""}` : "Novo Cliente"}
+          </DialogTitle>
+          <DialogDescription>
+            {cliente?.id ? "Edite os dados do cliente." : "O código será gerado automaticamente."}
+          </DialogDescription>
         </DialogHeader>
         <div className="flex-1 min-h-0 overflow-y-auto px-6 pb-6">
           <div className="space-y-4">
