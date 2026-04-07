@@ -4,7 +4,7 @@ import { ContractRow } from "@/types/contract";
 import { mockContracts } from "@/data/mockContracts";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
-import { normalizeText, fixMojibake } from "@/utils/textUtils";
+import { normalizeText, fixMojibake, normalizeForSearch } from "@/utils/textUtils";
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
@@ -211,7 +211,7 @@ export function useContracts() {
       const uniqueClients = new Map<string, ContractRow>();
       const uniqueModules = new Set<string>();
       rows.forEach((r) => {
-        const key = r.clientName.trim().toLowerCase();
+        const key = normalizeForSearch(r.clientName);
         if (!uniqueClients.has(key)) uniqueClients.set(key, r);
         if (r.product.trim()) uniqueModules.add(r.product.trim());
       });
@@ -224,7 +224,7 @@ export function useContracts() {
       );
       const clientMap = new Map<string, string>();
       for (const c of existingClients) {
-        clientMap.set(c.nome_cliente.trim().toLowerCase(), c.id);
+        clientMap.set(normalizeForSearch(c.nome_cliente), c.id);
       }
 
       onProgress?.("Carregando módulos existentes...", 8);
@@ -234,7 +234,7 @@ export function useContracts() {
       );
       const moduleMap = new Map<string, string>();
       for (const m of existingModules) {
-        moduleMap.set(m.nome_modulo.trim().toLowerCase(), m.id);
+        moduleMap.set(normalizeForSearch(m.nome_modulo), m.id);
       }
 
       // 3. Find or create clients (using in-memory map to avoid duplicates)
@@ -277,12 +277,12 @@ export function useContracts() {
         modIdx++;
         onProgress?.(`Processando módulos... ${modIdx}/${totalMods}`, 30 + Math.round((modIdx / totalMods) * 20));
 
-        if (!moduleMap.has(moduleName.toLowerCase())) {
+        if (!moduleMap.has(normalizeForSearch(moduleName))) {
           const created = await withTimeout(
             restInsert(token, "modules", { nome_modulo: normalizeText(moduleName) }, signal, true),
             OP_TIMEOUT, `module insert ${modIdx}`
           );
-          moduleMap.set(moduleName.toLowerCase(), created[0].id);
+          moduleMap.set(normalizeForSearch(moduleName), created[0].id);
         }
       }
 
@@ -295,8 +295,8 @@ export function useContracts() {
 
       const payloads = rows
         .map((row) => {
-          const clientId = clientMap.get(row.clientName.trim().toLowerCase());
-          const moduleId = moduleMap.get(row.product.trim().toLowerCase());
+          const clientId = clientMap.get(normalizeForSearch(row.clientName));
+          const moduleId = moduleMap.get(normalizeForSearch(row.product));
           if (!clientId || !moduleId) return null;
           return {
             client_id: clientId,
