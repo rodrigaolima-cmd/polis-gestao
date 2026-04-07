@@ -200,7 +200,7 @@ export function ClienteMultiModuloForm({ open, onOpenChange, clientId, onSaved }
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={(v) => { if (!v) return; onOpenChange(v); }}>
       <DialogContent className="max-w-3xl bg-card border-border max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Adicionar Módulos</DialogTitle>

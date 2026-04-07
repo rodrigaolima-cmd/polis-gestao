@@ -192,7 +192,7 @@ export function ClienteModuloForm({ open, onOpenChange, clientId, existingModule
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={(v) => { if (!v) return; onOpenChange(v); }}>
       <DialogContent className="max-w-lg bg-card border-border max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{isEditing ? "Editar Módulo" : "Adicionar Módulo"}</DialogTitle>

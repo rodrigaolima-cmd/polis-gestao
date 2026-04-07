@@ -220,7 +220,7 @@ export function ClienteForm({ open, onOpenChange, cliente, onSaved }: ClienteFor
   const clienteDesdeDate = form.cliente_desde ? new Date(form.cliente_desde + "T00:00:00") : undefined;
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={(v) => { if (!v) return; onOpenChange(v); }}>
       <DialogContent className="max-w-2xl bg-card border-border max-h-[90vh] p-0 flex flex-col overflow-hidden">
         <DialogHeader className="px-6 pt-6 pb-2 flex-shrink-0">
           <DialogTitle>{cliente?.id ? "Editar Cliente" : "Novo Cliente"}</DialogTitle>
