@@ -112,39 +112,75 @@ export type Database = {
       }
       clients: {
         Row: {
+          cargo_responsavel: string | null
+          celular: string | null
+          cliente_desde: string | null
+          cnpj: string | null
+          codigo_bling: string | null
           codigo_cliente: number
           consultor: string | null
           created_at: string
+          email: string | null
+          email_nfse: string | null
+          fone: string | null
           id: string
+          municipio: string | null
           nome_cliente: string
+          nome_fantasia: string | null
           observacoes_cliente: string | null
           regiao: string | null
+          responsavel_principal: string | null
           status_cliente: string | null
           tipo_ug: string | null
+          uf: string | null
           updated_at: string
         }
         Insert: {
+          cargo_responsavel?: string | null
+          celular?: string | null
+          cliente_desde?: string | null
+          cnpj?: string | null
+          codigo_bling?: string | null
           codigo_cliente?: number
           consultor?: string | null
           created_at?: string
+          email?: string | null
+          email_nfse?: string | null
+          fone?: string | null
           id?: string
+          municipio?: string | null
           nome_cliente: string
+          nome_fantasia?: string | null
           observacoes_cliente?: string | null
           regiao?: string | null
+          responsavel_principal?: string | null
           status_cliente?: string | null
           tipo_ug?: string | null
+          uf?: string | null
           updated_at?: string
         }
         Update: {
+          cargo_responsavel?: string | null
+          celular?: string | null
+          cliente_desde?: string | null
+          cnpj?: string | null
+          codigo_bling?: string | null
           codigo_cliente?: number
           consultor?: string | null
           created_at?: string
+          email?: string | null
+          email_nfse?: string | null
+          fone?: string | null
           id?: string
+          municipio?: string | null
           nome_cliente?: string
+          nome_fantasia?: string | null
           observacoes_cliente?: string | null
           regiao?: string | null
+          responsavel_principal?: string | null
           status_cliente?: string | null
           tipo_ug?: string | null
+          uf?: string | null
           updated_at?: string
         }
         Relationships: []
