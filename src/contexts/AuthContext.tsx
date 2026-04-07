@@ -166,9 +166,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       (_event, session) => {
         if (!mounted) return;
         console.log("[Auth] onAuthStateChange event:", _event);
+        const isRefresh = _event === "TOKEN_REFRESHED";
         // Use setTimeout to avoid Supabase internal deadlock
         setTimeout(() => {
-          if (mounted) hydrateUser(session?.user ?? null, session?.access_token ?? null);
+          if (mounted) hydrateUser(session?.user ?? null, session?.access_token ?? null, isRefresh);
         }, 0);
       }
     );
