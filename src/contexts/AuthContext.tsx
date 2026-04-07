@@ -95,6 +95,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [user, profile, role, accessToken]);
 
   const clearAuthState = useCallback(() => {
+    userRef.current = null;
+    profileRef.current = null;
+    roleRef.current = null;
+    accessTokenRef.current = null;
     setUser(null);
     setProfile(null);
     setRole(null);
@@ -119,11 +123,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // If this is a token refresh and we already have profile data, just update token — don't re-fetch
     if (isRefresh && profileRef.current) {
       console.log("[Auth] Token refresh — keeping existing profile, updating token only");
+      userRef.current = currentUser;
+      accessTokenRef.current = token;
       setUser(currentUser);
       setAccessToken(token);
       return;
     }
 
+    userRef.current = currentUser;
+    accessTokenRef.current = token;
     setUser(currentUser);
     setAccessToken(token);
     setLoading(true);
@@ -147,6 +155,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       console.log("[Auth] Hydrated - profile:", !!profileData, "role:", roleData, "active:", profileData?.is_active);
       manualSignOutRef.current = false;
+      profileRef.current = profileData;
+      roleRef.current = roleData;
       setProfile(profileData);
       setRole(roleData);
       if (!profileData) {
@@ -156,6 +166,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       clearTimeout(timeout);
       if (thisRequest !== requestIdRef.current) return;
       console.error("[Auth] Hydration error:", e?.name === "AbortError" ? "timeout" : e);
+      profileRef.current = null;
+      roleRef.current = null;
       setProfile(null);
       setRole(null);
       setAuthError("Erro ao carregar dados do usuário.");
