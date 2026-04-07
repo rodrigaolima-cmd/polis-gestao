@@ -80,10 +80,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [authError, setAuthError] = useState<string | null>(null);
 
   const requestIdRef = useRef(0);
+  const profileRef = useRef<Profile | null>(null);
 
-  const hydrateUser = useCallback(async (currentUser: User | null, token: string | null) => {
+  // Keep ref in sync
+  useEffect(() => { profileRef.current = profile; }, [profile]);
+
+  const hydrateUser = useCallback(async (currentUser: User | null, token: string | null, isRefresh = false) => {
     const thisRequest = ++requestIdRef.current;
-    console.log("[Auth] hydrateUser requestId:", thisRequest, "user:", currentUser?.id ?? "null");
+    console.log("[Auth] hydrateUser requestId:", thisRequest, "user:", currentUser?.id ?? "null", "isRefresh:", isRefresh);
     setAuthError(null);
 
     if (!currentUser || !token) {
@@ -95,6 +99,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setProfileLoaded(true);
         setLoading(false);
       }
+      return;
+    }
+
+    // If this is a token refresh and we already have profile data, just update token — don't re-fetch
+    if (isRefresh && profileRef.current) {
+      console.log("[Auth] Token refresh — keeping existing profile, updating token only");
+      setUser(currentUser);
+      setAccessToken(token);
       return;
     }
 
@@ -158,9 +170,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       (_event, session) => {
         if (!mounted) return;
         console.log("[Auth] onAuthStateChange event:", _event);
+
+        // Ignore spurious SIGNED_OUT events when we still have a profile (tab switch artifact)
+        if (_event === "SIGNED_OUT" && profileRef.current) {
+          console.log("[Auth] Ignoring spurious SIGNED_OUT — profile still loaded");
+          return;
+        }
+
+        const isRefresh = _event === "TOKEN_REFRESHED";
         // Use setTimeout to avoid Supabase internal deadlock
         setTimeout(() => {
-          if (mounted) hydrateUser(session?.user ?? null, session?.access_token ?? null);
+          if (mounted) hydrateUser(session?.user ?? null, session?.access_token ?? null, isRefresh);
         }, 0);
       }
     );
@@ -186,6 +206,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const handleSignOut = useCallback(async () => {
     requestIdRef.current++;
+    profileRef.current = null;
     setUser(null);
     setProfile(null);
     setRole(null);
