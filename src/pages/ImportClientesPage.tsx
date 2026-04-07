@@ -296,7 +296,7 @@ export default function ImportClientesPage() {
           if (r.nome && !c.nome_cliente) payload.nome_cliente = r.nome;
 
           if (Object.keys(payload).length > 0) {
-            const { error } = await supabase.from("clients").update(payload).eq("id", c.id);
+            const { error } = await supabase.from("clients").update(payload as any).eq("id", c.id);
             if (error) throw error;
             await logAction("import_update", "client", c.id, { source: fileName, fields: Object.keys(payload) });
           }
