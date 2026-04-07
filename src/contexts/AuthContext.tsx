@@ -170,6 +170,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       (_event, session) => {
         if (!mounted) return;
         console.log("[Auth] onAuthStateChange event:", _event);
+
+        // Ignore spurious SIGNED_OUT events when we still have a profile (tab switch artifact)
+        if (_event === "SIGNED_OUT" && profileRef.current) {
+          console.log("[Auth] Ignoring spurious SIGNED_OUT — profile still loaded");
+          return;
+        }
+
         const isRefresh = _event === "TOKEN_REFRESHED";
         // Use setTimeout to avoid Supabase internal deadlock
         setTimeout(() => {
