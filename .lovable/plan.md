@@ -1,44 +1,75 @@
 
 
-## Correções: Toggle tema mobile + Contagem de módulos
+## Expandir cadastro de Clientes — novos campos para migração Polis Hub / Bling
 
-### Problema 1: Toggle dark/light mode invisível em mobile/tablet
+### 1. Migration — adicionar colunas na tabela `clients`
 
-O botão de tema tem `hidden sm:flex`, ou seja, fica oculto abaixo de 640px. Mas no tablet (até 768px) ele aparece — o problema real é que em telas menores que 640px não há toggle.
+```sql
+ALTER TABLE public.clients
+  ADD COLUMN IF NOT EXISTS codigo_bling text DEFAULT '',
+  ADD COLUMN IF NOT EXISTS nome_fantasia text DEFAULT '',
+  ADD COLUMN IF NOT EXISTS cnpj text DEFAULT '',
+  ADD COLUMN IF NOT EXISTS fone text DEFAULT '',
+  ADD COLUMN IF NOT EXISTS celular text DEFAULT '',
+  ADD COLUMN IF NOT EXISTS email text DEFAULT '',
+  ADD COLUMN IF NOT EXISTS email_nfse text DEFAULT '',
+  ADD COLUMN IF NOT EXISTS cliente_desde date,
+  ADD COLUMN IF NOT EXISTS municipio text DEFAULT '',
+  ADD COLUMN IF NOT EXISTS uf text DEFAULT '',
+  ADD COLUMN IF NOT EXISTS responsavel_principal text DEFAULT '',
+  ADD COLUMN IF NOT EXISTS cargo_responsavel text DEFAULT '';
+```
 
-**Solução**: Adicionar opção de toggle de tema no `MobileMenu.tsx` (menu lateral mobile), com ícone Sun/Moon. Também no `AppLayout.tsx`, trocar `hidden sm:flex` por `flex` para mostrar o ícone (sem texto) em todas as telas, ou alternativamente manter apenas no mobile menu.
+Todos nullable/default vazio — registros existentes não são afetados.
 
-Abordagem escolhida: **ambas** — manter botão no header visível em todas as telas (só ícone em mobile) + adicionar no menu mobile para redundância.
+### 2. ClienteForm.tsx — reformular com seções
 
-**Arquivos**:
-- `src/components/layout/AppLayout.tsx` — linha 50: trocar `hidden sm:flex` por `flex`
-- `src/components/MobileMenu.tsx` — adicionar item "Modo Claro/Escuro" com Sun/Moon antes do botão Sair, importando `useTheme`
+Expandir o modal para `max-w-2xl` com scroll e organizar em 4 seções visuais:
 
-### Problema 2: Dashboard mostra 976 registros mas Total Módulos mostra 975
+**Dados Principais**: Nome do Cliente*, Nome Fantasia, Tipo UG, Região, Consultor, Status, Código Bling, Cliente desde (datepicker)
 
-O subtitle diz "976 registros" (= `contracts.length`, linhas individuais do banco). O KPI "Total Módulos" soma `productCount` por cliente consolidado, que é `products.length` (produtos únicos por cliente). Se um cliente tem 2 linhas com o mesmo produto, conta como 1 módulo — daí a diferença.
+**Dados Cadastrais / Fiscais**: CNPJ (com máscara XX.XXX.XXX/XXXX-XX), Município, UF (select com 27 UFs), Responsável principal, Cargo do responsável
 
-O "976 registros" é o total de linhas de contrato (correto para o subtitle). O "975 módulos" é o total de módulos únicos por cliente (correto para o KPI). São métricas diferentes.
+**Contato**: Fone (máscara XX-XXXX XXXX), Celular (máscara XX-XXXX XXXX), E-mail (validação formato), E-mail NFSe (com botão "Copiar e-mail principal")
 
-**Solução**: Melhorar o subtitle do KPI "Total Módulos" para deixar claro que são módulos únicos, e ajustar o subtitle do dashboard para dizer "registros" sem confundir com módulos.
+**Observações**: Textarea existente
 
-- `src/components/dashboard/Dashboard.tsx` — linha 57: manter cálculo, mas no KPI subtitle trocar `${clients.length} clientes` para algo mais descritivo
-- Linha 133: manter subtitle como está (é correto)
+- Atualizar `ClienteData` interface com todos os novos campos
+- Atualizar `handleSave` para incluir novos campos no insert/update
+- Validação de CNPJ (formato) e e-mail (formato) antes de salvar
+- Máscaras aplicadas via `onChange` handlers (sem lib externa)
 
-Na verdade, a discrepância é esperada e correta. Vou apenas deixar os labels mais claros para evitar confusão.
+### 3. ClientesPage.tsx — adicionar colunas na tabela
 
-**Arquivos afetados**:
-- `src/components/dashboard/Dashboard.tsx` — KPI subtitle "Total Módulos": adicionar "(únicos)" ou similar
-- Alternativa: usar `filteredContracts.length` para igualar, mas isso mudaria a semântica
+Atualizar `ClientRow` interface e `loadClients` para trazer os novos campos.
 
-**Recomendação**: Trocar o subtitle do dashboard de `${contracts.length} registros` para `${contracts.length} contratos` e no KPI Total Módulos manter `${clients.length} clientes`. O número diferente (976 vs 975) se explica por produtos duplicados no mesmo cliente. Isso é correto e não deve ser alterado — apenas melhorar a clareza dos labels.
+Novas colunas na tabela (entre as existentes):
+- Nome Fantasia (após Cliente)
+- CNPJ (após Consultor)
+- E-mail (após CNPJ)
+- Celular (após E-mail)
 
-### Resumo de mudanças
+Remover colunas financeiras da listagem principal (Contratado, Faturado, Diferença) para dar espaço — esses dados ficam no detalhe do cliente.
 
-1. **`src/components/layout/AppLayout.tsx`** — Remover `hidden sm:` do botão de tema para que o ícone apareça em todas as telas
-2. **`src/components/MobileMenu.tsx`** — Adicionar toggle de tema (Sun/Moon) no menu lateral mobile, importando `useTheme`
-3. **`src/components/dashboard/Dashboard.tsx`** — Ajustar subtitle para `contratos` em vez de `registros` para evitar confusão com contagem de módulos
+Busca expandida: incluir nome_fantasia, cnpj, email no filtro de busca.
+
+### 4. ClienteDetailPage.tsx — exibir novos campos
+
+Expandir o grid de informações do cliente para mostrar todos os campos novos organizados nas mesmas seções do formulário.
+
+### 5. Arquivos afetados
+
+| Arquivo | Alteração |
+|---------|-----------|
+| Migration SQL | 12 novas colunas |
+| `src/components/clientes/ClienteForm.tsx` | Reformular com seções e novos campos |
+| `src/pages/ClientesPage.tsx` | Novas colunas, busca expandida |
+| `src/pages/ClienteDetailPage.tsx` | Exibir novos campos no detalhe |
 
 ### O que NÃO muda
-- Cálculos, lógica de negócio, dados, RLS, edge functions
-- Layout geral, cores, tipografia existente
+- Lógica de negócio (cálculos, validações, cascade inactivation)
+- RLS policies, edge functions, outras tabelas
+- Dashboard, módulos, relatórios
+- Layout (sidebar, header, tema)
+- Fluxo de região/consultor com select + "Outro"
+
