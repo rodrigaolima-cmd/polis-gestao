@@ -245,7 +245,7 @@ export default function ConfiguracoesPage() {
                   <UserPlus className="h-4 w-4" /> <span className="hidden sm:inline">Novo Usuário</span><span className="sm:hidden">Novo</span>
                 </Button>
               </DialogTrigger>
-              <DialogContent>
+              <DialogContent onClose={() => createUserModal.close()}>
                 <DialogHeader>
                   <DialogTitle>Criar Novo Usuário</DialogTitle>
                 </DialogHeader>
@@ -352,7 +352,7 @@ export default function ConfiguracoesPage() {
         </Card>
 
         <Dialog open={editUser !== null && editUserModal.isOpen} onOpenChange={(open) => { if (!open) return; }}>
-          <DialogContent>
+          <DialogContent onClose={() => { setEditUser(null); editUserModal.close(); }}>
             <DialogHeader>
               <DialogTitle>Editar Usuário</DialogTitle>
             </DialogHeader>

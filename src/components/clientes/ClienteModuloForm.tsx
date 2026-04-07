@@ -231,7 +231,7 @@ export function ClienteModuloForm({ open, onOpenChange, clientId, existingModule
 
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) return; onOpenChange(v); }}>
-      <DialogContent className="max-w-lg bg-card border-border max-h-[85vh] overflow-y-auto">
+      <DialogContent className="max-w-lg bg-card border-border max-h-[85vh] overflow-y-auto" onClose={handleCancel}>
         <DialogHeader>
           <DialogTitle>{isEditing ? "Editar Módulo" : "Adicionar Módulo"}</DialogTitle>
           <DialogDescription>Configure o vínculo do módulo com o cliente.</DialogDescription>

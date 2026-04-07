@@ -80,7 +80,7 @@ export function CopyDatesDialog({
 
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) return; handleOpenChange(v); }}>
-      <DialogContent className="max-w-md bg-card border-border">
+      <DialogContent className="max-w-md bg-card border-border" onClose={() => onOpenChange(false)}>
         <DialogHeader>
           <DialogTitle>Aplicar datas para todos os sistemas</DialogTitle>
           <DialogDescription>
