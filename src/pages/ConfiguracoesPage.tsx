@@ -15,6 +15,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { toast } from "sonner";
 import { UserPlus, Shield, User as UserIcon, Wrench } from "lucide-react";
 import ModuloCatalogo from "@/components/configuracoes/ModuloCatalogo";
+import UgTypeCatalogo from "@/components/configuracoes/UgTypeCatalogo";
 import { AppLayout } from "@/components/layout/AppLayout";
 
 interface UserProfile {
@@ -416,6 +417,8 @@ export default function ConfiguracoesPage() {
         </Card>
 
         <ModuloCatalogo />
+
+        <UgTypeCatalogo />
       </div>
     </AppLayout>
   );
