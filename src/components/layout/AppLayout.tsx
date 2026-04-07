@@ -22,12 +22,12 @@ export function AppLayout({ children, title, subtitle, headerActions, onImport }
 
   return (
     <SidebarProvider>
-      <div className="min-h-screen flex w-full">
+      <div className="h-svh flex w-full overflow-hidden">
         <AppSidebar />
 
-        <div className="flex-1 flex flex-col min-w-0 overflow-auto">
+        <div className="flex-1 flex flex-col min-w-0 min-h-0">
           {/* Top header bar */}
-          <header className="border-b border-border/50 bg-card/50 backdrop-blur-xl sticky top-0 z-50">
+          <header className="border-b border-border/50 bg-card/50 backdrop-blur-xl sticky top-0 z-50 flex-shrink-0">
             <div className="px-4 sm:px-6 py-3 flex items-center justify-between gap-3">
               <div className="flex items-center gap-2 min-w-0">
                 {/* Mobile menu */}
@@ -69,7 +69,7 @@ export function AppLayout({ children, title, subtitle, headerActions, onImport }
           </header>
 
           {/* Main content */}
-          <main className="flex-1 p-4 sm:p-6">
+          <main className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-6">
             {children}
           </main>
         </div>
