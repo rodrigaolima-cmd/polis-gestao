@@ -1,48 +1,25 @@
 
 
-## Fix: X button not closing modals
+## Criar cliente "Prefeitura Municipal de Guanhães" com código 47
 
-### Root cause
+### O que será feito
 
-Each modal form blocks Radix's `onOpenChange(false)` to prevent accidental closes:
-```tsx
-// ClienteForm, ClienteModuloForm, ClienteMultiModuloForm, CopyDatesDialog
-<Dialog open={open} onOpenChange={(v) => { if (!v) return; onOpenChange(v); }}>
+1. **Inserir no banco** o cliente com:
+   - `codigo_cliente`: 47 (forçado)
+   - `nome_cliente`: Prefeitura Municipal de Guanhães
+   - `codigo_bling`: 64
+   - Demais campos com valores padrão
+
+2. **Nenhuma alteração de código** necessária — o cliente aparecerá automaticamente na listagem de Clientes e no Dashboard assim que inserido, pois as telas já buscam da tabela `clients`.
+
+### SQL a executar
+
+```sql
+INSERT INTO clients (codigo_cliente, nome_cliente, codigo_bling)
+VALUES (47, 'Prefeitura Municipal de Guanhães', '64');
 ```
 
-The built-in X button (`DialogPrimitive.Close` in `dialog.tsx` line 50) works by triggering Radix's internal close, which calls `onOpenChange(false)` — but that's blocked. So the X does nothing.
-
-### Solution
-
-Add an optional `onClose` prop to `DialogContent`. When provided, replace the default `DialogPrimitive.Close` with a plain `<button>` that calls `onClose()` directly, bypassing Radix's blocked `onOpenChange`.
-
-### Changes
-
-**1. `src/components/ui/dialog.tsx`**
-- Add `onClose?: () => void` to `DialogContent` props
-- If `onClose` is provided, render a manual `<button onClick={onClose}>` instead of `DialogPrimitive.Close`
-- If not provided, keep existing `DialogPrimitive.Close` (backward compatible)
-
-**2. `src/components/clientes/ClienteForm.tsx`**
-- Pass `onClose={handleCancel}` to `DialogContent`
-
-**3. `src/components/clientes/ClienteModuloForm.tsx`**
-- Pass `onClose={handleCancel}` to `DialogContent`
-
-**4. `src/components/clientes/ClienteMultiModuloForm.tsx`**
-- Add a `handleCancel` that clears draft and calls `onOpenChange(false)`
-- Pass `onClose={handleCancel}` to `DialogContent`
-
-**5. `src/components/clientes/CopyDatesDialog.tsx`**
-- Pass `onClose={() => onOpenChange(false)}` to `DialogContent`
-
-**6. `src/pages/ConfiguracoesPage.tsx`**
-- For any user/UG-type modals, pass `onClose` to `DialogContent`
-
-### What does NOT change
-- Modal persistence logic
-- Draft persistence
-- Auth context
-- Layout, business logic, save behavior
-- Cancelar and Salvar behavior (already working)
+### Observação
+- O cliente será criado sem módulos vinculados, então aparecerá na lista de Clientes (119 → 120) mas não no Dashboard até que módulos sejam adicionados.
+- Nenhum arquivo de código será alterado.
 
