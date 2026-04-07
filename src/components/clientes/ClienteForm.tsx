@@ -12,7 +12,7 @@ import { toast } from "sonner";
 import { CalendarIcon, Copy } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
-import { ScrollArea } from "@/components/ui/scroll-area";
+
 
 interface ClienteData {
   id?: string;
@@ -209,13 +209,13 @@ export function ClienteForm({ open, onOpenChange, cliente, onSaved }: ClienteFor
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl bg-card border-border max-h-[90vh] p-0 flex flex-col">
-        <DialogHeader className="px-6 pt-6 pb-2">
+      <DialogContent className="max-w-2xl bg-card border-border max-h-[90vh] p-0 flex flex-col overflow-hidden">
+        <DialogHeader className="px-6 pt-6 pb-2 flex-shrink-0">
           <DialogTitle>{cliente?.id ? "Editar Cliente" : "Novo Cliente"}</DialogTitle>
           <DialogDescription>Preencha os dados do cliente.</DialogDescription>
         </DialogHeader>
-        <ScrollArea className="flex-1 px-6 pb-6">
-          <div className="space-y-4 pr-2">
+        <div className="flex-1 min-h-0 overflow-y-auto px-6 pb-6">
+          <div className="space-y-4">
             {/* === DADOS PRINCIPAIS === */}
             <SectionTitle>Dados Principais</SectionTitle>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -394,7 +394,7 @@ export function ClienteForm({ open, onOpenChange, cliente, onSaved }: ClienteFor
               <Button size="sm" onClick={handleSave} disabled={saving}>{saving ? "Salvando..." : "Salvar"}</Button>
             </div>
           </div>
-        </ScrollArea>
+        </div>
       </DialogContent>
     </Dialog>
   );
