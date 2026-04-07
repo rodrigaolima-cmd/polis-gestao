@@ -114,11 +114,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setAuthError(null);
 
     if (!currentUser || !token) {
-      // Only clear state on explicit manual sign-out
-      if (manualSignOutRef.current && thisRequest === requestIdRef.current) {
-        clearAuthState();
+      // If manual sign-out OR no existing snapshot, clear state to finalize loading
+      if (manualSignOutRef.current || !userRef.current) {
+        if (thisRequest === requestIdRef.current) {
+          clearAuthState();
+        }
       }
-      // Otherwise keep existing snapshot — do NOT clear
+      // If there IS a snapshot but no manual sign-out, keep existing state (tab switch protection)
       return;
     }
 
