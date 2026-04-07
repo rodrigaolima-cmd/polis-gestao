@@ -115,8 +115,6 @@ export function ClienteForm({ open, onOpenChange, cliente, onSaved, persistKey }
   const [saving, setSaving] = useState(false);
   const [regioes, setRegioes] = useState<string[]>([]);
   const [consultores, setConsultores] = useState<string[]>([]);
-  const [regiaoManual, setRegiaoManual] = useState(false);
-  const [consultorManual, setConsultorManual] = useState(false);
   const [ugTypes, setUgTypes] = useState<string[]>([]);
   const [initialized, setInitialized] = useState(false);
 
@@ -154,8 +152,6 @@ export function ClienteForm({ open, onOpenChange, cliente, onSaved, persistKey }
     } else {
       setForm({ ...EMPTY_FORM });
     }
-    setRegiaoManual(false);
-    setConsultorManual(false);
     setInitialized(true);
   }, [open, cliente, initialized]);
 
@@ -290,46 +286,26 @@ export function ClienteForm({ open, onOpenChange, cliente, onSaved, persistKey }
               {/* Região */}
               <div className="space-y-1.5">
                 <Label className="text-xs">Região</Label>
-                {regiaoManual || regioes.length === 0 ? (
-                  <div className="flex gap-1">
-                    <Input value={form.regiao} onChange={(e) => setForm({ ...form, regiao: e.target.value })} placeholder="Digitar região" className="h-9 text-xs" />
-                    {regioes.length > 0 && (
-                      <Button type="button" variant="ghost" size="sm" className="h-9 text-[10px] px-2 shrink-0" onClick={() => setRegiaoManual(false)}>Lista</Button>
-                    )}
-                  </div>
-                ) : (
-                  <Select value={regiaoInList ? form.regiao : (form.regiao ? "__custom__" : "none")} onValueChange={(v) => { if (v === "__other__") setRegiaoManual(true); else if (v === "none") setForm({ ...form, regiao: "" }); else setForm({ ...form, regiao: v }); }}>
-                    <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Selecionar região" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">— Selecionar —</SelectItem>
-                      {!regiaoInList && form.regiao && <SelectItem value="__custom__">{form.regiao}</SelectItem>}
-                      {regioes.map((r) => <SelectItem key={r} value={r}>{r}</SelectItem>)}
-                      <SelectItem value="__other__">Outro...</SelectItem>
-                    </SelectContent>
-                  </Select>
-                )}
+                <Select value={regiaoInList ? form.regiao : (form.regiao ? "__custom__" : "none")} onValueChange={(v) => { if (v === "none") setForm({ ...form, regiao: "" }); else setForm({ ...form, regiao: v }); }}>
+                  <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Selecionar região" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">— Selecionar —</SelectItem>
+                    {!regiaoInList && form.regiao && <SelectItem value="__custom__">{form.regiao}</SelectItem>}
+                    {regioes.map((r) => <SelectItem key={r} value={r}>{r}</SelectItem>)}
+                  </SelectContent>
+                </Select>
               </div>
               {/* Consultor */}
               <div className="space-y-1.5">
                 <Label className="text-xs">Consultor</Label>
-                {consultorManual || consultores.length === 0 ? (
-                  <div className="flex gap-1">
-                    <Input value={form.consultor} onChange={(e) => setForm({ ...form, consultor: e.target.value })} placeholder="Digitar consultor" className="h-9 text-xs" />
-                    {consultores.length > 0 && (
-                      <Button type="button" variant="ghost" size="sm" className="h-9 text-[10px] px-2 shrink-0" onClick={() => setConsultorManual(false)}>Lista</Button>
-                    )}
-                  </div>
-                ) : (
-                  <Select value={consultorInList ? form.consultor : (form.consultor ? "__custom__" : "none")} onValueChange={(v) => { if (v === "__other__") setConsultorManual(true); else if (v === "none") setForm({ ...form, consultor: "" }); else setForm({ ...form, consultor: v }); }}>
-                    <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Selecionar consultor" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">— Selecionar —</SelectItem>
-                      {!consultorInList && form.consultor && <SelectItem value="__custom__">{form.consultor}</SelectItem>}
-                      {consultores.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
-                      <SelectItem value="__other__">Outro...</SelectItem>
-                    </SelectContent>
-                  </Select>
-                )}
+                <Select value={consultorInList ? form.consultor : (form.consultor ? "__custom__" : "none")} onValueChange={(v) => { if (v === "none") setForm({ ...form, consultor: "" }); else setForm({ ...form, consultor: v }); }}>
+                  <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Selecionar consultor" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">— Selecionar —</SelectItem>
+                    {!consultorInList && form.consultor && <SelectItem value="__custom__">{form.consultor}</SelectItem>}
+                    {consultores.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                  </SelectContent>
+                </Select>
               </div>
               <div className="space-y-1.5">
                 <Label className="text-xs">Status</Label>
