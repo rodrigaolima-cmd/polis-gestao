@@ -10,22 +10,22 @@ import { ClienteForm } from "@/components/clientes/ClienteForm";
 import { ClientesReportDialog } from "@/components/clientes/ClientesReportDialog";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Plus, Search, Eye, Pencil, FileText } from "lucide-react";
-import { formatCurrency, formatDate, getDaysToExpire, getExpirationStatus } from "@/utils/contractUtils";
 import { normalizeForSearch, fixMojibake } from "@/utils/textUtils";
 
 interface ClientRow {
   id: string;
   codigo_cliente: number | null;
   nome_cliente: string;
+  nome_fantasia: string;
   tipo_ug: string;
   regiao: string;
   consultor: string;
   status_cliente: string;
   observacoes_cliente: string;
+  cnpj: string;
+  email: string;
+  celular: string;
   modules_count: number;
-  total_contratado: number;
-  total_faturado: number;
-  proximo_vencimento: string | null;
 }
 
 export default function ClientesPage() {
@@ -55,43 +55,30 @@ export default function ClientesPage() {
 
       const { data: modulesData } = await supabase
         .from("client_modules")
-        .select("client_id, valor_contratado, valor_faturado, vencimento_contrato, ativo_no_cliente");
+        .select("client_id, ativo_no_cliente");
 
-      const modulesByClient = new Map<string, typeof modulesData>();
+      const moduleCounts = new Map<string, number>();
       (modulesData || []).forEach((m: any) => {
-        const existing = modulesByClient.get(m.client_id) || [];
-        existing.push(m);
-        modulesByClient.set(m.client_id, existing);
+        if (m.ativo_no_cliente) {
+          moduleCounts.set(m.client_id, (moduleCounts.get(m.client_id) || 0) + 1);
+        }
       });
 
-      const result: ClientRow[] = (clientsData || []).map((c: any) => {
-        const mods = modulesByClient.get(c.id) || [];
-        const activeMods = mods.filter((m: any) => m.ativo_no_cliente);
-        const totalContratado = mods.reduce((s: number, m: any) => s + (Number(m.valor_contratado) || 0), 0);
-        const totalFaturado = mods.reduce((s: number, m: any) => {
-          if (m.ativo_no_cliente === false) return s;
-          return s + (Number(m.valor_faturado) || 0);
-        }, 0);
-        const vencimentos = mods
-          .map((m: any) => m.vencimento_contrato)
-          .filter(Boolean)
-          .sort();
-
-        return {
-          id: c.id,
-          codigo_cliente: c.codigo_cliente ?? null,
-          nome_cliente: fixMojibake(c.nome_cliente),
-          tipo_ug: fixMojibake(c.tipo_ug || ""),
-          regiao: fixMojibake(c.regiao || ""),
-          consultor: fixMojibake(c.consultor || ""),
-          status_cliente: c.status_cliente || "Ativo",
-          observacoes_cliente: fixMojibake(c.observacoes_cliente || ""),
-          modules_count: activeMods.length,
-          total_contratado: totalContratado,
-          total_faturado: totalFaturado,
-          proximo_vencimento: vencimentos[0] || null,
-        };
-      });
+      const result: ClientRow[] = (clientsData || []).map((c: any) => ({
+        id: c.id,
+        codigo_cliente: c.codigo_cliente ?? null,
+        nome_cliente: fixMojibake(c.nome_cliente),
+        nome_fantasia: fixMojibake(c.nome_fantasia || ""),
+        tipo_ug: fixMojibake(c.tipo_ug || ""),
+        regiao: fixMojibake(c.regiao || ""),
+        consultor: fixMojibake(c.consultor || ""),
+        status_cliente: c.status_cliente || "Ativo",
+        observacoes_cliente: fixMojibake(c.observacoes_cliente || ""),
+        cnpj: c.cnpj || "",
+        email: c.email || "",
+        celular: c.celular || "",
+        modules_count: moduleCounts.get(c.id) || 0,
+      }));
 
       setClients(result);
     } catch (err) {
@@ -110,7 +97,11 @@ export default function ClientesPage() {
 
   const filtered = useMemo(() => {
     return clients.filter(c => {
-      if (search && !normalizeForSearch(c.nome_cliente).includes(normalizeForSearch(search))) return false;
+      if (search) {
+        const term = normalizeForSearch(search);
+        const fields = [c.nome_cliente, c.nome_fantasia, c.cnpj, c.email].map(normalizeForSearch);
+        if (!fields.some(f => f.includes(term))) return false;
+      }
       if (filterRegiao && c.regiao !== filterRegiao) return false;
       if (filterConsultor && c.consultor !== filterConsultor) return false;
       if (filterUG && c.tipo_ug !== filterUG) return false;
@@ -147,7 +138,7 @@ export default function ClientesPage() {
         <div className="flex flex-wrap gap-2 sm:gap-3 items-end">
           <div className="relative flex-1 min-w-[160px]">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-            <Input placeholder="Buscar por nome..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9 h-9 text-xs" />
+            <Input placeholder="Buscar por nome, fantasia, CNPJ, e-mail..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9 h-9 text-xs" />
           </div>
           <Select value={filterRegiao || "all"} onValueChange={(v) => setFilterRegiao(v === "all" ? "" : v)}>
             <SelectTrigger className="h-9 w-[130px] sm:w-[150px] text-xs"><SelectValue placeholder="Região" /></SelectTrigger>
@@ -189,72 +180,56 @@ export default function ClientesPage() {
               <TableRow className="border-border/30">
                 <TableHead className="text-xs text-center w-[70px]">Código</TableHead>
                 <TableHead className="text-xs">Cliente</TableHead>
-                <TableHead className="text-xs">Tipo UG</TableHead>
-                <TableHead className="text-xs">Região</TableHead>
-                <TableHead className="text-xs">Consultor</TableHead>
-                <TableHead className="text-xs text-center">Módulos</TableHead>
-                <TableHead className="text-xs text-right">Contratado</TableHead>
-                <TableHead className="text-xs text-right">Faturado</TableHead>
-                <TableHead className="text-xs text-right">Diferença</TableHead>
-                <TableHead className="text-xs">Vencimento</TableHead>
+                <TableHead className="text-xs hidden lg:table-cell">Nome Fantasia</TableHead>
+                <TableHead className="text-xs hidden md:table-cell">Tipo UG</TableHead>
+                <TableHead className="text-xs hidden md:table-cell">Região</TableHead>
+                <TableHead className="text-xs hidden lg:table-cell">Consultor</TableHead>
+                <TableHead className="text-xs hidden xl:table-cell">CNPJ</TableHead>
+                <TableHead className="text-xs hidden xl:table-cell">E-mail</TableHead>
+                <TableHead className="text-xs hidden xl:table-cell">Celular</TableHead>
                 <TableHead className="text-xs text-center">Status</TableHead>
                 <TableHead className="text-xs text-center">Ações</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {loading ? (
-                <TableRow><TableCell colSpan={12} className="text-center text-xs text-muted-foreground py-8">Carregando...</TableCell></TableRow>
+                <TableRow><TableCell colSpan={11} className="text-center text-xs text-muted-foreground py-8">Carregando...</TableCell></TableRow>
               ) : loadError ? (
-                <TableRow><TableCell colSpan={12} className="text-center py-8">
+                <TableRow><TableCell colSpan={11} className="text-center py-8">
                   <p className="text-xs text-destructive mb-2">Erro ao carregar dados</p>
                   <Button variant="outline" size="sm" onClick={loadClients} className="text-xs">Tentar novamente</Button>
                 </TableCell></TableRow>
               ) : filtered.length === 0 ? (
-                <TableRow><TableCell colSpan={12} className="text-center text-xs text-muted-foreground py-8">Nenhum cliente encontrado</TableCell></TableRow>
+                <TableRow><TableCell colSpan={11} className="text-center text-xs text-muted-foreground py-8">Nenhum cliente encontrado</TableCell></TableRow>
               ) : (
-                filtered.map((c) => {
-                  const diff = c.total_contratado - c.total_faturado;
-                  const days = c.proximo_vencimento ? getDaysToExpire(c.proximo_vencimento) : null;
-                  const expStatus = days !== null ? getExpirationStatus(days) : null;
-
-                  return (
-                    <TableRow key={c.id} className="border-border/20 hover:bg-muted/30 cursor-pointer" onClick={() => navigate(`/clientes/${c.id}`)}>
-                      <TableCell className="text-xs text-center text-muted-foreground">{c.codigo_cliente ?? "—"}</TableCell>
-                      <TableCell className="text-xs font-medium">{c.nome_cliente}</TableCell>
-                      <TableCell className="text-xs text-muted-foreground">{c.tipo_ug}</TableCell>
-                      <TableCell className="text-xs text-muted-foreground">{c.regiao}</TableCell>
-                      <TableCell className="text-xs text-muted-foreground">{c.consultor}</TableCell>
-                      <TableCell className="text-xs text-center">{c.modules_count}</TableCell>
-                      <TableCell className="text-xs text-right mono">{formatCurrency(c.total_contratado)}</TableCell>
-                      <TableCell className="text-xs text-right mono">{formatCurrency(c.total_faturado)}</TableCell>
-                      <TableCell className={`text-xs text-right mono ${diff > 0 ? "text-warning" : diff < 0 ? "text-danger" : ""}`}>
-                        {formatCurrency(diff)}
-                      </TableCell>
-                      <TableCell className="text-xs">
-                        {c.proximo_vencimento ? (
-                          <span className={expStatus === "expired" ? "text-danger" : expStatus === "critical" ? "text-danger" : expStatus === "warning" ? "text-warning" : ""}>
-                            {formatDate(c.proximo_vencimento)}
-                          </span>
-                        ) : "—"}
-                      </TableCell>
-                      <TableCell className="text-center">
-                        <Badge variant="outline" className={`text-[10px] ${c.status_cliente === "Ativo" ? "bg-success/10 text-success border-success/30" : c.status_cliente === "Prospect" ? "bg-info/10 text-info border-info/30" : "bg-muted text-muted-foreground"}`}>
-                          {c.status_cliente}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-center">
-                        <div className="flex items-center justify-center gap-1" onClick={(e) => e.stopPropagation()}>
-                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => navigate(`/clientes/${c.id}`)}>
-                            <Eye className="h-3.5 w-3.5" />
-                          </Button>
-                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleEdit(c)}>
-                            <Pencil className="h-3.5 w-3.5" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })
+                filtered.map((c) => (
+                  <TableRow key={c.id} className="border-border/20 hover:bg-muted/30 cursor-pointer" onClick={() => navigate(`/clientes/${c.id}`)}>
+                    <TableCell className="text-xs text-center text-muted-foreground">{c.codigo_cliente ?? "—"}</TableCell>
+                    <TableCell className="text-xs font-medium">{c.nome_cliente}</TableCell>
+                    <TableCell className="text-xs text-muted-foreground hidden lg:table-cell">{c.nome_fantasia || "—"}</TableCell>
+                    <TableCell className="text-xs text-muted-foreground hidden md:table-cell">{c.tipo_ug || "—"}</TableCell>
+                    <TableCell className="text-xs text-muted-foreground hidden md:table-cell">{c.regiao || "—"}</TableCell>
+                    <TableCell className="text-xs text-muted-foreground hidden lg:table-cell">{c.consultor || "—"}</TableCell>
+                    <TableCell className="text-xs text-muted-foreground hidden xl:table-cell">{c.cnpj || "—"}</TableCell>
+                    <TableCell className="text-xs text-muted-foreground hidden xl:table-cell">{c.email || "—"}</TableCell>
+                    <TableCell className="text-xs text-muted-foreground hidden xl:table-cell">{c.celular || "—"}</TableCell>
+                    <TableCell className="text-center">
+                      <Badge variant="outline" className={`text-[10px] ${c.status_cliente === "Ativo" ? "bg-success/10 text-success border-success/30" : c.status_cliente === "Prospect" ? "bg-info/10 text-info border-info/30" : "bg-muted text-muted-foreground"}`}>
+                        {c.status_cliente}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <div className="flex items-center justify-center gap-1" onClick={(e) => e.stopPropagation()}>
+                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => navigate(`/clientes/${c.id}`)}>
+                          <Eye className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleEdit(c)}>
+                          <Pencil className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))
               )}
             </TableBody>
           </Table>

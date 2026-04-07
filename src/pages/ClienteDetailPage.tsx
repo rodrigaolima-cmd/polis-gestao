@@ -18,11 +18,23 @@ interface ClientData {
   id: string;
   codigo_cliente: number | null;
   nome_cliente: string;
+  nome_fantasia: string;
   tipo_ug: string;
   regiao: string;
   consultor: string;
   status_cliente: string;
   observacoes_cliente: string;
+  codigo_bling: string;
+  cliente_desde: string;
+  cnpj: string;
+  municipio: string;
+  uf: string;
+  responsavel_principal: string;
+  cargo_responsavel: string;
+  fone: string;
+  celular: string;
+  email: string;
+  email_nfse: string;
 }
 
 interface ClientModuleRow {
@@ -37,6 +49,15 @@ interface ClientModuleRow {
   status_contrato: string;
   observacoes: string;
   ativo_no_cliente: boolean;
+}
+
+function InfoItem({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <p className="text-[10px] text-muted-foreground uppercase tracking-wider">{label}</p>
+      <p className="text-sm font-medium">{value || "—"}</p>
+    </div>
+  );
 }
 
 export default function ClienteDetailPage() {
@@ -80,7 +101,28 @@ export default function ClienteDetailPage() {
         .single();
 
       if (clientError) throw clientError;
-      setClient(clientData);
+      setClient({
+        id: clientData.id,
+        codigo_cliente: clientData.codigo_cliente ?? null,
+        nome_cliente: clientData.nome_cliente,
+        nome_fantasia: clientData.nome_fantasia || "",
+        tipo_ug: clientData.tipo_ug || "",
+        regiao: clientData.regiao || "",
+        consultor: clientData.consultor || "",
+        status_cliente: clientData.status_cliente || "Ativo",
+        observacoes_cliente: clientData.observacoes_cliente || "",
+        codigo_bling: clientData.codigo_bling || "",
+        cliente_desde: clientData.cliente_desde || "",
+        cnpj: clientData.cnpj || "",
+        municipio: clientData.municipio || "",
+        uf: clientData.uf || "",
+        responsavel_principal: clientData.responsavel_principal || "",
+        cargo_responsavel: clientData.cargo_responsavel || "",
+        fone: clientData.fone || "",
+        celular: clientData.celular || "",
+        email: clientData.email || "",
+        email_nfse: clientData.email_nfse || "",
+      });
 
       const { data: modulesData, error: modulesError } = await supabase
         .from("client_modules")
@@ -187,34 +229,64 @@ export default function ClienteDetailPage() {
     </Button>
   );
 
+  const formatClienteDesde = (d: string) => {
+    if (!d) return "—";
+    const [y, m, day] = d.split("-");
+    return `${day}/${m}/${y}`;
+  };
+
   return (
     <AppLayout title={clientTitle} subtitle="Detalhes do Cliente" headerActions={headerActions}>
       <div className="space-y-6">
-        {/* Client Info */}
-        <div className="bg-card border border-border rounded-xl shadow-sm p-5 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-          <div>
-            <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Tipo UG</p>
-            <p className="text-sm font-medium">{client.tipo_ug || "—"}</p>
-          </div>
-          <div>
-            <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Região</p>
-            <p className="text-sm font-medium">{client.regiao || "—"}</p>
-          </div>
-          <div>
-            <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Consultor</p>
-            <p className="text-sm font-medium">{client.consultor || "—"}</p>
-          </div>
-          <div>
-            <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Status</p>
-            <Badge variant="outline" className={`text-[10px] mt-0.5 ${client.status_cliente === "Ativo" ? "bg-success/10 text-success border-success/30" : client.status_cliente === "Prospect" ? "bg-info/10 text-info border-info/30" : "bg-muted text-muted-foreground"}`}>
-              {client.status_cliente}
-            </Badge>
-          </div>
-          <div className="col-span-2">
-            <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Observações</p>
-            <p className="text-sm">{client.observacoes_cliente || "—"}</p>
+        {/* Client Info - Dados Principais */}
+        <div className="bg-card border border-border rounded-xl shadow-sm p-5 space-y-4">
+          <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Dados Principais</h3>
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            <InfoItem label="Nome Fantasia" value={client.nome_fantasia} />
+            <InfoItem label="Tipo UG" value={client.tipo_ug} />
+            <InfoItem label="Região" value={client.regiao} />
+            <InfoItem label="Consultor" value={client.consultor} />
+            <div>
+              <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Status</p>
+              <Badge variant="outline" className={`text-[10px] mt-0.5 ${client.status_cliente === "Ativo" ? "bg-success/10 text-success border-success/30" : client.status_cliente === "Prospect" ? "bg-info/10 text-info border-info/30" : "bg-muted text-muted-foreground"}`}>
+                {client.status_cliente}
+              </Badge>
+            </div>
+            <InfoItem label="Código Bling" value={client.codigo_bling} />
+            <InfoItem label="Cliente desde" value={formatClienteDesde(client.cliente_desde)} />
           </div>
         </div>
+
+        {/* Dados Cadastrais */}
+        <div className="bg-card border border-border rounded-xl shadow-sm p-5 space-y-4">
+          <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Dados Cadastrais / Fiscais</h3>
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            <InfoItem label="CNPJ" value={client.cnpj} />
+            <InfoItem label="Município" value={client.municipio} />
+            <InfoItem label="UF" value={client.uf} />
+            <InfoItem label="Responsável Principal" value={client.responsavel_principal} />
+            <InfoItem label="Cargo do Responsável" value={client.cargo_responsavel} />
+          </div>
+        </div>
+
+        {/* Contato */}
+        <div className="bg-card border border-border rounded-xl shadow-sm p-5 space-y-4">
+          <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Contato</h3>
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            <InfoItem label="Fone" value={client.fone} />
+            <InfoItem label="Celular" value={client.celular} />
+            <InfoItem label="E-mail" value={client.email} />
+            <InfoItem label="E-mail NFSe" value={client.email_nfse} />
+          </div>
+        </div>
+
+        {/* Observações */}
+        {client.observacoes_cliente && (
+          <div className="bg-card border border-border rounded-xl shadow-sm p-5 space-y-2">
+            <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Observações</h3>
+            <p className="text-sm">{client.observacoes_cliente}</p>
+          </div>
+        )}
 
         {/* Modules */}
         <div className="bg-card border border-border rounded-xl shadow-sm overflow-hidden">
