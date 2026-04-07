@@ -1,25 +1,34 @@
 
 
-## Correção dos dropdowns de Consultor e Região no cadastro de Clientes
+## Fix: Modal showing wrong/stale values when editing different modules
 
-### Diagnóstico
+### Root cause (3 issues)
 
-O formulário de cliente (`ClienteForm.tsx`) carrega as opções de Consultor e Região a partir dos valores já existentes na tabela `clients`. Os dados no banco estão corretos (3 consultores: Adimar, Diogo, Magno; 11 regiões). O problema é que o dropdown inclui a opção **"Outro..."** que permite digitação livre, o que causa inconsistência nos dados ao inserir novos clientes.
+1. **`persistKey` not scoped per module** — Currently `detail:${id}:module-form` is the same key for ALL modules of a client. Draft saved for module A is restored when opening module B.
 
-No Dashboard, os filtros funcionam porque vêm dos dados de contratos já consolidados.
+2. **No React `key` on `ClienteModuloForm`** — The component is never remounted when switching from module A to module B. The `useState` initializer (line 87-92) runs only once with the first module's data, and subsequent opens reuse stale state.
 
-### Alterações
+3. **`initialized` flag blocks reload** — When the modal closes, `initialized` resets to false, but since the component doesn't remount, the initial `useState` value (from the first render) persists.
 
-**1. `src/components/clientes/ClienteForm.tsx`**
+### Fix
 
-- **Consultor**: remover a opção "Outro..." (`__other__`) e o modo de digitação manual (`consultorManual`). O dropdown será fixo com apenas os 3 consultores existentes no banco.
-- **Região**: remover a opção "Outro..." e o modo manual também, mantendo apenas as regiões existentes no banco.
-- Limpar variáveis de estado `consultorManual` e `regiaoManual` que não serão mais necessárias.
+**`src/pages/ClienteDetailPage.tsx`** (2 changes)
 
-### O que NÃO muda
+1. Add `key={moduleFormModal.entityId || "new"}` to `<ClienteModuloForm>` — forces full remount per module, clearing all local state.
 
-- Layout, dashboard, filtros da ClientesPage
-- Lógica de salvamento
-- Demais campos do formulário
-- Estrutura do banco de dados
+2. Change `persistKey` to include the entity ID:
+   ```
+   persistKey={`detail:${id}:module-form:${moduleFormModal.entityId || "new"}`}
+   ```
+
+**`src/components/clientes/ClienteModuloForm.tsx`** (1 change)
+
+3. Clear draft on close — in the `useEffect` that handles `!open`, also call `draft.clearDraft()` to prevent stale drafts from being restored for a different module that happens to reuse the component instance.
+
+### What does NOT change
+
+- Save logic, business rules, layout
+- Modal persistence for tab-switch protection (still works, now scoped per module)
+- CurrencyInput, other form fields
+- Other modals (ClienteForm, MultiModulo, CopyDates)
 
