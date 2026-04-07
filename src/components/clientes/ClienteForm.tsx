@@ -12,6 +12,7 @@ import { toast } from "sonner";
 import { CalendarIcon, Copy } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
+import { usePersistentFormDraft } from "@/hooks/usePersistentFormDraft";
 
 
 interface ClienteData {
@@ -41,6 +42,7 @@ interface ClienteFormProps {
   onOpenChange: (open: boolean) => void;
   cliente?: Partial<ClienteData> | null;
   onSaved: () => void;
+  persistKey?: string;
 }
 
 
@@ -99,14 +101,24 @@ function SectionTitle({ children }: { children: React.ReactNode }) {
   );
 }
 
-export function ClienteForm({ open, onOpenChange, cliente, onSaved }: ClienteFormProps) {
-  const [form, setForm] = useState<ClienteData>({ ...EMPTY_FORM });
+export function ClienteForm({ open, onOpenChange, cliente, onSaved, persistKey }: ClienteFormProps) {
+  const draftKey = persistKey || "client-form-default";
+  const draft = usePersistentFormDraft(draftKey);
+
+  const [form, setForm] = useState<ClienteData>(() => {
+    // Try to restore from draft first
+    const saved = draft.getDraft();
+    if (saved) return saved as ClienteData;
+    if (cliente) return { ...EMPTY_FORM, ...cliente } as ClienteData;
+    return { ...EMPTY_FORM };
+  });
   const [saving, setSaving] = useState(false);
   const [regioes, setRegioes] = useState<string[]>([]);
   const [consultores, setConsultores] = useState<string[]>([]);
   const [regiaoManual, setRegiaoManual] = useState(false);
   const [consultorManual, setConsultorManual] = useState(false);
   const [ugTypes, setUgTypes] = useState<string[]>([]);
+  const [initialized, setInitialized] = useState(false);
 
   useEffect(() => {
     if (!open) return;
@@ -126,17 +138,33 @@ export function ClienteForm({ open, onOpenChange, cliente, onSaved }: ClienteFor
     loadOptions();
   }, [open]);
 
+  // Initialize form: restore draft OR use initial data. Only on first open or when entity changes.
   useEffect(() => {
-    if (cliente) {
+    if (!open) {
+      setInitialized(false);
+      return;
+    }
+    if (initialized) return;
+
+    const saved = draft.getDraft();
+    if (saved) {
+      setForm(saved as ClienteData);
+    } else if (cliente) {
       setForm({ ...EMPTY_FORM, ...cliente } as ClienteData);
-      setRegiaoManual(false);
-      setConsultorManual(false);
     } else {
       setForm({ ...EMPTY_FORM });
-      setRegiaoManual(false);
-      setConsultorManual(false);
     }
-  }, [cliente, open]);
+    setRegiaoManual(false);
+    setConsultorManual(false);
+    setInitialized(true);
+  }, [open, cliente, initialized]);
+
+  // Persist draft on every form change
+  useEffect(() => {
+    if (open && initialized) {
+      draft.saveDraft(form as any);
+    }
+  }, [form, open, initialized]);
 
   const handleSave = async () => {
     if (!form.nome_cliente.trim()) {
@@ -204,6 +232,7 @@ export function ClienteForm({ open, onOpenChange, cliente, onSaved }: ClienteFor
         if (error) throw error;
         toast.success("Cliente criado");
       }
+      draft.clearDraft();
       onSaved();
       onOpenChange(false);
     } catch (err) {
@@ -212,6 +241,11 @@ export function ClienteForm({ open, onOpenChange, cliente, onSaved }: ClienteFor
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleCancel = () => {
+    draft.clearDraft();
+    onOpenChange(false);
   };
 
   const regiaoInList = regioes.includes(form.regiao);
@@ -402,7 +436,7 @@ export function ClienteForm({ open, onOpenChange, cliente, onSaved }: ClienteFor
 
             {/* Actions */}
             <div className="flex justify-end gap-2 pt-2 pb-1">
-              <Button variant="outline" size="sm" onClick={() => onOpenChange(false)}>Cancelar</Button>
+              <Button variant="outline" size="sm" onClick={handleCancel}>Cancelar</Button>
               <Button size="sm" onClick={handleSave} disabled={saving}>{saving ? "Salvando..." : "Salvar"}</Button>
             </div>
           </div>
