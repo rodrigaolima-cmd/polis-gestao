@@ -80,6 +80,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [authError, setAuthError] = useState<string | null>(null);
 
   const requestIdRef = useRef(0);
+  const profileRef = useRef<Profile | null>(null);
+
+  // Keep ref in sync
+  useEffect(() => { profileRef.current = profile; }, [profile]);
 
   const hydrateUser = useCallback(async (currentUser: User | null, token: string | null, isRefresh = false) => {
     const thisRequest = ++requestIdRef.current;
@@ -99,7 +103,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     // If this is a token refresh and we already have profile data, just update token — don't re-fetch
-    if (isRefresh && profile) {
+    if (isRefresh && profileRef.current) {
       console.log("[Auth] Token refresh — keeping existing profile, updating token only");
       setUser(currentUser);
       setAccessToken(token);
