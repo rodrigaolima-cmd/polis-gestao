@@ -319,7 +319,7 @@ export default function ImportClientesPage() {
             if (parsed) payload.cliente_desde = parsed;
           }
           // Let DB auto-generate codigo_cliente
-          const { error } = await supabase.from("clients").insert(payload);
+          const { error } = await supabase.from("clients").insert(payload as any);
           if (error) throw error;
           await logAction("import_create", "client", undefined, { source: fileName, nome: r.nome });
           result.created++;
