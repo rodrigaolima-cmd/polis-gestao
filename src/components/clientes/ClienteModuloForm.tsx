@@ -9,6 +9,7 @@ import { Switch } from "@/components/ui/switch";
 import { CurrencyInput } from "@/components/ui/currency-input";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { usePersistentFormDraft } from "@/hooks/usePersistentFormDraft";
 
 interface ModuleOption {
   id: string;
@@ -48,6 +49,7 @@ interface ClienteModuloFormProps {
   existingModuleId?: string | null;
   initialData?: Record<string, any> | null;
   onSaved: () => void;
+  persistKey?: string;
 }
 
 const defaultForm: ClientModuleData = {
@@ -77,18 +79,30 @@ function dataToForm(data: any): ClientModuleData {
   };
 }
 
-export function ClienteModuloForm({ open, onOpenChange, clientId, existingModuleId, initialData, onSaved }: ClienteModuloFormProps) {
+export function ClienteModuloForm({ open, onOpenChange, clientId, existingModuleId, initialData, onSaved, persistKey }: ClienteModuloFormProps) {
+  const draftKey = persistKey || "module-form-default";
+  const draft = usePersistentFormDraft(draftKey);
+
   const [modules, setModules] = useState<ModuleOption[]>([]);
-  const [form, setForm] = useState<ClientModuleData>(initialData ? dataToForm(initialData) : { ...defaultForm });
+  const [form, setForm] = useState<ClientModuleData>(() => {
+    const saved = draft.getDraft();
+    if (saved) return saved as ClientModuleData;
+    if (initialData) return dataToForm(initialData);
+    return { ...defaultForm };
+  });
   const [newModuleName, setNewModuleName] = useState("");
   const [saving, setSaving] = useState(false);
   const valorContratadoRef = useRef<HTMLInputElement>(null);
+  const [initialized, setInitialized] = useState(false);
 
   const isEditing = !!existingModuleId;
 
-  // On mount (key changes per module), fetch data
   useEffect(() => {
-    if (!open) return;
+    if (!open) {
+      setInitialized(false);
+      return;
+    }
+    if (initialized) return;
 
     setNewModuleName("");
 
@@ -96,6 +110,14 @@ export function ClienteModuloForm({ open, onOpenChange, clientId, existingModule
     supabase.from("modules").select("id, nome_modulo").order("nome_modulo").then(({ data }) => {
       if (data) setModules(data);
     });
+
+    // Restore draft or load from DB/initial
+    const saved = draft.getDraft();
+    if (saved) {
+      setForm(saved as ClientModuleData);
+      setInitialized(true);
+      return;
+    }
 
     if (existingModuleId) {
       supabase
@@ -111,10 +133,13 @@ export function ClienteModuloForm({ open, onOpenChange, clientId, existingModule
             setForm(dataToForm(data));
           }
         });
+    } else if (initialData) {
+      setForm(dataToForm(initialData));
     } else {
       setForm({ ...defaultForm });
     }
-  }, [open, existingModuleId]);
+    setInitialized(true);
+  }, [open, existingModuleId, initialized]);
 
   // Auto-focus valor_contratado when editing
   useEffect(() => {
@@ -125,6 +150,13 @@ export function ClienteModuloForm({ open, onOpenChange, clientId, existingModule
       return () => clearTimeout(timer);
     }
   }, [open, isEditing]);
+
+  // Persist draft on form change
+  useEffect(() => {
+    if (open && initialized) {
+      draft.saveDraft(form as any);
+    }
+  }, [form, open, initialized]);
 
   const doSave = async (closeAfter: boolean) => {
     let moduleId = form.modulo_id;
@@ -174,6 +206,7 @@ export function ClienteModuloForm({ open, onOpenChange, clientId, existingModule
       onSaved();
 
       if (closeAfter) {
+        draft.clearDraft();
         onOpenChange(false);
       }
     } catch (err) {
@@ -182,6 +215,11 @@ export function ClienteModuloForm({ open, onOpenChange, clientId, existingModule
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleCancel = () => {
+    draft.clearDraft();
+    onOpenChange(false);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -276,7 +314,7 @@ export function ClienteModuloForm({ open, onOpenChange, clientId, existingModule
             <Textarea value={form.observacoes} onChange={(e) => setForm({ ...form, observacoes: e.target.value })} rows={2} />
           </div>
           <div className="flex justify-end gap-2 pt-2">
-            <Button variant="outline" size="sm" onClick={() => onOpenChange(false)}>Cancelar</Button>
+            <Button variant="outline" size="sm" onClick={handleCancel}>Cancelar</Button>
             {isEditing && (
               <Button variant="outline" size="sm" onClick={() => doSave(false)} disabled={saving}>
                 {saving ? "Salvando..." : "Salvar"}

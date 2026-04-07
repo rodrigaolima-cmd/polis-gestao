@@ -11,6 +11,7 @@ import { ClientesReportDialog } from "@/components/clientes/ClientesReportDialog
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Plus, Search, Eye, Pencil, FileText } from "lucide-react";
 import { normalizeForSearch, fixMojibake } from "@/utils/textUtils";
+import { usePersistentModal } from "@/hooks/usePersistentModal";
 
 interface ClientRow {
   id: string;
@@ -37,10 +38,17 @@ export default function ClientesPage() {
   const [filterConsultor, setFilterConsultor] = useState("");
   const [filterUG, setFilterUG] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
-  const [formOpen, setFormOpen] = useState(false);
-  const [editingClient, setEditingClient] = useState<ClientRow | null>(null);
   const [reportOpen, setReportOpen] = useState(false);
   const [loadError, setLoadError] = useState(false);
+
+  const clientForm = usePersistentModal("clientes:client-form");
+  const [editingClient, setEditingClient] = useState<ClientRow | null>(() => {
+    // Restore editing client from persistence if modal was open
+    if (clientForm.isOpen && clientForm.entityId) {
+      return null; // Will be resolved after clients load
+    }
+    return null;
+  });
 
   const loadClients = async () => {
     setLoading(true);
@@ -81,6 +89,12 @@ export default function ClientesPage() {
       }));
 
       setClients(result);
+
+      // Restore editing client if modal was persisted open
+      if (clientForm.isOpen && clientForm.entityId) {
+        const found = result.find(c => c.id === clientForm.entityId);
+        if (found) setEditingClient(found);
+      }
     } catch (err) {
       console.error("Erro ao carregar clientes:", err);
       setLoadError(true);
@@ -112,12 +126,21 @@ export default function ClientesPage() {
 
   const handleEdit = (client: ClientRow) => {
     setEditingClient(client);
-    setFormOpen(true);
+    clientForm.open("client-form", client.id);
   };
 
   const handleNew = () => {
     setEditingClient(null);
-    setFormOpen(true);
+    clientForm.open("client-form", null);
+  };
+
+  const handleFormClose = () => {
+    clientForm.close();
+    setEditingClient(null);
+  };
+
+  const handleFormSaved = () => {
+    loadClients();
   };
 
   const headerActions = (
@@ -243,10 +266,11 @@ export default function ClientesPage() {
       </div>
 
       <ClienteForm
-        open={formOpen}
-        onOpenChange={setFormOpen}
+        open={clientForm.isOpen}
+        onOpenChange={(v) => { if (!v) handleFormClose(); }}
         cliente={editingClient}
-        onSaved={loadClients}
+        onSaved={handleFormSaved}
+        persistKey="clientes:client-form"
       />
 
       <ClientesReportDialog
