@@ -119,7 +119,7 @@ export default function ConfiguracoesPage() {
     }
 
     toast.success("Usuário criado com sucesso!");
-    setDialogOpen(false);
+    createUserModal.close();
     setNewEmail("");
     setNewPassword("");
     setNewFullName("");
@@ -150,6 +150,7 @@ export default function ConfiguracoesPage() {
     setEditEmail(u.email || "");
     setEditRole(u.role || "user");
     setEditForcePassword(u.force_password_change || false);
+    editUserModal.open("edit-user", u.id);
   };
 
   const handleSaveEdit = async () => {
@@ -202,6 +203,7 @@ export default function ConfiguracoesPage() {
 
       toast.success("Usuário atualizado");
       setEditUser(null);
+      editUserModal.close();
       fetchUsers();
     } catch (err: any) {
       toast.error("Erro ao salvar: " + err.message);
@@ -226,15 +228,17 @@ export default function ConfiguracoesPage() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="text-lg">Gerenciar Usuários</CardTitle>
-            <Dialog open={dialogOpen} onOpenChange={(open) => {
+            <Dialog open={createUserModal.isOpen} onOpenChange={(open) => {
               if (open) {
                 setNewFullName("");
                 setNewEmail("");
                 setNewPassword("");
                 setNewRole("user");
                 setNewForcePassword(false);
+                createUserModal.open("create-user");
+              } else {
+                // block auto-close
               }
-              setDialogOpen(open);
             }}>
               <DialogTrigger asChild>
                 <Button size="sm" className="gap-2">
@@ -347,7 +351,7 @@ export default function ConfiguracoesPage() {
           </CardContent>
         </Card>
 
-        <Dialog open={editUser !== null} onOpenChange={(open) => { if (!open) setEditUser(null); }}>
+        <Dialog open={editUser !== null && editUserModal.isOpen} onOpenChange={(open) => { if (!open) return; }}>
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Editar Usuário</DialogTitle>
@@ -388,7 +392,7 @@ export default function ConfiguracoesPage() {
                 </Label>
               </div>
               <div className="flex justify-end gap-2 pt-2">
-                <Button variant="outline" size="sm" onClick={() => setEditUser(null)}>Cancelar</Button>
+                <Button variant="outline" size="sm" onClick={() => { setEditUser(null); editUserModal.close(); }}>Cancelar</Button>
                 <Button size="sm" onClick={handleSaveEdit} disabled={savingEdit}>
                   {savingEdit ? "Salvando..." : "Salvar"}
                 </Button>
