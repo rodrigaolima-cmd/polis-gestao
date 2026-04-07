@@ -17,6 +17,7 @@ import { UserPlus, Shield, User as UserIcon, Wrench } from "lucide-react";
 import ModuloCatalogo from "@/components/configuracoes/ModuloCatalogo";
 import UgTypeCatalogo from "@/components/configuracoes/UgTypeCatalogo";
 import { AppLayout } from "@/components/layout/AppLayout";
+import { usePersistentModal } from "@/hooks/usePersistentModal";
 
 interface UserProfile {
   id: string;
@@ -33,7 +34,8 @@ export default function ConfiguracoesPage() {
   const { isAdmin, user: currentUser } = useAuth();
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(true);
-  const [dialogOpen, setDialogOpen] = useState(false);
+  const createUserModal = usePersistentModal("config:create-user");
+  const editUserModal = usePersistentModal("config:edit-user");
   const [newEmail, setNewEmail] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [newFullName, setNewFullName] = useState("");
