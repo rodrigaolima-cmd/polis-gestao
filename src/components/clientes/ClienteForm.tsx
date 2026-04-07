@@ -43,7 +43,7 @@ interface ClienteFormProps {
   onSaved: () => void;
 }
 
-const UG_TYPES = ["PREFEITURA", "CÂMARA", "AUTARQUIA", "CONSÓRCIO", "FUNDO", "INSTITUTO", "SAAE", "RPPS"];
+const UG_TYPES_FALLBACK = ["ASSOCIACAO", "AUTARQUIA", "CAMARA", "CONSORCIO", "FUNDO", "INSTITUTO", "PREFEITURA", "PREVIDENCIA", "RPPS", "SAAE"];
 
 const UF_LIST = [
   "AC","AL","AP","AM","BA","CE","DF","ES","GO","MA","MT","MS","MG",
@@ -106,16 +106,21 @@ export function ClienteForm({ open, onOpenChange, cliente, onSaved }: ClienteFor
   const [consultores, setConsultores] = useState<string[]>([]);
   const [regiaoManual, setRegiaoManual] = useState(false);
   const [consultorManual, setConsultorManual] = useState(false);
+  const [ugTypes, setUgTypes] = useState<string[]>(UG_TYPES_FALLBACK);
+  const [ugManual, setUgManual] = useState(false);
 
   useEffect(() => {
     if (!open) return;
     const loadOptions = async () => {
-      const { data } = await supabase.from("clients").select("regiao, consultor");
+      const { data } = await supabase.from("clients").select("regiao, consultor, tipo_ug");
       if (data) {
         const r = [...new Set(data.map((d: any) => (d.regiao || "").trim()).filter(Boolean))].sort((a, b) => a.localeCompare(b, "pt-BR"));
         const c = [...new Set(data.map((d: any) => (d.consultor || "").trim()).filter(Boolean))].sort((a, b) => a.localeCompare(b, "pt-BR"));
+        const dbUgTypes = [...new Set(data.map((d: any) => (d.tipo_ug || "").trim().toUpperCase()).filter(Boolean))];
+        const merged = [...new Set([...UG_TYPES_FALLBACK, ...dbUgTypes])].sort((a, b) => a.localeCompare(b, "pt-BR"));
         setRegioes(r);
         setConsultores(c);
+        setUgTypes(merged);
       }
     };
     loadOptions();
@@ -126,10 +131,12 @@ export function ClienteForm({ open, onOpenChange, cliente, onSaved }: ClienteFor
       setForm({ ...EMPTY_FORM, ...cliente } as ClienteData);
       setRegiaoManual(false);
       setConsultorManual(false);
+      setUgManual(false);
     } else {
       setForm({ ...EMPTY_FORM });
       setRegiaoManual(false);
       setConsultorManual(false);
+      setUgManual(false);
     }
   }, [cliente, open]);
 
@@ -236,13 +243,22 @@ export function ClienteForm({ open, onOpenChange, cliente, onSaved }: ClienteFor
               </div>
               <div className="space-y-1.5">
                 <Label className="text-xs">Tipo de UG</Label>
-                <Select value={form.tipo_ug || "none"} onValueChange={(v) => setForm({ ...form, tipo_ug: v === "none" ? "" : v })}>
-                  <SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">— Selecionar —</SelectItem>
-                    {UG_TYPES.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
-                  </SelectContent>
-                </Select>
+                {ugManual ? (
+                  <div className="flex gap-1">
+                    <Input value={form.tipo_ug} onChange={(e) => setForm({ ...form, tipo_ug: e.target.value.toUpperCase() })} placeholder="Digitar tipo de UG" className="h-9 text-xs" />
+                    <Button type="button" variant="ghost" size="sm" className="h-9 text-[10px] px-2 shrink-0" onClick={() => setUgManual(false)}>Lista</Button>
+                  </div>
+                ) : (
+                  <Select value={ugTypes.includes(form.tipo_ug) ? form.tipo_ug : (form.tipo_ug ? "__custom__" : "none")} onValueChange={(v) => { if (v === "__other__") setUgManual(true); else if (v === "none") setForm({ ...form, tipo_ug: "" }); else setForm({ ...form, tipo_ug: v }); }}>
+                    <SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">— Selecionar —</SelectItem>
+                      {!ugTypes.includes(form.tipo_ug) && form.tipo_ug && <SelectItem value="__custom__">{form.tipo_ug}</SelectItem>}
+                      {ugTypes.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                      <SelectItem value="__other__">Outro...</SelectItem>
+                    </SelectContent>
+                  </Select>
+                )}
               </div>
               {/* Região */}
               <div className="space-y-1.5">

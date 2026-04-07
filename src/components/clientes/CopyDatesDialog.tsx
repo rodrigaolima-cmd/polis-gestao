@@ -56,7 +56,7 @@ export function CopyDatesDialog({
 
     setSaving(true);
     try {
-      const updateData: Record<string, string | null> = {};
+      const updateData: { data_assinatura?: string | null; vencimento_contrato?: string | null } = {};
       if (copyAssinatura) updateData.data_assinatura = assinatura || null;
       if (copyVencimento) updateData.vencimento_contrato = vencimento || null;
 

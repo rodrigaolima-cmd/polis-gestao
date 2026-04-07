@@ -10,7 +10,7 @@ import { ClienteModuloForm } from "@/components/clientes/ClienteModuloForm";
 import { ClienteMultiModuloForm } from "@/components/clientes/ClienteMultiModuloForm";
 import { CopyDatesDialog } from "@/components/clientes/CopyDatesDialog";
 import { AppLayout } from "@/components/layout/AppLayout";
-import { Pencil, Plus, MoreVertical, CheckCircle, XCircle, Trash2, Copy } from "lucide-react";
+import { Pencil, Plus, MoreVertical, CheckCircle, XCircle, Trash2, Copy, ArrowLeft } from "lucide-react";
 import { formatCurrency, formatDate, getDaysToExpire, getExpirationStatus } from "@/utils/contractUtils";
 import { toast } from "sonner";
 
@@ -224,9 +224,14 @@ export default function ClienteDetailPage() {
   const clientTitle = `${client.codigo_cliente ? `#${client.codigo_cliente} — ` : ""}${client.nome_cliente}`;
 
   const headerActions = (
-    <Button variant="outline" size="sm" className="gap-2 text-xs" onClick={() => setEditClientOpen(true)}>
-      <Pencil className="h-3.5 w-3.5" /> Editar Cliente
-    </Button>
+    <div className="flex items-center gap-2">
+      <Button variant="ghost" size="sm" className="gap-2 text-xs" onClick={() => navigate(-1)}>
+        <ArrowLeft className="h-3.5 w-3.5" /> Voltar
+      </Button>
+      <Button variant="outline" size="sm" className="gap-2 text-xs" onClick={() => setEditClientOpen(true)}>
+        <Pencil className="h-3.5 w-3.5" /> Editar Cliente
+      </Button>
+    </div>
   );
 
   const formatClienteDesde = (d: string) => {
