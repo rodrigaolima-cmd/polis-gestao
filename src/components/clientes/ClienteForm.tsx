@@ -115,8 +115,6 @@ export function ClienteForm({ open, onOpenChange, cliente, onSaved, persistKey }
   const [saving, setSaving] = useState(false);
   const [regioes, setRegioes] = useState<string[]>([]);
   const [consultores, setConsultores] = useState<string[]>([]);
-  const [regiaoManual, setRegiaoManual] = useState(false);
-  const [consultorManual, setConsultorManual] = useState(false);
   const [ugTypes, setUgTypes] = useState<string[]>([]);
   const [initialized, setInitialized] = useState(false);
 
