@@ -1,52 +1,42 @@
 
 
-## Fix: Ignore ALL SIGNED_OUT in onAuthStateChange
+## Fix: Site publicado não carrega — spinner infinito
 
-### Root cause
+### Causa raiz
 
-The console log at 12:38:19 shows:
-```
-[Auth] onAuthStateChange event: SIGNED_OUT
-[Auth] hydrateUser requestId: 12 user: null isRefresh: false
-```
+Na correção anterior para ignorar `SIGNED_OUT` espúrios, o `hydrateUser` foi modificado para só chamar `clearAuthState()` quando `manualSignOutRef.current` é `true`. 
 
-There is **no** "Ignoring non-manual SIGNED_OUT" log, meaning the guard at lines 203-206 **failed** — either refs were null at that instant or `manualSignOutRef` was true from a prior event. The current guard logic has race conditions with multiple rapid SIGNED_OUT events and the setTimeout reconciliation adds further instability.
+O problema: quando um usuário **não logado** acessa o site pela primeira vez, `getSession()` retorna `null`, e `hydrateUser(null, null)` é chamado. Como `manualSignOutRef` é `false`, a função retorna sem fazer nada — **sem setar `loading: false`**. O app fica preso com `loading: true` para sempre, mostrando o spinner.
 
-### Solution — one surgical change
+### Solução
 
-**File**: `src/contexts/AuthContext.tsx`
+**Arquivo**: `src/contexts/AuthContext.tsx`
 
-**Replace the entire SIGNED_OUT handler block (lines 203-244)** with a simple unconditional ignore for ALL `SIGNED_OUT` events:
+Na guarda de `hydrateUser` (linhas 116-123), adicionar uma condição: se não existe snapshot anterior (`userRef.current` é null), chamar `clearAuthState()` normalmente para finalizar o loading e permitir o redirecionamento para `/login`:
 
 ```typescript
-// Completely ignore SIGNED_OUT in the listener.
-// Manual sign-out is handled by handleSignOut() which calls
-// clearAuthState() directly in its finally block.
-if (_event === "SIGNED_OUT") {
-  console.log("[Auth] Ignoring SIGNED_OUT event in listener");
+if (!currentUser || !token) {
+  // If manual sign-out OR no existing snapshot, clear state to finalize loading
+  if (manualSignOutRef.current || !userRef.current) {
+    if (thisRequest === requestIdRef.current) {
+      clearAuthState();
+    }
+  }
+  // If there IS a snapshot but no manual sign-out, keep existing state (tab switch protection)
   return;
 }
-
-const isRefresh = _event === "TOKEN_REFRESHED";
-setTimeout(() => {
-  if (mounted) hydrateUser(session?.user ?? null, session?.access_token ?? null, isRefresh);
-}, 0);
 ```
 
-**Why this is safe:**
-- **Manual sign-out**: `handleSignOut()` (line 292) calls `clearAuthState()` directly in `finally` — it does NOT rely on the `onAuthStateChange` listener at all.
-- **Spurious SIGNED_OUT** (tab switch): completely ignored — refs, state, and UI remain untouched.
-- **Real session revocation**: the user would continue with stale token; API calls would fail with 401, which is recoverable. Far better than losing form data.
-- **Token refresh**: still handled normally via `TOKEN_REFRESHED` event.
-- **Reconciliation on tab return**: `reconcileVisibleSession` already silently refreshes the token when focus returns.
+**Lógica**:
+- Primeiro acesso sem sessão → `userRef.current` é null → limpa estado → `loading: false` → mostra login
+- Tab switch espúrio → `userRef.current` tem valor → mantém snapshot → modal não fecha
+- Logout manual → `manualSignOutRef` é true → limpa estado → redireciona para login
 
-### What changes
-- `src/contexts/AuthContext.tsx` — simplify onAuthStateChange SIGNED_OUT handling (~15 lines removed, 4 added)
+### Arquivos afetados
+- `src/contexts/AuthContext.tsx` — uma mudança de 2 linhas na guarda do `hydrateUser`
 
-### What does NOT change
-- Dialog protection (already complete)
-- Form onOpenChange handlers (already blocking false)
-- ProtectedRoute logic
-- Layout, dashboard, business logic
-- Manual sign-out flow
+### O que NÃO muda
+- Proteção de modais, dialog, formulários
+- ProtectedRoute, layout, dashboard
+- Fluxo de logout manual
 
