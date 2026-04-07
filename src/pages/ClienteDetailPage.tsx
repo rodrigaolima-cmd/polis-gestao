@@ -13,6 +13,7 @@ import { AppLayout } from "@/components/layout/AppLayout";
 import { Pencil, Plus, MoreVertical, CheckCircle, XCircle, Trash2, Copy, ArrowLeft } from "lucide-react";
 import { formatCurrency, formatDate, getDaysToExpire, getExpirationStatus } from "@/utils/contractUtils";
 import { toast } from "sonner";
+import { usePersistentModal } from "@/hooks/usePersistentModal";
 
 interface ClientData {
   id: string;
@@ -66,11 +67,12 @@ export default function ClienteDetailPage() {
   const [client, setClient] = useState<ClientData | null>(null);
   const [modules, setModules] = useState<ClientModuleRow[]>([]);
   const [loading, setLoading] = useState(true);
-  const [editClientOpen, setEditClientOpen] = useState(false);
-  const [moduleFormOpen, setModuleFormOpen] = useState(false);
-  const [editingModuleId, setEditingModuleId] = useState<string | null>(null);
-  const [copyDatesOpen, setCopyDatesOpen] = useState(false);
-  const [multiModuleFormOpen, setMultiModuleFormOpen] = useState(false);
+
+  // Persistent modals
+  const editClientModal = usePersistentModal(`detail:${id}:edit-client`);
+  const moduleFormModal = usePersistentModal(`detail:${id}:module-form`);
+  const multiModuleModal = usePersistentModal(`detail:${id}:multi-module`);
+  const copyDatesModal = usePersistentModal(`detail:${id}:copy-dates`);
 
   const mapModules = (modulesData: any[]): ClientModuleRow[] => {
     const mapped = (modulesData || []).map((m: any) => ({
@@ -183,17 +185,11 @@ export default function ClienteDetailPage() {
   };
 
   const handleEditModule = (mod: ClientModuleRow) => {
-    setEditingModuleId(mod.id);
-    setModuleFormOpen(true);
+    moduleFormModal.open("module-form", mod.id);
   };
 
   const handleAddModule = () => {
-    setEditingModuleId(null);
-    setModuleFormOpen(true);
-  };
-
-  const handleModuleFormOpenChange = (open: boolean) => {
-    setModuleFormOpen(open);
+    moduleFormModal.open("module-form", null);
   };
 
   if (loading) {
@@ -228,7 +224,7 @@ export default function ClienteDetailPage() {
       <Button variant="ghost" size="sm" className="gap-2 text-xs" onClick={() => navigate(-1)}>
         <ArrowLeft className="h-3.5 w-3.5" /> Voltar
       </Button>
-      <Button variant="outline" size="sm" className="gap-2 text-xs" onClick={() => setEditClientOpen(true)}>
+      <Button variant="outline" size="sm" className="gap-2 text-xs" onClick={() => editClientModal.open("edit-client", client.id)}>
         <Pencil className="h-3.5 w-3.5" /> Editar Cliente
       </Button>
     </div>
@@ -299,11 +295,11 @@ export default function ClienteDetailPage() {
             <h2 className="text-sm font-semibold">Módulos do Cliente</h2>
             <div className="flex items-center gap-2">
               {modules.length >= 2 && (
-                <Button variant="outline" size="sm" className="gap-2 text-xs" onClick={() => setCopyDatesOpen(true)}>
+                <Button variant="outline" size="sm" className="gap-2 text-xs" onClick={() => copyDatesModal.open("copy-dates")}>
                   <Copy className="h-3.5 w-3.5" /> Aplicar datas para todos
                 </Button>
               )}
-              <Button size="sm" className="gap-2 text-xs" onClick={() => setMultiModuleFormOpen(true)}>
+              <Button size="sm" className="gap-2 text-xs" onClick={() => multiModuleModal.open("multi-module")}>
                 <Plus className="h-3.5 w-3.5" /> Adicionar Módulos
               </Button>
             </div>
@@ -396,28 +392,29 @@ export default function ClienteDetailPage() {
       </div>
 
       <ClienteForm
-        open={editClientOpen}
-        onOpenChange={setEditClientOpen}
+        open={editClientModal.isOpen}
+        onOpenChange={(v) => { if (!v) editClientModal.close(); }}
         cliente={client}
         onSaved={loadData}
+        persistKey={`detail:${id}:edit-client`}
       />
 
       {id && (
         <ClienteModuloForm
-          key={editingModuleId || 'new'}
-          open={moduleFormOpen}
-          onOpenChange={handleModuleFormOpenChange}
+          open={moduleFormModal.isOpen}
+          onOpenChange={(v) => { if (!v) moduleFormModal.close(); }}
           clientId={id}
-          existingModuleId={editingModuleId}
-          initialData={editingModuleId ? modules.find(m => m.id === editingModuleId) || null : null}
+          existingModuleId={moduleFormModal.entityId}
+          initialData={moduleFormModal.entityId ? modules.find(m => m.id === moduleFormModal.entityId) || null : null}
           onSaved={reloadModules}
+          persistKey={`detail:${id}:module-form`}
         />
       )}
 
       {id && (
         <ClienteMultiModuloForm
-          open={multiModuleFormOpen}
-          onOpenChange={setMultiModuleFormOpen}
+          open={multiModuleModal.isOpen}
+          onOpenChange={(v) => { if (!v) multiModuleModal.close(); }}
           clientId={id}
           onSaved={reloadModules}
         />
@@ -425,8 +422,8 @@ export default function ClienteDetailPage() {
 
       {id && (
         <CopyDatesDialog
-          open={copyDatesOpen}
-          onOpenChange={setCopyDatesOpen}
+          open={copyDatesModal.isOpen}
+          onOpenChange={(v) => { if (!v) copyDatesModal.close(); }}
           clientId={id}
           moduleCount={modules.length}
           initialAssinatura={modules[0]?.data_assinatura || ""}
