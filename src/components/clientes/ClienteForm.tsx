@@ -67,11 +67,18 @@ function maskCNPJ(v: string): string {
     .replace(/(\d{4})(\d)/, "$1-$2");
 }
 
-function maskPhone(v: string): string {
-  const d = v.replace(/\D/g, "").slice(0, 11);
+function maskFone(v: string): string {
+  const d = v.replace(/\D/g, "").slice(0, 10);
   if (d.length <= 2) return d;
   if (d.length <= 6) return `${d.slice(0, 2)}-${d.slice(2)}`;
   return `${d.slice(0, 2)}-${d.slice(2, 6)} ${d.slice(6)}`;
+}
+
+function maskCelular(v: string): string {
+  const d = v.replace(/\D/g, "").slice(0, 11);
+  if (d.length <= 2) return d;
+  if (d.length <= 7) return `${d.slice(0, 2)}-${d.slice(2)}`;
+  return `${d.slice(0, 2)}-${d.slice(2, 7)} ${d.slice(7)}`;
 }
 
 function isValidEmail(v: string): boolean {
@@ -354,11 +361,11 @@ export function ClienteForm({ open, onOpenChange, cliente, onSaved }: ClienteFor
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label className="text-xs">Fone</Label>
-                <Input value={form.fone} onChange={(e) => setForm({ ...form, fone: maskPhone(e.target.value) })} placeholder="XX-XXXX XXXX" className="h-9 text-xs" maxLength={13} />
+                <Input value={form.fone} onChange={(e) => setForm({ ...form, fone: maskFone(e.target.value) })} placeholder="XX-XXXX XXXX" className="h-9 text-xs" maxLength={12} />
               </div>
               <div className="space-y-1.5">
                 <Label className="text-xs">Celular</Label>
-                <Input value={form.celular} onChange={(e) => setForm({ ...form, celular: maskPhone(e.target.value) })} placeholder="XX-XXXX XXXX" className="h-9 text-xs" maxLength={14} />
+                <Input value={form.celular} onChange={(e) => setForm({ ...form, celular: maskCelular(e.target.value) })} placeholder="XX-XXXXX XXXX" className="h-9 text-xs" maxLength={13} />
               </div>
               <div className="space-y-1.5">
                 <Label className="text-xs">E-mail</Label>
