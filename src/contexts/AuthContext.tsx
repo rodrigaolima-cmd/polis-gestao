@@ -200,45 +200,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (!mounted) return;
         console.log("[Auth] onAuthStateChange event:", _event);
 
-        if (
-          _event === "SIGNED_OUT" &&
-          !manualSignOutRef.current &&
-          (userRef.current || profileRef.current || accessTokenRef.current)
-        ) {
-          console.log("[Auth] Ignoring non-manual SIGNED_OUT while session snapshot exists");
-          setLoading(false);
-          setProfileLoaded(true);
-          setAuthError(null);
-
-          setTimeout(async () => {
-            if (!mounted) return;
-            const { data: { session: currentSession } } = await supabase.auth.getSession();
-
-            if (!mounted) return;
-
-            if (currentSession?.user && currentSession.access_token) {
-              console.log("[Auth] Restoring session after transient SIGNED_OUT");
-              void hydrateUser(currentSession.user, currentSession.access_token, true);
-              return;
-            }
-
-            console.log("[Auth] Preserving current auth snapshot after transient SIGNED_OUT");
-            setUser(userRef.current);
-            setProfile(profileRef.current);
-            setRole(roleRef.current);
-            setAccessToken(accessTokenRef.current);
-            setLoading(false);
-            setProfileLoaded(true);
-          }, 0);
+        // Completely ignore SIGNED_OUT in the listener.
+        // Manual sign-out is handled by handleSignOut() which calls
+        // clearAuthState() directly in its finally block.
+        if (_event === "SIGNED_OUT") {
+          console.log("[Auth] Ignoring SIGNED_OUT event in listener");
           return;
         }
 
-        if (_event === "SIGNED_OUT") {
-          manualSignOutRef.current = false;
-        }
-
         const isRefresh = _event === "TOKEN_REFRESHED";
-        // Use setTimeout to avoid Supabase internal deadlock
         setTimeout(() => {
           if (mounted) hydrateUser(session?.user ?? null, session?.access_token ?? null, isRefresh);
         }, 0);
