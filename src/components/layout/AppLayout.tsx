@@ -25,7 +25,7 @@ export function AppLayout({ children, title, subtitle, headerActions, onImport }
       <div className="min-h-screen flex w-full">
         <AppSidebar />
 
-        <div className="flex-1 flex flex-col min-w-0">
+        <div className="flex-1 flex flex-col min-w-0 overflow-auto">
           {/* Top header bar */}
           <header className="border-b border-border/50 bg-card/50 backdrop-blur-xl sticky top-0 z-50">
             <div className="px-4 sm:px-6 py-3 flex items-center justify-between gap-3">
