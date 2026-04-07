@@ -81,9 +81,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const requestIdRef = useRef(0);
   const profileRef = useRef<Profile | null>(null);
+  const userRef = useRef<User | null>(null);
+  const roleRef = useRef<string | null>(null);
+  const accessTokenRef = useRef<string | null>(null);
+  const manualSignOutRef = useRef(false);
 
-  // Keep ref in sync
-  useEffect(() => { profileRef.current = profile; }, [profile]);
+  // Keep refs in sync
+  useEffect(() => {
+    userRef.current = user;
+    profileRef.current = profile;
+    roleRef.current = role;
+    accessTokenRef.current = accessToken;
+  }, [user, profile, role, accessToken]);
+
+  const clearAuthState = useCallback(() => {
+    userRef.current = null;
+    profileRef.current = null;
+    roleRef.current = null;
+    accessTokenRef.current = null;
+    setUser(null);
+    setProfile(null);
+    setRole(null);
+    setAccessToken(null);
+    setProfileLoaded(true);
+    setLoading(false);
+    setAuthError(null);
+  }, []);
 
   const hydrateUser = useCallback(async (currentUser: User | null, token: string | null, isRefresh = false) => {
     const thisRequest = ++requestIdRef.current;
@@ -92,12 +115,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     if (!currentUser || !token) {
       if (thisRequest === requestIdRef.current) {
-        setUser(null);
-        setProfile(null);
-        setRole(null);
-        setAccessToken(null);
-        setProfileLoaded(true);
-        setLoading(false);
+        clearAuthState();
       }
       return;
     }
@@ -105,11 +123,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // If this is a token refresh and we already have profile data, just update token — don't re-fetch
     if (isRefresh && profileRef.current) {
       console.log("[Auth] Token refresh — keeping existing profile, updating token only");
+      userRef.current = currentUser;
+      accessTokenRef.current = token;
       setUser(currentUser);
       setAccessToken(token);
       return;
     }
 
+    userRef.current = currentUser;
+    accessTokenRef.current = token;
     setUser(currentUser);
     setAccessToken(token);
     setLoading(true);
@@ -132,6 +154,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       console.log("[Auth] Hydrated - profile:", !!profileData, "role:", roleData, "active:", profileData?.is_active);
+      manualSignOutRef.current = false;
+      profileRef.current = profileData;
+      roleRef.current = roleData;
       setProfile(profileData);
       setRole(roleData);
       if (!profileData) {
@@ -141,6 +166,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       clearTimeout(timeout);
       if (thisRequest !== requestIdRef.current) return;
       console.error("[Auth] Hydration error:", e?.name === "AbortError" ? "timeout" : e);
+      profileRef.current = null;
+      roleRef.current = null;
       setProfile(null);
       setRole(null);
       setAuthError("Erro ao carregar dados do usuário.");
@@ -171,10 +198,41 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (!mounted) return;
         console.log("[Auth] onAuthStateChange event:", _event);
 
-        // Ignore spurious SIGNED_OUT events when we still have a profile (tab switch artifact)
-        if (_event === "SIGNED_OUT" && profileRef.current) {
-          console.log("[Auth] Ignoring spurious SIGNED_OUT — profile still loaded");
+        if (
+          _event === "SIGNED_OUT" &&
+          !manualSignOutRef.current &&
+          (userRef.current || profileRef.current || accessTokenRef.current)
+        ) {
+          console.log("[Auth] Ignoring non-manual SIGNED_OUT while session snapshot exists");
+          setLoading(false);
+          setProfileLoaded(true);
+          setAuthError(null);
+
+          setTimeout(async () => {
+            if (!mounted) return;
+            const { data: { session: currentSession } } = await supabase.auth.getSession();
+
+            if (!mounted) return;
+
+            if (currentSession?.user && currentSession.access_token) {
+              console.log("[Auth] Restoring session after transient SIGNED_OUT");
+              void hydrateUser(currentSession.user, currentSession.access_token, true);
+              return;
+            }
+
+            console.log("[Auth] Preserving current auth snapshot after transient SIGNED_OUT");
+            setUser(userRef.current);
+            setProfile(profileRef.current);
+            setRole(roleRef.current);
+            setAccessToken(accessTokenRef.current);
+            setLoading(false);
+            setProfileLoaded(true);
+          }, 0);
           return;
+        }
+
+        if (_event === "SIGNED_OUT") {
+          manualSignOutRef.current = false;
         }
 
         const isRefresh = _event === "TOKEN_REFRESHED";
@@ -204,17 +262,40 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, [hydrateUser]);
 
+  useEffect(() => {
+    const reconcileVisibleSession = () => {
+      if (document.visibilityState === "hidden" || !userRef.current || manualSignOutRef.current) {
+        return;
+      }
+
+      void supabase.auth.getSession().then(({ data: { session } }) => {
+        if (session?.user && session.access_token) {
+          void hydrateUser(session.user, session.access_token, true);
+        }
+      });
+    };
+
+    window.addEventListener("focus", reconcileVisibleSession);
+    document.addEventListener("visibilitychange", reconcileVisibleSession);
+
+    return () => {
+      window.removeEventListener("focus", reconcileVisibleSession);
+      document.removeEventListener("visibilitychange", reconcileVisibleSession);
+    };
+  }, [hydrateUser]);
+
   const handleSignOut = useCallback(async () => {
     requestIdRef.current++;
-    profileRef.current = null;
-    setUser(null);
-    setProfile(null);
-    setRole(null);
-    setAccessToken(null);
-    setProfileLoaded(false);
+    manualSignOutRef.current = true;
+    setLoading(true);
     setAuthError(null);
-    await supabase.auth.signOut();
-  }, []);
+    try {
+      await supabase.auth.signOut();
+    } finally {
+      clearAuthState();
+      manualSignOutRef.current = false;
+    }
+  }, [clearAuthState]);
 
   const isAdmin = role === "admin";
   const isActive = profile?.is_active ?? false;
