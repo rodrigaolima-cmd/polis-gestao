@@ -114,9 +114,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setAuthError(null);
 
     if (!currentUser || !token) {
-      if (thisRequest === requestIdRef.current) {
+      // Only clear state on explicit manual sign-out
+      if (manualSignOutRef.current && thisRequest === requestIdRef.current) {
         clearAuthState();
       }
+      // Otherwise keep existing snapshot — do NOT clear
       return;
     }
 
@@ -270,8 +272,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       void supabase.auth.getSession().then(({ data: { session } }) => {
         if (session?.user && session.access_token) {
-          void hydrateUser(session.user, session.access_token, true);
+          // Silently update token without full re-hydration
+          accessTokenRef.current = session.access_token;
+          setAccessToken(session.access_token);
         }
+        // If no session, do NOT clear — keep existing snapshot
       });
     };
 
