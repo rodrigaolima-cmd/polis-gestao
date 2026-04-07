@@ -206,6 +206,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const handleSignOut = useCallback(async () => {
     requestIdRef.current++;
+    profileRef.current = null;
     setUser(null);
     setProfile(null);
     setRole(null);
