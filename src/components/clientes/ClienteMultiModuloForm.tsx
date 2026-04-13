@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { Search } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -14,6 +14,7 @@ import { CurrencyInput } from "@/components/ui/currency-input";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { CopyCheck, Copy } from "lucide-react";
+import { usePersistentFormDraft } from "@/hooks/usePersistentFormDraft";
 
 interface ModuleOption {
   id: string;
@@ -30,9 +31,12 @@ interface ClienteMultiModuloFormProps {
   onOpenChange: (open: boolean) => void;
   clientId: string;
   onSaved: () => void;
+  persistKey?: string;
 }
 
-export function ClienteMultiModuloForm({ open, onOpenChange, clientId, onSaved }: ClienteMultiModuloFormProps) {
+export function ClienteMultiModuloForm({ open, onOpenChange, clientId, onSaved, persistKey }: ClienteMultiModuloFormProps) {
+  const draft = usePersistentFormDraft(persistKey || `multi-module-form:${clientId}`);
+
   const [allModules, setAllModules] = useState<ModuleOption[]>([]);
   const [existingModuleIds, setExistingModuleIds] = useState<Set<string>>(new Set());
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -52,6 +56,9 @@ export function ClienteMultiModuloForm({ open, onOpenChange, clientId, onSaved }
   const [bulkFaturado, setBulkFaturado] = useState("");
   const [moduleSearch, setModuleSearch] = useState("");
 
+  // Track whether we already restored from draft for this open cycle
+  const restoredRef = useRef(false);
+
   const normalize = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 
   const filteredModules = useMemo(() => {
@@ -60,20 +67,12 @@ export function ClienteMultiModuloForm({ open, onOpenChange, clientId, onSaved }
     return allModules.filter((m) => normalize(m.nome_modulo).includes(term));
   }, [allModules, moduleSearch]);
 
+  // Load catalog + existing modules, then restore draft if available
   useEffect(() => {
-    if (!open) return;
-    // Reset
-    setSelectedIds(new Set());
-    setModuleValues({});
-    setDataAssinatura("");
-    setVencimento("");
-    setStatusContrato("Ativo");
-    setFaturadoFlag(false);
-    setObservacoes("");
-    setAtivoNoCliente(true);
-    setBulkContratado("");
-    setBulkFaturado("");
-    setModuleSearch("");
+    if (!open) {
+      restoredRef.current = false;
+      return;
+    }
 
     // Load catalog + existing
     Promise.all([
@@ -82,8 +81,63 @@ export function ClienteMultiModuloForm({ open, onOpenChange, clientId, onSaved }
     ]).then(([catalogRes, existingRes]) => {
       setAllModules(catalogRes.data || []);
       setExistingModuleIds(new Set((existingRes.data || []).map((r: any) => r.modulo_id)));
+
+      // Try to restore draft
+      if (!restoredRef.current) {
+        restoredRef.current = true;
+        const saved = draft.getDraft();
+        if (saved) {
+          setSelectedIds(new Set(saved.selectedIds || []));
+          setModuleValues(saved.moduleValues || {});
+          setDataAssinatura(saved.dataAssinatura || "");
+          setVencimento(saved.vencimento || "");
+          setStatusContrato(saved.statusContrato || "Ativo");
+          setFaturadoFlag(saved.faturadoFlag || false);
+          setObservacoes(saved.observacoes || "");
+          setAtivoNoCliente(saved.ativoNoCliente !== undefined ? saved.ativoNoCliente : true);
+          setBulkContratado(saved.bulkContratado || "");
+          setBulkFaturado(saved.bulkFaturado || "");
+          setModuleSearch(saved.moduleSearch || "");
+        } else {
+          // Fresh open — reset everything
+          setSelectedIds(new Set());
+          setModuleValues({});
+          setDataAssinatura("");
+          setVencimento("");
+          setStatusContrato("Ativo");
+          setFaturadoFlag(false);
+          setObservacoes("");
+          setAtivoNoCliente(true);
+          setBulkContratado("");
+          setBulkFaturado("");
+          setModuleSearch("");
+        }
+      }
     });
   }, [open, clientId]);
+
+  // Persist draft on every state change (debounced via hook)
+  useEffect(() => {
+    if (!open) return;
+    draft.saveDraft({
+      selectedIds: Array.from(selectedIds),
+      moduleValues,
+      dataAssinatura,
+      vencimento,
+      statusContrato,
+      faturadoFlag,
+      observacoes,
+      ativoNoCliente,
+      bulkContratado,
+      bulkFaturado,
+      moduleSearch,
+    });
+  }, [open, selectedIds, moduleValues, dataAssinatura, vencimento, statusContrato, faturadoFlag, observacoes, ativoNoCliente, bulkContratado, bulkFaturado, moduleSearch]);
+
+  const closeAndClear = useCallback(() => {
+    draft.clearDraft();
+    onOpenChange(false);
+  }, [draft, onOpenChange]);
 
   const toggleModule = (id: string) => {
     setSelectedIds((prev) => {
@@ -190,6 +244,7 @@ export function ClienteMultiModuloForm({ open, onOpenChange, clientId, onSaved }
 
       toast.success(`${toInsert.length} módulo(s) adicionado(s)`);
       onSaved();
+      draft.clearDraft();
       onOpenChange(false);
     } catch (err) {
       console.error(err);
@@ -201,7 +256,7 @@ export function ClienteMultiModuloForm({ open, onOpenChange, clientId, onSaved }
 
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) return; onOpenChange(v); }}>
-      <DialogContent className="max-w-3xl bg-card border-border max-h-[90vh] overflow-y-auto" onClose={() => onOpenChange(false)}>
+      <DialogContent className="max-w-3xl bg-card border-border max-h-[90vh] overflow-y-auto" onClose={closeAndClear}>
         <DialogHeader>
           <DialogTitle>Adicionar Módulos</DialogTitle>
           <DialogDescription>Selecione os módulos e preencha os dados do contrato.</DialogDescription>
@@ -357,7 +412,7 @@ export function ClienteMultiModuloForm({ open, onOpenChange, clientId, onSaved }
           )}
 
           <div className="flex justify-end gap-2 pt-2">
-            <Button variant="outline" size="sm" onClick={() => onOpenChange(false)}>Cancelar</Button>
+            <Button variant="outline" size="sm" onClick={closeAndClear}>Cancelar</Button>
             <Button size="sm" onClick={handleSave} disabled={saving || selectedIds.size === 0}>
               {saving ? "Salvando..." : `Adicionar ${selectedIds.size} módulo(s)`}
             </Button>
