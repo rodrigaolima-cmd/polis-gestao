@@ -73,11 +73,13 @@ export function ModalPersistenceProvider({ children }: { children: ReactNode }) 
 
   const saveDraft = useCallback((key: string, draft: Record<string, any>) => {
     const store = readStore();
-    if (store[key]) {
+    if (!store[key]) {
+      store[key] = { modalType: "draft", openedAt: Date.now(), draft };
+    } else {
       store[key].draft = draft;
-      writeStore(store);
-      storeRef.current = store;
     }
+    writeStore(store);
+    storeRef.current = store;
   }, []);
 
   const getDraft = useCallback((key: string): Record<string, any> | null => {
