@@ -1,4 +1,4 @@
-import { useCallback, useRef, useEffect } from "react";
+import { useCallback, useRef, useEffect, useMemo } from "react";
 import { useModalPersistence } from "@/contexts/ModalPersistenceContext";
 
 /**
@@ -69,5 +69,5 @@ export function usePersistentFormDraft(persistKey: string) {
     };
   }, [persistKey, saveDraft]);
 
-  return { saveDraft: save, saveDraftNow: saveNow, getDraft: get, clearDraft: clear, flush };
+  return useMemo(() => ({ saveDraft: save, saveDraftNow: saveNow, getDraft: get, clearDraft: clear, flush }), [save, saveNow, get, clear, flush]);
 }
