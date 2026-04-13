@@ -1,40 +1,47 @@
 
 
-## Fix: Persistir estado do modal "Adicionar Módulos" durante troca de abas
+## Fix: Draft never saved because of key mismatch
 
-### Problema
+### Root cause
 
-O `ClienteMultiModuloForm` usa apenas `useState` — todo o estado (módulos selecionados, campos comuns, valores por módulo, busca) é perdido quando o componente remonta por troca de aba ou churn de autenticação. Além disso, o `useEffect` na linha 63 reseta tudo quando `open` muda.
+The modal is opened with key `detail:${id}:multi-module`, but the draft is saved with key `detail:${id}:multi-module-form`. These are **different keys**.
 
-### Solução
+In `ModalPersistenceContext.saveDraft()` (line 74-81), the code checks `if (store[key])` before saving — meaning it only saves drafts for entries that already exist in the store. Since the draft key (`multi-module-form`) was never registered via `openModal` (which used `multi-module`), `store[key]` is always `undefined`, and **the draft is silently discarded every time**.
 
-Integrar o modal com o sistema de persistência existente (`usePersistentModal` + `usePersistentFormDraft`), igual ao que já é feito no `ClienteModuloForm`.
+The modal shell persists (correct key), but all form state is lost (wrong key → never saved).
 
-### Alterações
+### Fix (2 changes)
 
-**1. `src/pages/ClienteDetailPage.tsx`**
+**1. `src/contexts/ModalPersistenceContext.tsx`** — Make `saveDraft` resilient
 
-- O `multiModuleModal` já usa `usePersistentModal`. Verificar que `open`/`close` estão corretos (já estão).
+Change `saveDraft` to create a minimal entry if one doesn't exist yet, instead of silently failing. This prevents this class of bug for all modals:
 
-**2. `src/components/clientes/ClienteMultiModuloForm.tsx`** — Alteração principal
+```typescript
+const saveDraft = useCallback((key: string, draft: Record<string, any>) => {
+  const store = readStore();
+  if (!store[key]) {
+    store[key] = { modalType: "draft", openedAt: Date.now(), draft };
+  } else {
+    store[key].draft = draft;
+  }
+  writeStore(store);
+  storeRef.current = store;
+}, []);
+```
 
-- Importar `usePersistentFormDraft`
-- Aceitar nova prop `persistKey` (ex: `detail:${id}:multi-module-form`)
-- No `useEffect` que roda quando `open` muda:
-  - Se `open` é true: verificar se existe draft salvo. Se sim, restaurar estado do draft em vez de resetar. Se não, resetar normalmente e carregar catálogo.
-  - Se `open` é false: não fazer nada (o estado já foi limpo pelo close explícito).
-- Salvar draft (debounced) sempre que qualquer estado muda: `selectedIds`, `moduleValues`, `moduleSearch`, `dataAssinatura`, `vencimento`, `statusContrato`, `faturadoFlag`, `observacoes`, `ativoNoCliente`, `bulkContratado`, `bulkFaturado`
-- Nos 3 pontos de fechamento (Cancelar, X/onClose, save success): limpar draft antes de fechar
-- O draft será serializado como objeto plano com `selectedIds` convertido de Set para Array
+**2. `src/pages/ClienteDetailPage.tsx`** — Align the keys
 
-**3. `src/pages/ClienteDetailPage.tsx`** — Passar `persistKey`
+Change the `persistKey` to match the modal key so they share the same store entry:
 
-- Adicionar `persistKey={`detail:${id}:multi-module-form`}` ao `ClienteMultiModuloForm`
+```
+persistKey={`detail:${id}:multi-module`}
+```
 
-### O que NÃO muda
+Both changes together ensure the draft is always saved and always found on restore.
 
-- Layout do modal
-- Lógica de save/insert
-- Regras de negócio (módulos vinculados, bulk values)
-- Outros modais
+### What does NOT change
+
+- Modal layout, save logic, business rules
+- Other modals (ClienteForm, ClienteModuloForm, CopyDates)
+- Close/cancel/save clearing behavior
 
