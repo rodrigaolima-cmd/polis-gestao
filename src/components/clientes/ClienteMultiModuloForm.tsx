@@ -34,6 +34,34 @@ interface ClienteMultiModuloFormProps {
   persistKey?: string;
 }
 
+interface DraftSnapshot {
+  selectedIds: string[];
+  moduleValues: Record<string, SelectedModuleValues>;
+  dataAssinatura: string;
+  vencimento: string;
+  statusContrato: string;
+  faturadoFlag: boolean;
+  observacoes: string;
+  ativoNoCliente: boolean;
+  bulkContratado: string;
+  bulkFaturado: string;
+  moduleSearch: string;
+}
+
+const createEmptySnapshot = (): DraftSnapshot => ({
+  selectedIds: [],
+  moduleValues: {},
+  dataAssinatura: "",
+  vencimento: "",
+  statusContrato: "Ativo",
+  faturadoFlag: false,
+  observacoes: "",
+  ativoNoCliente: true,
+  bulkContratado: "",
+  bulkFaturado: "",
+  moduleSearch: "",
+});
+
 export function ClienteMultiModuloForm({ open, onOpenChange, clientId, onSaved, persistKey }: ClienteMultiModuloFormProps) {
   const draft = usePersistentFormDraft(persistKey || `multi-module-form:${clientId}`);
 
@@ -55,14 +83,44 @@ export function ClienteMultiModuloForm({ open, onOpenChange, clientId, onSaved, 
   const [bulkContratado, setBulkContratado] = useState("");
   const [bulkFaturado, setBulkFaturado] = useState("");
   const [moduleSearch, setModuleSearch] = useState("");
-
-  // Track whether we already restored from draft for this open cycle
-  const restoredRef = useRef(false);
+  const [isHydrated, setIsHydrated] = useState(false);
 
   // Keep a ref of current state for visibilitychange flush
-  const stateRef = useRef<Record<string, any>>({});
+  const stateRef = useRef<DraftSnapshot>(createEmptySnapshot());
 
   const normalize = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+
+  const restoreSnapshot = useCallback((snapshot?: Partial<DraftSnapshot> | null) => {
+    const base = createEmptySnapshot();
+    const next = {
+      ...base,
+      ...snapshot,
+      selectedIds: Array.isArray(snapshot?.selectedIds) ? snapshot.selectedIds : base.selectedIds,
+      moduleValues: snapshot?.moduleValues || base.moduleValues,
+      statusContrato: snapshot?.statusContrato || base.statusContrato,
+      dataAssinatura: snapshot?.dataAssinatura || base.dataAssinatura,
+      vencimento: snapshot?.vencimento || base.vencimento,
+      observacoes: snapshot?.observacoes || base.observacoes,
+      bulkContratado: snapshot?.bulkContratado || base.bulkContratado,
+      bulkFaturado: snapshot?.bulkFaturado || base.bulkFaturado,
+      moduleSearch: snapshot?.moduleSearch || base.moduleSearch,
+      faturadoFlag: snapshot?.faturadoFlag ?? base.faturadoFlag,
+      ativoNoCliente: snapshot?.ativoNoCliente ?? base.ativoNoCliente,
+    } satisfies DraftSnapshot;
+
+    setSelectedIds(new Set(next.selectedIds));
+    setModuleValues(next.moduleValues);
+    setDataAssinatura(next.dataAssinatura);
+    setVencimento(next.vencimento);
+    setStatusContrato(next.statusContrato);
+    setFaturadoFlag(next.faturadoFlag);
+    setObservacoes(next.observacoes);
+    setAtivoNoCliente(next.ativoNoCliente);
+    setBulkContratado(next.bulkContratado);
+    setBulkFaturado(next.bulkFaturado);
+    setModuleSearch(next.moduleSearch);
+    stateRef.current = next;
+  }, []);
 
   const filteredModules = useMemo(() => {
     if (!moduleSearch.trim()) return allModules;
@@ -87,84 +145,82 @@ export function ClienteMultiModuloForm({ open, onOpenChange, clientId, onSaved, 
 
   // Keep stateRef in sync
   useEffect(() => {
-    if (open) {
+    if (open && isHydrated) {
       stateRef.current = buildSnapshot();
     }
-  }, [open, buildSnapshot]);
+  }, [open, isHydrated, buildSnapshot]);
 
   // visibilitychange listener — flush draft immediately when tab becomes hidden
   useEffect(() => {
     if (!open) return;
 
     const handleVisibility = () => {
-      if (document.visibilityState === "hidden") {
+      if (document.visibilityState === "hidden" && isHydrated) {
+        draft.saveDraftNow(stateRef.current);
+      }
+    };
+
+    const handlePageHide = () => {
+      if (isHydrated) {
         draft.saveDraftNow(stateRef.current);
       }
     };
 
     document.addEventListener("visibilitychange", handleVisibility);
-    return () => document.removeEventListener("visibilitychange", handleVisibility);
-  }, [open, draft]);
+    window.addEventListener("pagehide", handlePageHide);
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibility);
+      window.removeEventListener("pagehide", handlePageHide);
+    };
+  }, [open, isHydrated, draft]);
 
-  // Load catalog + existing modules, then restore draft if available
+  // Restore draft immediately, then finalize selection after loading catalog/existing links
   useEffect(() => {
     if (!open) {
-      restoredRef.current = false;
+      setIsHydrated(false);
       return;
     }
+
+    let cancelled = false;
+    const saved = draft.getDraft() as Partial<DraftSnapshot> | null;
+
+    setIsHydrated(false);
+    restoreSnapshot(saved);
 
     Promise.all([
       supabase.from("modules").select("id, nome_modulo").order("nome_modulo"),
       supabase.from("client_modules").select("modulo_id").eq("client_id", clientId),
     ]).then(([catalogRes, existingRes]) => {
+      if (cancelled) return;
+
       const catalog = catalogRes.data || [];
       const existing = new Set((existingRes.data || []).map((r: any) => r.modulo_id));
+      const filteredSelectedIds = Array.from(stateRef.current.selectedIds).filter((id) => !existing.has(id));
+
       setAllModules(catalog);
       setExistingModuleIds(existing);
-
-      // Restore draft AFTER catalog is ready — only once per open cycle
-      if (!restoredRef.current) {
-        restoredRef.current = true;
-        const saved = draft.getDraft();
-        if (saved) {
-          // Reconstruct Set, filtering out any that are now already linked
-          const restoredIds = new Set<string>(
-            (saved.selectedIds || []).filter((id: string) => !existing.has(id))
-          );
-          setSelectedIds(restoredIds);
-          setModuleValues(saved.moduleValues || {});
-          setDataAssinatura(saved.dataAssinatura || "");
-          setVencimento(saved.vencimento || "");
-          setStatusContrato(saved.statusContrato || "Ativo");
-          setFaturadoFlag(saved.faturadoFlag || false);
-          setObservacoes(saved.observacoes || "");
-          setAtivoNoCliente(saved.ativoNoCliente !== undefined ? saved.ativoNoCliente : true);
-          setBulkContratado(saved.bulkContratado || "");
-          setBulkFaturado(saved.bulkFaturado || "");
-          setModuleSearch(saved.moduleSearch || "");
-        } else {
-          // Fresh open — reset everything
-          setSelectedIds(new Set());
-          setModuleValues({});
-          setDataAssinatura("");
-          setVencimento("");
-          setStatusContrato("Ativo");
-          setFaturadoFlag(false);
-          setObservacoes("");
-          setAtivoNoCliente(true);
-          setBulkContratado("");
-          setBulkFaturado("");
-          setModuleSearch("");
-        }
+      setSelectedIds(new Set(filteredSelectedIds));
+      stateRef.current = {
+        ...stateRef.current,
+        selectedIds: filteredSelectedIds,
+      };
+      setIsHydrated(true);
+    }).catch(() => {
+      if (!cancelled) {
+        setIsHydrated(true);
       }
     });
-  }, [open, clientId]);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [open, clientId, draft, restoreSnapshot]);
 
   // Debounced persist on text/field changes
   useEffect(() => {
-    if (!open) return;
+    if (!open || !isHydrated) return;
     draft.saveDraft(buildSnapshot());
-  }, [open, selectedIds, moduleValues, dataAssinatura, vencimento, statusContrato, faturadoFlag, observacoes, ativoNoCliente, bulkContratado, bulkFaturado, moduleSearch]);
+  }, [open, isHydrated, selectedIds, moduleValues, dataAssinatura, vencimento, statusContrato, faturadoFlag, observacoes, ativoNoCliente, bulkContratado, bulkFaturado, moduleSearch, draft, buildSnapshot]);
 
   const closeAndClear = useCallback(() => {
     draft.clearDraft();
@@ -188,7 +244,10 @@ export function ClienteMultiModuloForm({ open, onOpenChange, clientId, onSaved, 
         ...stateRef.current,
         selectedIds: Array.from(next),
       };
-      draft.saveDraftNow(snapshot);
+      stateRef.current = snapshot;
+      if (isHydrated) {
+        draft.saveDraftNow(snapshot);
+      }
 
       return next;
     });
