@@ -1,68 +1,63 @@
 
-Objetivo: corrigir de forma pontual o fato de o modal “Adicionar Módulos” continuar perdendo os módulos selecionados ao trocar de aba, sem alterar layout nem regras de negócio.
+Objetivo: corrigir de forma pontual por que o modal “Adicionar Módulos” ainda perde os módulos selecionados ao trocar de aba, sem alterar layout, regras de negócio nem lógica de add/save.
 
-Diagnóstico mais provável no código atual:
-- O modal já usa uma chave correta de persistência (`detail:${id}:multi-module`) e já salva `selectedIds`.
-- Porém o salvamento do rascunho é feito com debounce de 300ms em `usePersistentFormDraft`.
-- Quando o usuário troca de aba logo após clicar em checkboxes, pode ocorrer remount/churn de autenticação antes de o debounce gravar no `sessionStorage`.
-- Resultado: o shell do modal volta aberto, mas o último estado selecionado nunca chegou a ser persistido.
-- Além disso, a hidratação hoje depende do fluxo assíncrono de carregamento do catálogo; ela restaura dentro do `.then(...)`, o que torna o fluxo mais frágil do que precisa.
+Diagnóstico real no código atual:
+- O problema principal não parece mais ser a chave de persistência.
+- Hoje o `ClienteMultiModuloForm` começa com estado vazio e já dispara o efeito de persistência (`draft.saveDraft(...)`) assim que monta com `open=true`.
+- A hidratação do draft só acontece depois, dentro do `Promise.all(...)` que carrega catálogo + módulos já vinculados.
+- Se houver remount ao trocar de aba, esse efeito inicial salva um snapshot vazio/default antes da restauração terminar e sobrescreve o draft correto.
+- Resultado: o modal reabre, mas `selectedIds` e demais campos já foram zerados no storage.
 
 Correção proposta
 
-1. Ajustar `usePersistentFormDraft.ts`
-- Manter o debounce para campos digitados.
-- Adicionar uma função extra de gravação imediata, sem debounce, algo como `saveDraftNow`.
-- Adicionar flush no cleanup/unmount para não perder o último draft pendente.
-- Assim, eventos críticos como seleção de módulo e troca de aba não dependem do timer.
+1. Ajustar `src/components/clientes/ClienteMultiModuloForm.tsx`
+- Adicionar um estado de hidratação/inicialização do ciclo atual, por exemplo `isHydrated`.
+- Ao abrir o modal:
+  - marcar `isHydrated = false`
+  - ler o draft salvo imediatamente
+  - restaurar em memória `selectedIds`, `moduleSearch`, campos comuns e `moduleValues`
+  - depois carregar catálogo + módulos já vinculados
+  - reaplicar/finalizar `selectedIds` filtrando apenas módulos já vinculados, se necessário
+  - só então marcar `isHydrated = true`
+- Isso impede que o componente comece a salvar estado vazio antes de concluir a restauração.
 
-2. Ajustar `ClienteMultiModuloForm.tsx`
-- Persistir seleção de módulos imediatamente ao marcar/desmarcar checkbox.
-- Persistir busca e campos comuns no fluxo normal; se necessário, também fazer flush quando a aba ficar oculta (`visibilitychange`) ou no `pagehide`.
-- Separar melhor o carregamento:
-  - primeiro carregar catálogo + módulos já vinculados
-  - depois hidratar o draft salvo
-  - reconstituir `selectedIds` como `Set`
-  - filtrar/remover da seleção qualquer módulo que já esteja vinculado, para manter consistência
-- Garantir que a restauração aconteça uma vez por ciclo de abertura e que não seja sobrescrita por reset posterior.
-- Não limpar draft em perda de foco/troca de aba; limpar apenas em:
+2. Bloquear persistência antes da hidratação terminar
+- No efeito que hoje salva o draft a cada mudança, só persistir quando:
+  - `open === true`
+  - `isHydrated === true`
+- Fazer a mesma proteção no flush por `visibilitychange` / `pagehide`, para nunca gravar snapshot parcial/default no começo do mount.
+
+3. Manter persistência explícita da seleção
+- Continuar persistindo `selectedIds` de forma imediata ao marcar/desmarcar checkbox.
+- Garantir que o `checked` continue derivado exclusivamente de `selectedIds.has(id)`, nunca da lista filtrada.
+- Busca/filtro deve afetar apenas o que aparece na tela, não a seleção persistida.
+
+4. Não mudar fechamento explícito
+- Manter limpeza do draft apenas em:
   - X
   - Cancelar
-  - save com sucesso
-
-3. Reforçar a persistência contra troca de aba
-- Adicionar listener de `visibilitychange` e/ou `pagehide` dentro do modal para forçar flush imediato do draft atual quando a aba ficar oculta.
-- Isso protege exatamente o cenário relatado: selecionar módulos e trocar de aba antes do debounce concluir.
-
-4. Validar o comportamento preservado
-- Busca não pode limpar seleção.
-- Filtrar lista e limpar filtro não pode limpar seleção.
-- Re-render/remount do componente não pode limpar seleção.
-- Modal deve continuar aberto via `usePersistentModal`, como já está.
+  - add/save com sucesso
+- Não limpar em troca de aba, blur, rerender ou remount.
 
 Arquivos a alterar
-- `src/hooks/usePersistentFormDraft.ts`
 - `src/components/clientes/ClienteMultiModuloForm.tsx`
 
 O que não muda
 - Layout do modal
-- Lógica de insert/save
 - Regras de negócio
-- Fluxo de fechamento explícito
+- Lógica de insert/save
+- Outras telas/modais
 
 Validação após implementar
-- Abrir “Adicionar Módulos”
-- Selecionar ALM e ASSIST SOCIAL
-- Preencher busca e campos comuns
-- Trocar imediatamente de aba
-- Voltar
-- Confirmar:
-  - modal continua aberto
-  - ALM e ASSIST SOCIAL continuam marcados
-  - busca continua preenchida
-  - campos comuns continuam preenchidos
-- Depois:
-  - alterar termo de busca
-  - limpar busca
-  - confirmar que os módulos continuam selecionados
-- Confirmar também que X, Cancelar e salvar limpam o draft corretamente
+1. Abrir “Adicionar Módulos”
+2. Selecionar ALM e ASSIST SOCIAL
+3. Preencher busca e campos comuns
+4. Trocar de aba e voltar
+5. Confirmar:
+- modal continua aberto
+- ALM continua marcado
+- ASSIST SOCIAL continua marcado
+- busca continua preenchida
+- campos comuns continuam preenchidos
+6. Alterar busca, limpar busca e confirmar que a seleção continua intacta
+7. Confirmar que X, Cancelar e salvar limpam o draft corretamente
