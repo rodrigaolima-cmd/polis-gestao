@@ -59,6 +59,9 @@ export function ClienteMultiModuloForm({ open, onOpenChange, clientId, onSaved, 
   // Track whether we already restored from draft for this open cycle
   const restoredRef = useRef(false);
 
+  // Keep a ref of current state for visibilitychange flush
+  const stateRef = useRef<Record<string, any>>({});
+
   const normalize = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 
   const filteredModules = useMemo(() => {
@@ -67,6 +70,42 @@ export function ClienteMultiModuloForm({ open, onOpenChange, clientId, onSaved, 
     return allModules.filter((m) => normalize(m.nome_modulo).includes(term));
   }, [allModules, moduleSearch]);
 
+  // Helper to build the draft snapshot from current state
+  const buildSnapshot = useCallback(() => ({
+    selectedIds: Array.from(selectedIds),
+    moduleValues,
+    dataAssinatura,
+    vencimento,
+    statusContrato,
+    faturadoFlag,
+    observacoes,
+    ativoNoCliente,
+    bulkContratado,
+    bulkFaturado,
+    moduleSearch,
+  }), [selectedIds, moduleValues, dataAssinatura, vencimento, statusContrato, faturadoFlag, observacoes, ativoNoCliente, bulkContratado, bulkFaturado, moduleSearch]);
+
+  // Keep stateRef in sync
+  useEffect(() => {
+    if (open) {
+      stateRef.current = buildSnapshot();
+    }
+  }, [open, buildSnapshot]);
+
+  // visibilitychange listener — flush draft immediately when tab becomes hidden
+  useEffect(() => {
+    if (!open) return;
+
+    const handleVisibility = () => {
+      if (document.visibilityState === "hidden") {
+        draft.saveDraftNow(stateRef.current);
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibility);
+    return () => document.removeEventListener("visibilitychange", handleVisibility);
+  }, [open, draft]);
+
   // Load catalog + existing modules, then restore draft if available
   useEffect(() => {
     if (!open) {
@@ -74,20 +113,25 @@ export function ClienteMultiModuloForm({ open, onOpenChange, clientId, onSaved, 
       return;
     }
 
-    // Load catalog + existing
     Promise.all([
       supabase.from("modules").select("id, nome_modulo").order("nome_modulo"),
       supabase.from("client_modules").select("modulo_id").eq("client_id", clientId),
     ]).then(([catalogRes, existingRes]) => {
-      setAllModules(catalogRes.data || []);
-      setExistingModuleIds(new Set((existingRes.data || []).map((r: any) => r.modulo_id)));
+      const catalog = catalogRes.data || [];
+      const existing = new Set((existingRes.data || []).map((r: any) => r.modulo_id));
+      setAllModules(catalog);
+      setExistingModuleIds(existing);
 
-      // Try to restore draft
+      // Restore draft AFTER catalog is ready — only once per open cycle
       if (!restoredRef.current) {
         restoredRef.current = true;
         const saved = draft.getDraft();
         if (saved) {
-          setSelectedIds(new Set(saved.selectedIds || []));
+          // Reconstruct Set, filtering out any that are now already linked
+          const restoredIds = new Set<string>(
+            (saved.selectedIds || []).filter((id: string) => !existing.has(id))
+          );
+          setSelectedIds(restoredIds);
           setModuleValues(saved.moduleValues || {});
           setDataAssinatura(saved.dataAssinatura || "");
           setVencimento(saved.vencimento || "");
@@ -116,22 +160,10 @@ export function ClienteMultiModuloForm({ open, onOpenChange, clientId, onSaved, 
     });
   }, [open, clientId]);
 
-  // Persist draft on every state change (debounced via hook)
+  // Debounced persist on text/field changes
   useEffect(() => {
     if (!open) return;
-    draft.saveDraft({
-      selectedIds: Array.from(selectedIds),
-      moduleValues,
-      dataAssinatura,
-      vencimento,
-      statusContrato,
-      faturadoFlag,
-      observacoes,
-      ativoNoCliente,
-      bulkContratado,
-      bulkFaturado,
-      moduleSearch,
-    });
+    draft.saveDraft(buildSnapshot());
   }, [open, selectedIds, moduleValues, dataAssinatura, vencimento, statusContrato, faturadoFlag, observacoes, ativoNoCliente, bulkContratado, bulkFaturado, moduleSearch]);
 
   const closeAndClear = useCallback(() => {
@@ -150,6 +182,14 @@ export function ClienteMultiModuloForm({ open, onOpenChange, clientId, onSaved, 
           setModuleValues((v) => ({ ...v, [id]: { valor_contratado: 0, valor_faturado: 0 } }));
         }
       }
+
+      // Immediately persist selection change
+      const snapshot = {
+        ...stateRef.current,
+        selectedIds: Array.from(next),
+      };
+      draft.saveDraftNow(snapshot);
+
       return next;
     });
   };
@@ -211,7 +251,6 @@ export function ClienteMultiModuloForm({ open, onOpenChange, clientId, onSaved, 
       toast.warning("Datas de assinatura ou vencimento não preenchidas — os registros serão salvos sem elas");
     }
 
-    // Filter out already linked
     const toInsert = Array.from(selectedIds).filter((id) => !existingModuleIds.has(id));
     const skipped = selectedIds.size - toInsert.length;
 
