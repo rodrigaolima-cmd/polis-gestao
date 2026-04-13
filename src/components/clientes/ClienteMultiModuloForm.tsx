@@ -128,7 +128,7 @@ export function ClienteMultiModuloForm({ open, onOpenChange, clientId, onSaved, 
         const saved = draft.getDraft();
         if (saved) {
           // Reconstruct Set, filtering out any that are now already linked
-          const restoredIds = new Set(
+          const restoredIds = new Set<string>(
             (saved.selectedIds || []).filter((id: string) => !existing.has(id))
           );
           setSelectedIds(restoredIds);
