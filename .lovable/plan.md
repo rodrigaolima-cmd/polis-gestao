@@ -1,47 +1,68 @@
 
+Objetivo: corrigir de forma pontual o fato de o modal “Adicionar Módulos” continuar perdendo os módulos selecionados ao trocar de aba, sem alterar layout nem regras de negócio.
 
-## Fix: Draft never saved because of key mismatch
+Diagnóstico mais provável no código atual:
+- O modal já usa uma chave correta de persistência (`detail:${id}:multi-module`) e já salva `selectedIds`.
+- Porém o salvamento do rascunho é feito com debounce de 300ms em `usePersistentFormDraft`.
+- Quando o usuário troca de aba logo após clicar em checkboxes, pode ocorrer remount/churn de autenticação antes de o debounce gravar no `sessionStorage`.
+- Resultado: o shell do modal volta aberto, mas o último estado selecionado nunca chegou a ser persistido.
+- Além disso, a hidratação hoje depende do fluxo assíncrono de carregamento do catálogo; ela restaura dentro do `.then(...)`, o que torna o fluxo mais frágil do que precisa.
 
-### Root cause
+Correção proposta
 
-The modal is opened with key `detail:${id}:multi-module`, but the draft is saved with key `detail:${id}:multi-module-form`. These are **different keys**.
+1. Ajustar `usePersistentFormDraft.ts`
+- Manter o debounce para campos digitados.
+- Adicionar uma função extra de gravação imediata, sem debounce, algo como `saveDraftNow`.
+- Adicionar flush no cleanup/unmount para não perder o último draft pendente.
+- Assim, eventos críticos como seleção de módulo e troca de aba não dependem do timer.
 
-In `ModalPersistenceContext.saveDraft()` (line 74-81), the code checks `if (store[key])` before saving — meaning it only saves drafts for entries that already exist in the store. Since the draft key (`multi-module-form`) was never registered via `openModal` (which used `multi-module`), `store[key]` is always `undefined`, and **the draft is silently discarded every time**.
+2. Ajustar `ClienteMultiModuloForm.tsx`
+- Persistir seleção de módulos imediatamente ao marcar/desmarcar checkbox.
+- Persistir busca e campos comuns no fluxo normal; se necessário, também fazer flush quando a aba ficar oculta (`visibilitychange`) ou no `pagehide`.
+- Separar melhor o carregamento:
+  - primeiro carregar catálogo + módulos já vinculados
+  - depois hidratar o draft salvo
+  - reconstituir `selectedIds` como `Set`
+  - filtrar/remover da seleção qualquer módulo que já esteja vinculado, para manter consistência
+- Garantir que a restauração aconteça uma vez por ciclo de abertura e que não seja sobrescrita por reset posterior.
+- Não limpar draft em perda de foco/troca de aba; limpar apenas em:
+  - X
+  - Cancelar
+  - save com sucesso
 
-The modal shell persists (correct key), but all form state is lost (wrong key → never saved).
+3. Reforçar a persistência contra troca de aba
+- Adicionar listener de `visibilitychange` e/ou `pagehide` dentro do modal para forçar flush imediato do draft atual quando a aba ficar oculta.
+- Isso protege exatamente o cenário relatado: selecionar módulos e trocar de aba antes do debounce concluir.
 
-### Fix (2 changes)
+4. Validar o comportamento preservado
+- Busca não pode limpar seleção.
+- Filtrar lista e limpar filtro não pode limpar seleção.
+- Re-render/remount do componente não pode limpar seleção.
+- Modal deve continuar aberto via `usePersistentModal`, como já está.
 
-**1. `src/contexts/ModalPersistenceContext.tsx`** — Make `saveDraft` resilient
+Arquivos a alterar
+- `src/hooks/usePersistentFormDraft.ts`
+- `src/components/clientes/ClienteMultiModuloForm.tsx`
 
-Change `saveDraft` to create a minimal entry if one doesn't exist yet, instead of silently failing. This prevents this class of bug for all modals:
+O que não muda
+- Layout do modal
+- Lógica de insert/save
+- Regras de negócio
+- Fluxo de fechamento explícito
 
-```typescript
-const saveDraft = useCallback((key: string, draft: Record<string, any>) => {
-  const store = readStore();
-  if (!store[key]) {
-    store[key] = { modalType: "draft", openedAt: Date.now(), draft };
-  } else {
-    store[key].draft = draft;
-  }
-  writeStore(store);
-  storeRef.current = store;
-}, []);
-```
-
-**2. `src/pages/ClienteDetailPage.tsx`** — Align the keys
-
-Change the `persistKey` to match the modal key so they share the same store entry:
-
-```
-persistKey={`detail:${id}:multi-module`}
-```
-
-Both changes together ensure the draft is always saved and always found on restore.
-
-### What does NOT change
-
-- Modal layout, save logic, business rules
-- Other modals (ClienteForm, ClienteModuloForm, CopyDates)
-- Close/cancel/save clearing behavior
-
+Validação após implementar
+- Abrir “Adicionar Módulos”
+- Selecionar ALM e ASSIST SOCIAL
+- Preencher busca e campos comuns
+- Trocar imediatamente de aba
+- Voltar
+- Confirmar:
+  - modal continua aberto
+  - ALM e ASSIST SOCIAL continuam marcados
+  - busca continua preenchida
+  - campos comuns continuam preenchidos
+- Depois:
+  - alterar termo de busca
+  - limpar busca
+  - confirmar que os módulos continuam selecionados
+- Confirmar também que X, Cancelar e salvar limpam o draft corretamente
