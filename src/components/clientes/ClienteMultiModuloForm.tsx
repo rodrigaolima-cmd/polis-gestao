@@ -172,7 +172,8 @@ export function ClienteMultiModuloForm({ open, onOpenChange, clientId, onSaved, 
       document.removeEventListener("visibilitychange", handleVisibility);
       window.removeEventListener("pagehide", handlePageHide);
     };
-  }, [open, isHydrated, draft]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, isHydrated]);
 
   // Restore draft immediately, then finalize selection after loading catalog/existing links
   useEffect(() => {
@@ -214,7 +215,8 @@ export function ClienteMultiModuloForm({ open, onOpenChange, clientId, onSaved, 
     return () => {
       cancelled = true;
     };
-  }, [open, clientId, draft, restoreSnapshot]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, clientId]);
 
   // Debounced persist on text/field changes
   useEffect(() => {
