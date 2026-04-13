@@ -1,34 +1,40 @@
 
 
-## Fix: Modal showing wrong/stale values when editing different modules
+## Fix: Persistir estado do modal "Adicionar Módulos" durante troca de abas
 
-### Root cause (3 issues)
+### Problema
 
-1. **`persistKey` not scoped per module** — Currently `detail:${id}:module-form` is the same key for ALL modules of a client. Draft saved for module A is restored when opening module B.
+O `ClienteMultiModuloForm` usa apenas `useState` — todo o estado (módulos selecionados, campos comuns, valores por módulo, busca) é perdido quando o componente remonta por troca de aba ou churn de autenticação. Além disso, o `useEffect` na linha 63 reseta tudo quando `open` muda.
 
-2. **No React `key` on `ClienteModuloForm`** — The component is never remounted when switching from module A to module B. The `useState` initializer (line 87-92) runs only once with the first module's data, and subsequent opens reuse stale state.
+### Solução
 
-3. **`initialized` flag blocks reload** — When the modal closes, `initialized` resets to false, but since the component doesn't remount, the initial `useState` value (from the first render) persists.
+Integrar o modal com o sistema de persistência existente (`usePersistentModal` + `usePersistentFormDraft`), igual ao que já é feito no `ClienteModuloForm`.
 
-### Fix
+### Alterações
 
-**`src/pages/ClienteDetailPage.tsx`** (2 changes)
+**1. `src/pages/ClienteDetailPage.tsx`**
 
-1. Add `key={moduleFormModal.entityId || "new"}` to `<ClienteModuloForm>` — forces full remount per module, clearing all local state.
+- O `multiModuleModal` já usa `usePersistentModal`. Verificar que `open`/`close` estão corretos (já estão).
 
-2. Change `persistKey` to include the entity ID:
-   ```
-   persistKey={`detail:${id}:module-form:${moduleFormModal.entityId || "new"}`}
-   ```
+**2. `src/components/clientes/ClienteMultiModuloForm.tsx`** — Alteração principal
 
-**`src/components/clientes/ClienteModuloForm.tsx`** (1 change)
+- Importar `usePersistentFormDraft`
+- Aceitar nova prop `persistKey` (ex: `detail:${id}:multi-module-form`)
+- No `useEffect` que roda quando `open` muda:
+  - Se `open` é true: verificar se existe draft salvo. Se sim, restaurar estado do draft em vez de resetar. Se não, resetar normalmente e carregar catálogo.
+  - Se `open` é false: não fazer nada (o estado já foi limpo pelo close explícito).
+- Salvar draft (debounced) sempre que qualquer estado muda: `selectedIds`, `moduleValues`, `moduleSearch`, `dataAssinatura`, `vencimento`, `statusContrato`, `faturadoFlag`, `observacoes`, `ativoNoCliente`, `bulkContratado`, `bulkFaturado`
+- Nos 3 pontos de fechamento (Cancelar, X/onClose, save success): limpar draft antes de fechar
+- O draft será serializado como objeto plano com `selectedIds` convertido de Set para Array
 
-3. Clear draft on close — in the `useEffect` that handles `!open`, also call `draft.clearDraft()` to prevent stale drafts from being restored for a different module that happens to reuse the component instance.
+**3. `src/pages/ClienteDetailPage.tsx`** — Passar `persistKey`
 
-### What does NOT change
+- Adicionar `persistKey={`detail:${id}:multi-module-form`}` ao `ClienteMultiModuloForm`
 
-- Save logic, business rules, layout
-- Modal persistence for tab-switch protection (still works, now scoped per module)
-- CurrencyInput, other form fields
-- Other modals (ClienteForm, MultiModulo, CopyDates)
+### O que NÃO muda
+
+- Layout do modal
+- Lógica de save/insert
+- Regras de negócio (módulos vinculados, bulk values)
+- Outros modais
 
