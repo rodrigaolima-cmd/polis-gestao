@@ -418,6 +418,7 @@ export default function ClienteDetailPage() {
           onOpenChange={(v) => { if (!v) multiModuleModal.close(); }}
           clientId={id}
           onSaved={reloadModules}
+          persistKey={`detail:${id}:multi-module-form`}
         />
       )}
 
