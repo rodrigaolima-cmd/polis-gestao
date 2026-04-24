@@ -26,6 +26,7 @@ import {
   Target, FileText, Users, Layers,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { OperationalLeakAlert } from "@/components/dashboard/OperationalLeakAlert";
 
 interface ReportConfig {
   title: string;
