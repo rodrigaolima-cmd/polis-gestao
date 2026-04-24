@@ -1,33 +1,46 @@
+## Corrigir paginação no carregamento de contratos do Dashboard
 
+### Causa raiz confirmada via diagnóstico no banco
+- A tabela `client_modules` tem 1.117+ registros
+- O PostgREST aplica `max-rows = 1000` no servidor, ignorando `.range(0, 9999)` quando o limite do servidor é menor
+- Como muitos registros têm `created_at` idêntico (importação em massa), a ordenação é não-determinística → registros como ASMEF (cliente #19) caem fora aleatoriamente dos 1.000 retornados
+- Por isso o Dashboard mostra 104 clientes / 2 associações em vez do total real
 
-## Fix: Módulos não aparecem no modal "Adicionar Módulos"
+### Correção (1 arquivo)
 
-### Causa raiz
+**`src/hooks/useContracts.ts`** — função `loadFromDatabase`:
 
-O `useEffect` de carregamento (linha 178) tem `draft` na lista de dependências. Porém, `usePersistentFormDraft` retorna um objeto novo a cada render (`{ saveDraft, saveDraftNow, getDraft, ... }`). Isso faz o efeito re-executar a cada render, e cada execução:
-
-1. Cancela o `Promise.all` anterior (`cancelled = true`)
-2. Reinicia a busca do catálogo
-3. A busca nunca completa → `allModules` fica vazio → "Nenhum módulo cadastrado"
-
-### Correção (2 arquivos)
-
-**1. `src/hooks/usePersistentFormDraft.ts`** — Retornar objeto estável via `useMemo`
-
-Envolver o objeto de retorno em `useMemo` para que a referência não mude a cada render:
-
-```typescript
-return useMemo(() => ({ saveDraft: save, saveDraftNow: saveNow, getDraft: get, clearDraft: clear, flush }), [save, saveNow, get, clear, flush]);
+1. Substituir a query única por um **loop de paginação** com blocos de 1.000:
+```ts
+const PAGE_SIZE = 1000;
+let from = 0;
+const allData: DbClientModule[] = [];
+while (true) {
+  const { data, error } = await supabase
+    .from("client_modules")
+    .select("*, clients(*), modules(*)")
+    .order("id", { ascending: true })
+    .range(from, from + PAGE_SIZE - 1);
+  if (error) throw error;
+  if (!data || data.length === 0) break;
+  allData.push(...(data as unknown as DbClientModule[]));
+  if (data.length < PAGE_SIZE) break;
+  from += PAGE_SIZE;
+}
 ```
 
-**2. `src/components/clientes/ClienteMultiModuloForm.tsx`** — Remover `draft` das dependências do efeito de carregamento
+2. Ordenar por **`id`** (chave primária estável) em vez de `created_at` para garantir paginação determinística sem pular nem duplicar registros.
 
-Trocar a dependência `draft` por referências estáveis individuais (`draft.getDraft`) ou simplesmente remover `draft` do array, já que as funções `getDraft` etc. já são estáveis após a correção no hook. Manter apenas `[open, clientId]` como dependências reais, e usar `restoreSnapshot` via ref se necessário.
+3. Mapear `allData` para `ContractRow[]` exatamente como antes via `mapToContractRow`.
 
-### O que não muda
+### O que NÃO muda
+- Layout, KPIs, filtros, lógica de consolidação por cliente
+- Mapeamento `mapToContractRow`
+- Fluxo de import, edição, modais
+- Tela de Clientes (já busca direto da tabela `clients`, não tem esse problema)
 
-- Layout do modal
-- Lógica de save/insert
-- Regras de negócio
-- Persistência de draft (continua funcionando, agora sem loop infinito)
-
+### Resultado esperado
+- Dashboard passa a refletir os 1.117+ módulos completos
+- ASMEF e outros clientes ativos "sumidos" voltam a aparecer
+- Contagem de clientes/associações no Dashboard sobe e fica consistente
+- Diferença residual entre Dashboard e tela Clientes continua sendo apenas inativos/prospects/sem módulo (correto por design)
