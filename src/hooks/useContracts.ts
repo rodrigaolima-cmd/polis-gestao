@@ -152,16 +152,29 @@ export function useContracts() {
   const loadFromDatabase = useCallback(async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from("client_modules")
-        .select("*, clients(*), modules(*)")
-        .order("created_at", { ascending: false })
-        .range(0, 9999);
+      const PAGE_SIZE = 1000;
+      const MAX_PAGES = 50; // safety guard (50k records max)
+      const allData: DbClientModule[] = [];
+      let from = 0;
 
-      if (error) throw error;
+      for (let page = 0; page < MAX_PAGES; page++) {
+        const { data, error } = await supabase
+          .from("client_modules")
+          .select("*, clients(*), modules(*)")
+          .order("id", { ascending: true })
+          .range(from, from + PAGE_SIZE - 1);
 
-      if (data && data.length > 0) {
-        const mapped = (data as unknown as DbClientModule[]).map(mapToContractRow);
+        if (error) throw error;
+        if (!data || data.length === 0) break;
+
+        allData.push(...(data as unknown as DbClientModule[]));
+
+        if (data.length < PAGE_SIZE) break;
+        from += PAGE_SIZE;
+      }
+
+      if (allData.length > 0) {
+        const mapped = allData.map(mapToContractRow);
         setContracts(mapped);
         setDataSource("database");
       } else {
