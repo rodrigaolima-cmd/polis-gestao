@@ -35,6 +35,7 @@ interface SectionReportDialogProps {
   contracts: ContractRow[];
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  operationalLeaks?: OperationalLeaks;
 }
 
 const TITLES: Record<SectionReportType, string> = {
