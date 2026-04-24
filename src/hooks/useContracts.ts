@@ -477,7 +477,8 @@ export function useContracts() {
       } else {
         toast.success(`Importação concluída: ${created} registros importados`);
       }
-      await loadFromDatabase();
+      await loadFromDatabase({ includeInactiveOperation });
+      await loadOperationalLeaks();
       return { created, failed };
     } catch (err: any) {
       console.error("Import error:", err);
@@ -492,7 +493,7 @@ export function useContracts() {
     } finally {
       setLoading(false);
     }
-  }, [loadFromDatabase, accessToken]);
+  }, [loadFromDatabase, loadOperationalLeaks, accessToken, includeInactiveOperation]);
 
   const resetToMock = useCallback(() => {
     setContracts(mockContracts);
@@ -507,5 +508,9 @@ export function useContracts() {
     importToDatabase,
     loadFromDatabase,
     resetToMock,
+    operationalLeaks,
+    includeInactiveOperation,
+    setIncludeInactiveOperation: toggleIncludeInactiveOperation,
   };
+}
 }
