@@ -143,13 +143,35 @@ function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise
   });
 }
 
+export interface OperationalLeakClient {
+  id: string;
+  clientName: string;
+  ugType: string;
+  regiao: string;
+  consultor: string;
+  observations: string;
+  clienteDesde: string | null;
+  statusCadastro: string;
+  modulosAtivosNaoFaturados: string[];
+  valorEmRisco: number;
+  ultimaAtualizacao: string | null;
+}
+
+export interface OperationalLeaks {
+  semFaturamento: OperationalLeakClient[];
+  semOperacao: OperationalLeakClient[];
+}
+
 export function useContracts() {
   const [contracts, setContracts] = useState<ContractRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [dataSource, setDataSource] = useState<"mock" | "database">("mock");
+  const [includeInactiveOperation, setIncludeInactiveOperation] = useState(false);
+  const [operationalLeaks, setOperationalLeaks] = useState<OperationalLeaks>({ semFaturamento: [], semOperacao: [] });
   const { accessToken } = useAuth();
 
-  const loadFromDatabase = useCallback(async () => {
+  const loadFromDatabase = useCallback(async (opts?: { includeInactiveOperation?: boolean }) => {
+    const includeInactive = opts?.includeInactiveOperation ?? false;
     setLoading(true);
     try {
       const PAGE_SIZE = 1000;
@@ -158,13 +180,18 @@ export function useContracts() {
       let from = 0;
 
       for (let page = 0; page < MAX_PAGES; page++) {
-        const { data, error } = await supabase
+        let query = supabase
           .from("client_modules")
           .select("*, clients!inner(*), modules(*)")
-          .eq("ativo_no_cliente", true)
           .eq("clients.status_cliente", "Ativo")
           .order("id", { ascending: true })
           .range(from, from + PAGE_SIZE - 1);
+
+        if (!includeInactive) {
+          query = query.eq("ativo_no_cliente", true);
+        }
+
+        const { data, error } = await query;
 
         if (error) throw error;
         if (!data || data.length === 0) break;
@@ -192,9 +219,98 @@ export function useContracts() {
     }
   }, []);
 
+  const loadOperationalLeaks = useCallback(async () => {
+    try {
+      // 1. All Active clients
+      const { data: activeClients, error: cErr } = await supabase
+        .from("clients")
+        .select("id, nome_cliente, tipo_ug, regiao, consultor, observacoes_cliente, cliente_desde, status_cliente, updated_at")
+        .eq("status_cliente", "Ativo")
+        .range(0, 9999);
+      if (cErr) throw cErr;
+      if (!activeClients) return;
+
+      // 2. All client_modules for those clients
+      const ids = activeClients.map((c) => c.id);
+      if (ids.length === 0) {
+        setOperationalLeaks({ semFaturamento: [], semOperacao: [] });
+        return;
+      }
+
+      const { data: cms, error: mErr } = await supabase
+        .from("client_modules")
+        .select("id, client_id, valor_contratado, ativo_no_cliente, faturado_flag, updated_at, modules(nome_modulo)")
+        .in("client_id", ids)
+        .range(0, 19999);
+      if (mErr) throw mErr;
+
+      const byClient = new Map<string, typeof cms>();
+      (cms || []).forEach((m) => {
+        const arr = byClient.get(m.client_id) || [];
+        arr.push(m);
+        byClient.set(m.client_id, arr);
+      });
+
+      const semOperacao: OperationalLeakClient[] = [];
+      const semFaturamento: OperationalLeakClient[] = [];
+
+      for (const c of activeClients) {
+        const mods = byClient.get(c.id) || [];
+        const ativos = mods.filter((m) => m.ativo_no_cliente === true);
+
+        const base: Omit<OperationalLeakClient, "modulosAtivosNaoFaturados" | "valorEmRisco" | "ultimaAtualizacao"> = {
+          id: c.id,
+          clientName: fixMojibake(c.nome_cliente),
+          ugType: fixMojibake(c.tipo_ug || ""),
+          regiao: fixMojibake(c.regiao || ""),
+          consultor: fixMojibake(c.consultor || ""),
+          observations: fixMojibake(c.observacoes_cliente || ""),
+          clienteDesde: c.cliente_desde,
+          statusCadastro: c.status_cliente || "Ativo",
+        };
+
+        if (ativos.length === 0) {
+          semOperacao.push({ ...base, modulosAtivosNaoFaturados: [], valorEmRisco: 0, ultimaAtualizacao: c.updated_at });
+          continue;
+        }
+
+        const naoFaturados = ativos.filter((m) => m.faturado_flag === false);
+        if (naoFaturados.length > 0) {
+          const valor = naoFaturados.reduce((s, m) => s + (Number(m.valor_contratado) || 0), 0);
+          const nomes = naoFaturados
+            .map((m) => fixMojibake((m.modules as any)?.nome_modulo || ""))
+            .filter(Boolean);
+          const ult = naoFaturados
+            .map((m) => m.updated_at)
+            .sort()
+            .pop() || null;
+          semFaturamento.push({
+            ...base,
+            modulosAtivosNaoFaturados: nomes,
+            valorEmRisco: valor,
+            ultimaAtualizacao: ult,
+          });
+        }
+      }
+
+      semFaturamento.sort((a, b) => b.valorEmRisco - a.valorEmRisco || a.clientName.localeCompare(b.clientName, "pt-BR"));
+      semOperacao.sort((a, b) => a.clientName.localeCompare(b.clientName, "pt-BR"));
+
+      setOperationalLeaks({ semFaturamento, semOperacao });
+    } catch (err) {
+      console.error("Error loading operational leaks:", err);
+    }
+  }, []);
+
+  const toggleIncludeInactiveOperation = useCallback((value: boolean) => {
+    setIncludeInactiveOperation(value);
+    loadFromDatabase({ includeInactiveOperation: value });
+  }, [loadFromDatabase]);
+
   useEffect(() => {
     loadFromDatabase();
-  }, [loadFromDatabase]);
+    loadOperationalLeaks();
+  }, [loadFromDatabase, loadOperationalLeaks]);
 
   const importToDatabase = useCallback(async (
     rows: ContractRow[],
