@@ -56,9 +56,10 @@ const TITLES: Record<SectionReportType, string> = {
   byRegiao: "Relatório — Dinheiro na Mesa por Região",
   byConsultorDetalhado: "Relatório Detalhado — Dashboard por Consultor",
   byModulos: "Relatório — Módulos por Cliente",
+  operationalLeak: "Vazamento Operacional — Dinheiro na Mesa Silencioso",
 };
 
-export function SectionReportDialog({ reportType, clients, contracts, open, onOpenChange }: SectionReportDialogProps) {
+export function SectionReportDialog({ reportType, clients, contracts, open, onOpenChange, operationalLeaks }: SectionReportDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-5xl max-h-[90vh] overflow-auto print-report">
