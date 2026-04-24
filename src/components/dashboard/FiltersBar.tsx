@@ -13,9 +13,14 @@ interface FiltersBarProps {
   contracts: ContractRow[];
   onFilterChange: (filters: DashboardFilters) => void;
   onReset: () => void;
+  includeInactiveOperation?: boolean;
+  onIncludeInactiveOperationChange?: (value: boolean) => void;
 }
 
-export function FiltersBar({ filters, contracts, onFilterChange, onReset }: FiltersBarProps) {
+export function FiltersBar({
+  filters, contracts, onFilterChange, onReset,
+  includeInactiveOperation = false, onIncludeInactiveOperationChange,
+}: FiltersBarProps) {
   const [expanded, setExpanded] = useState(false);
   const ugTypes = getUniqueValues(contracts, "ugType");
   const products = getUniqueValues(contracts, "product");
