@@ -149,6 +149,8 @@ export default function Dashboard() {
             contracts={contracts}
             onFilterChange={setFilters}
             onReset={() => setFilters(defaultFilters)}
+            includeInactiveOperation={includeInactiveOperation}
+            onIncludeInactiveOperationChange={setIncludeInactiveOperation}
           />
 
           {/* Financial KPIs - Row 1 */}
