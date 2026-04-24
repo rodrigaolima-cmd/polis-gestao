@@ -513,4 +513,3 @@ export function useContracts() {
     setIncludeInactiveOperation: toggleIncludeInactiveOperation,
   };
 }
-}
