@@ -223,6 +223,7 @@ export default function Dashboard() {
         reportType={sectionReport ?? "top10"}
         clients={clients}
         contracts={filteredContracts}
+        operationalLeaks={operationalLeaks}
         open={sectionReport !== null}
         onOpenChange={(open) => { if (!open) setSectionReport(null); }}
       />
