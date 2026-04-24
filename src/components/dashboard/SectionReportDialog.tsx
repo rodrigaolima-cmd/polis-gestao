@@ -25,7 +25,8 @@ export type SectionReportType =
   | "byConsultor"
   | "byRegiao"
   | "byConsultorDetalhado"
-  | "byModulos";
+  | "byModulos"
+  | "operationalLeak";
 
 interface SectionReportDialogProps {
   reportType: SectionReportType;
