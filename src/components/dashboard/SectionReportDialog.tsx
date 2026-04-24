@@ -1,4 +1,5 @@
 import { ClientSummary, ContractRow } from "@/types/contract";
+import { OperationalLeaks } from "@/hooks/useContracts";
 import { formatCurrency, formatPercent, formatDate, getExpirationStatus } from "@/utils/contractUtils";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
@@ -25,7 +26,8 @@ export type SectionReportType =
   | "byConsultor"
   | "byRegiao"
   | "byConsultorDetalhado"
-  | "byModulos";
+  | "byModulos"
+  | "operationalLeak";
 
 interface SectionReportDialogProps {
   reportType: SectionReportType;
@@ -33,6 +35,7 @@ interface SectionReportDialogProps {
   contracts: ContractRow[];
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  operationalLeaks?: OperationalLeaks;
 }
 
 const TITLES: Record<SectionReportType, string> = {
@@ -53,9 +56,10 @@ const TITLES: Record<SectionReportType, string> = {
   byRegiao: "Relatório — Dinheiro na Mesa por Região",
   byConsultorDetalhado: "Relatório Detalhado — Dashboard por Consultor",
   byModulos: "Relatório — Módulos por Cliente",
+  operationalLeak: "Vazamento Operacional — Dinheiro na Mesa Silencioso",
 };
 
-export function SectionReportDialog({ reportType, clients, contracts, open, onOpenChange }: SectionReportDialogProps) {
+export function SectionReportDialog({ reportType, clients, contracts, open, onOpenChange, operationalLeaks }: SectionReportDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-5xl max-h-[90vh] overflow-auto print-report">
@@ -86,6 +90,7 @@ export function SectionReportDialog({ reportType, clients, contracts, open, onOp
           {reportType === "byRegiao" && <ByRankingReport clients={clients} rankingKey="regiao" label="Região" />}
           {reportType === "byConsultorDetalhado" && <ByConsultorDetalhadoReport contracts={contracts} />}
           {reportType === "byModulos" && <ByModulosReport clients={clients} />}
+          {reportType === "operationalLeak" && <OperationalLeakReport leaks={operationalLeaks ?? { semFaturamento: [], semOperacao: [] }} />}
         </div>
       </DialogContent>
     </Dialog>
@@ -835,5 +840,100 @@ function ByModulosReport({ clients }: { clients: ClientSummary[] }) {
         </TableRow>
       </TableFooter>
     </Table>
+  );
+}
+
+function OperationalLeakReport({ leaks }: { leaks: OperationalLeaks }) {
+  const totalRisco = leaks.semFaturamento.reduce((s, c) => s + c.valorEmRisco, 0);
+
+  return (
+    <div className="space-y-8">
+      {/* Seção 1 — Sem faturamento ativo */}
+      <section>
+        <div className="mb-3">
+          <h3 className="text-sm font-semibold text-foreground">
+            Sem faturamento ativo — <span className="text-danger">{leaks.semFaturamento.length} clientes</span>
+          </h3>
+          <p className="text-xs text-muted-foreground">
+            Módulo ativo no cliente, mas <strong>faturado_flag = false</strong>. Responsável: Financeiro.
+          </p>
+        </div>
+        {leaks.semFaturamento.length === 0 ? (
+          <p className="text-xs text-muted-foreground italic px-2 py-4">Nenhum cliente nesta condição. ✓</p>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow className="border-border/50">
+                <TableHead className="text-xs">Cliente</TableHead>
+                <TableHead className="text-xs">Consultor</TableHead>
+                <TableHead className="text-xs">Região</TableHead>
+                <TableHead className="text-xs">Módulos não faturados</TableHead>
+                <TableHead className="text-xs text-right">Valor em risco</TableHead>
+                <TableHead className="text-xs">Última atualização</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {leaks.semFaturamento.map((c) => (
+                <TableRow key={c.id} className="border-border/30">
+                  <TableCell className="text-sm font-medium">{c.clientName}</TableCell>
+                  <TableCell className="text-xs">{c.consultor || "—"}</TableCell>
+                  <TableCell className="text-xs">{c.regiao || "—"}</TableCell>
+                  <TableCell className="text-xs">{c.modulosAtivosNaoFaturados.join(", ")}</TableCell>
+                  <TableCell className="text-xs text-right mono font-bold text-danger">{formatCurrency(c.valorEmRisco)}</TableCell>
+                  <TableCell className="text-xs">{c.ultimaAtualizacao ? formatDate(c.ultimaAtualizacao) : "—"}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+            <TableFooter>
+              <TableRow className="bg-muted/50 font-bold">
+                <TableCell colSpan={4} className="text-sm">Total ({leaks.semFaturamento.length} clientes)</TableCell>
+                <TableCell className="text-xs text-right mono text-danger">{formatCurrency(totalRisco)}</TableCell>
+                <TableCell></TableCell>
+              </TableRow>
+            </TableFooter>
+          </Table>
+        )}
+      </section>
+
+      {/* Seção 2 — Sem operação ativa */}
+      <section>
+        <div className="mb-3">
+          <h3 className="text-sm font-semibold text-foreground">
+            Sem operação ativa — <span className="text-warning">{leaks.semOperacao.length} clientes</span>
+          </h3>
+          <p className="text-xs text-muted-foreground">
+            Cliente com status <strong>Ativo</strong>, mas sem nenhum módulo ativo. Responsável: Comercial / Operações.
+          </p>
+        </div>
+        {leaks.semOperacao.length === 0 ? (
+          <p className="text-xs text-muted-foreground italic px-2 py-4">Nenhum cliente nesta condição. ✓</p>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow className="border-border/50">
+                <TableHead className="text-xs">Cliente</TableHead>
+                <TableHead className="text-xs">Consultor</TableHead>
+                <TableHead className="text-xs">Região</TableHead>
+                <TableHead className="text-xs">Cliente desde</TableHead>
+                <TableHead className="text-xs">Status cadastro</TableHead>
+                <TableHead className="text-xs">Observações</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {leaks.semOperacao.map((c) => (
+                <TableRow key={c.id} className="border-border/30">
+                  <TableCell className="text-sm font-medium">{c.clientName}</TableCell>
+                  <TableCell className="text-xs">{c.consultor || "—"}</TableCell>
+                  <TableCell className="text-xs">{c.regiao || "—"}</TableCell>
+                  <TableCell className="text-xs">{c.clienteDesde ? formatDate(c.clienteDesde) : "—"}</TableCell>
+                  <TableCell className="text-xs">{c.statusCadastro}</TableCell>
+                  <TableCell className="text-xs max-w-[280px] truncate" title={c.observations}>{c.observations || "—"}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
+      </section>
+    </div>
   );
 }

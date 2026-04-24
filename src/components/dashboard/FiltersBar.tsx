@@ -13,9 +13,14 @@ interface FiltersBarProps {
   contracts: ContractRow[];
   onFilterChange: (filters: DashboardFilters) => void;
   onReset: () => void;
+  includeInactiveOperation?: boolean;
+  onIncludeInactiveOperationChange?: (value: boolean) => void;
 }
 
-export function FiltersBar({ filters, contracts, onFilterChange, onReset }: FiltersBarProps) {
+export function FiltersBar({
+  filters, contracts, onFilterChange, onReset,
+  includeInactiveOperation = false, onIncludeInactiveOperationChange,
+}: FiltersBarProps) {
   const [expanded, setExpanded] = useState(false);
   const ugTypes = getUniqueValues(contracts, "ugType");
   const products = getUniqueValues(contracts, "product");
@@ -115,6 +120,23 @@ export function FiltersBar({ filters, contracts, onFilterChange, onReset }: Filt
               </SelectContent>
             </Select>
           </div>
+
+          {onIncludeInactiveOperationChange && (
+            <div className="flex items-start gap-2 col-span-2 md:col-span-2 lg:col-span-3 rounded-md border border-border/50 bg-muted/30 px-3 py-2">
+              <Switch
+                checked={includeInactiveOperation}
+                onCheckedChange={onIncludeInactiveOperationChange}
+                id="include-inactive-op"
+                className="mt-0.5"
+              />
+              <Label htmlFor="include-inactive-op" className="text-xs text-foreground leading-tight cursor-pointer">
+                Incluir clientes sem operação ativa
+                <span className="block text-[10px] font-normal text-muted-foreground mt-0.5">
+                  Mostra também clientes Ativos com módulos inativos / não faturados (visão de potencial total)
+                </span>
+              </Label>
+            </div>
+          )}
         </div>
       )}
     </div>

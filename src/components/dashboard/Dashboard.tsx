@@ -26,6 +26,7 @@ import {
   Target, FileText, Users, Layers,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { OperationalLeakAlert } from "@/components/dashboard/OperationalLeakAlert";
 
 interface ReportConfig {
   title: string;
@@ -36,7 +37,7 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const { profile, signOut, isAdmin } = useAuth();
   const { logAction } = useAuditLog();
-  const { contracts, setContracts, dataSource, importToDatabase, resetToMock, loading } = useContracts();
+  const { contracts, setContracts, dataSource, importToDatabase, resetToMock, loading, operationalLeaks, includeInactiveOperation, setIncludeInactiveOperation } = useContracts();
   const [filters, setFilters] = useState<DashboardFilters>(defaultFilters);
   const [importOpen, setImportOpen] = useState(false);
   const [reportConfig, setReportConfig] = useState<ReportConfig | null>(null);
@@ -148,6 +149,8 @@ export default function Dashboard() {
             contracts={contracts}
             onFilterChange={setFilters}
             onReset={() => setFilters(defaultFilters)}
+            includeInactiveOperation={includeInactiveOperation}
+            onIncludeInactiveOperationChange={setIncludeInactiveOperation}
           />
 
           {/* Financial KPIs - Row 1 */}
@@ -166,6 +169,8 @@ export default function Dashboard() {
             <KPICard title="Total Módulos" value={String(totalModulos)} subtitle={`${clients.length} clientes`} icon={Layers} variant="info" animationDelay={350} onClick={() => setSectionReport("byModulos")} />
             <KPICard title="Relatório Geral" value={String(clients.length)} subtitle="Clientes" icon={FileText} variant="info" animationDelay={400} onClick={() => setSectionReport("general")} />
           </div>
+
+          <OperationalLeakAlert leaks={operationalLeaks} onClick={() => setSectionReport("operationalLeak")} />
 
           <DashboardCharts
             clients={clients}
@@ -218,6 +223,7 @@ export default function Dashboard() {
         reportType={sectionReport ?? "top10"}
         clients={clients}
         contracts={filteredContracts}
+        operationalLeaks={operationalLeaks}
         open={sectionReport !== null}
         onOpenChange={(open) => { if (!open) setSectionReport(null); }}
       />
