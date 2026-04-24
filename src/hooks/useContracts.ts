@@ -160,7 +160,9 @@ export function useContracts() {
       for (let page = 0; page < MAX_PAGES; page++) {
         const { data, error } = await supabase
           .from("client_modules")
-          .select("*, clients(*), modules(*)")
+          .select("*, clients!inner(*), modules(*)")
+          .eq("ativo_no_cliente", true)
+          .eq("clients.status_cliente", "Ativo")
           .order("id", { ascending: true })
           .range(from, from + PAGE_SIZE - 1);
 
