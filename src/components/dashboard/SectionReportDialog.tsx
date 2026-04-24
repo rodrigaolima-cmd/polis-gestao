@@ -1,4 +1,5 @@
 import { ClientSummary, ContractRow } from "@/types/contract";
+import { OperationalLeaks } from "@/hooks/useContracts";
 import { formatCurrency, formatPercent, formatDate, getExpirationStatus } from "@/utils/contractUtils";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
