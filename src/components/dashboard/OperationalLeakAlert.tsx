@@ -24,6 +24,11 @@ export function OperationalLeakAlert({ leaks, onClick, isFiltered = false }: Ope
           <span className="text-xs font-semibold uppercase tracking-wider text-foreground">
             Vazamento Operacional — Dinheiro na Mesa Silencioso
           </span>
+          {isFiltered && (
+            <span className="text-[10px] uppercase tracking-wider text-warning font-semibold ml-1">
+              · filtrado
+            </span>
+          )}
         </div>
         <span className="text-[10px] uppercase tracking-wider text-muted-foreground">Clique para ver detalhes</span>
       </div>
