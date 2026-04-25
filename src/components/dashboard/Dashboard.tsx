@@ -1,5 +1,6 @@
 import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
+import { normalizeForSearch } from "@/utils/textUtils";
 import { ContractRow, DashboardFilters } from "@/types/contract";
 import { useContracts } from "@/hooks/useContracts";
 import { useAuth } from "@/hooks/useAuth";
