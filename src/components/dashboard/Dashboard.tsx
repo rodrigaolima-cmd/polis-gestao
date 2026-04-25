@@ -193,7 +193,7 @@ export default function Dashboard() {
             <KPICard title="Relatório Geral" value={String(clients.length)} subtitle="Clientes" icon={FileText} variant="info" animationDelay={400} onClick={() => setSectionReport("general")} />
           </div>
 
-          <OperationalLeakAlert leaks={operationalLeaks} onClick={() => setSectionReport("operationalLeak")} />
+          <OperationalLeakAlert leaks={filteredOperationalLeaks} isFiltered={isLeakFiltered} onClick={() => setSectionReport("operationalLeak")} />
 
           <DashboardCharts
             clients={clients}
