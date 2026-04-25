@@ -1,5 +1,6 @@
 import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
+import { normalizeForSearch } from "@/utils/textUtils";
 import { ContractRow, DashboardFilters } from "@/types/contract";
 import { useContracts } from "@/hooks/useContracts";
 import { useAuth } from "@/hooks/useAuth";
@@ -45,6 +46,28 @@ export default function Dashboard() {
 
   const filteredContracts = useMemo(() => applyFilters(contracts, filters), [contracts, filters]);
   const clients = useMemo(() => consolidateByClient(filteredContracts), [filteredContracts]);
+
+  // Vazamento operacional respeita filtros do hero (exceto temporais — vazamento é fotografia atual)
+  const isLeakFiltered = Boolean(
+    filters.consultor || filters.regiao || filters.ugType || filters.client || filters.search
+  );
+
+  const filteredOperationalLeaks = useMemo(() => {
+    if (!isLeakFiltered) return operationalLeaks;
+    const searchNorm = filters.search ? normalizeForSearch(filters.search) : "";
+    const matches = (c: { clientName: string; consultor: string; regiao: string; ugType: string }) => {
+      if (filters.consultor && c.consultor !== filters.consultor) return false;
+      if (filters.regiao && c.regiao !== filters.regiao) return false;
+      if (filters.ugType && c.ugType !== filters.ugType) return false;
+      if (filters.client && c.clientName !== filters.client) return false;
+      if (searchNorm && !normalizeForSearch(c.clientName).includes(searchNorm)) return false;
+      return true;
+    };
+    return {
+      semFaturamento: operationalLeaks.semFaturamento.filter(matches),
+      semOperacao: operationalLeaks.semOperacao.filter(matches),
+    };
+  }, [operationalLeaks, filters, isLeakFiltered]);
 
   // KPIs
   const totalContracted = clients.reduce((s, c) => s + c.totalContracted, 0);
@@ -170,7 +193,7 @@ export default function Dashboard() {
             <KPICard title="Relatório Geral" value={String(clients.length)} subtitle="Clientes" icon={FileText} variant="info" animationDelay={400} onClick={() => setSectionReport("general")} />
           </div>
 
-          <OperationalLeakAlert leaks={operationalLeaks} onClick={() => setSectionReport("operationalLeak")} />
+          <OperationalLeakAlert leaks={filteredOperationalLeaks} isFiltered={isLeakFiltered} onClick={() => setSectionReport("operationalLeak")} />
 
           <DashboardCharts
             clients={clients}
@@ -223,7 +246,7 @@ export default function Dashboard() {
         reportType={sectionReport ?? "top10"}
         clients={clients}
         contracts={filteredContracts}
-        operationalLeaks={operationalLeaks}
+        operationalLeaks={filteredOperationalLeaks}
         open={sectionReport !== null}
         onOpenChange={(open) => { if (!open) setSectionReport(null); }}
       />

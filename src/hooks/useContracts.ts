@@ -293,8 +293,8 @@ export function useContracts() {
         }
       }
 
-      semFaturamento.sort((a, b) => b.valorEmRisco - a.valorEmRisco || a.clientName.localeCompare(b.clientName, "pt-BR"));
-      semOperacao.sort((a, b) => a.clientName.localeCompare(b.clientName, "pt-BR"));
+      semFaturamento.sort((a, b) => a.clientName.localeCompare(b.clientName, "pt-BR", { sensitivity: "base" }));
+      semOperacao.sort((a, b) => a.clientName.localeCompare(b.clientName, "pt-BR", { sensitivity: "base" }));
 
       setOperationalLeaks({ semFaturamento, semOperacao });
     } catch (err) {

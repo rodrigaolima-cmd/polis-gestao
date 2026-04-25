@@ -6,9 +6,10 @@ import { cn } from "@/lib/utils";
 interface OperationalLeakAlertProps {
   leaks: OperationalLeaks;
   onClick: () => void;
+  isFiltered?: boolean;
 }
 
-export function OperationalLeakAlert({ leaks, onClick }: OperationalLeakAlertProps) {
+export function OperationalLeakAlert({ leaks, onClick, isFiltered = false }: OperationalLeakAlertProps) {
   const semFatCount = leaks.semFaturamento.length;
   const semOpCount = leaks.semOperacao.length;
   const valorRisco = leaks.semFaturamento.reduce((s, c) => s + c.valorEmRisco, 0);
@@ -23,6 +24,11 @@ export function OperationalLeakAlert({ leaks, onClick }: OperationalLeakAlertPro
           <span className="text-xs font-semibold uppercase tracking-wider text-foreground">
             Vazamento Operacional — Dinheiro na Mesa Silencioso
           </span>
+          {isFiltered && (
+            <span className="text-[10px] uppercase tracking-wider text-warning font-semibold ml-1">
+              · filtrado
+            </span>
+          )}
         </div>
         <span className="text-[10px] uppercase tracking-wider text-muted-foreground">Clique para ver detalhes</span>
       </div>
