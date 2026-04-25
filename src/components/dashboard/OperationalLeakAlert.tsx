@@ -6,9 +6,10 @@ import { cn } from "@/lib/utils";
 interface OperationalLeakAlertProps {
   leaks: OperationalLeaks;
   onClick: () => void;
+  isFiltered?: boolean;
 }
 
-export function OperationalLeakAlert({ leaks, onClick }: OperationalLeakAlertProps) {
+export function OperationalLeakAlert({ leaks, onClick, isFiltered = false }: OperationalLeakAlertProps) {
   const semFatCount = leaks.semFaturamento.length;
   const semOpCount = leaks.semOperacao.length;
   const valorRisco = leaks.semFaturamento.reduce((s, c) => s + c.valorEmRisco, 0);
