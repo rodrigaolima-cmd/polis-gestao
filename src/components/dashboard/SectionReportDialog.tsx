@@ -90,7 +90,7 @@ export function SectionReportDialog({ reportType, clients, contracts, open, onOp
           {reportType === "byRegiao" && <ByRankingReport clients={clients} rankingKey="regiao" label="Região" />}
           {reportType === "byConsultorDetalhado" && <ByConsultorDetalhadoReport contracts={contracts} />}
           {reportType === "byModulos" && <ByModulosReport clients={clients} />}
-          {reportType === "operationalLeak" && <OperationalLeakReport leaks={operationalLeaks ?? { semFaturamento: [], semOperacao: [] }} />}
+          {reportType === "operationalLeak" && <OperationalLeakReport leaks={operationalLeaks ?? { semFaturamento: [], semOperacao: [], naoImplantado: [] }} />}
         </div>
       </DialogContent>
     </Dialog>

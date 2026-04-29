@@ -66,6 +66,7 @@ export default function Dashboard() {
     return {
       semFaturamento: operationalLeaks.semFaturamento.filter(matches),
       semOperacao: operationalLeaks.semOperacao.filter(matches),
+      naoImplantado: operationalLeaks.naoImplantado.filter(matches),
     };
   }, [operationalLeaks, filters, isLeakFiltered]);
 
