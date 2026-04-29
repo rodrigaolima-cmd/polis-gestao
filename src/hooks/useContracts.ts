@@ -5,6 +5,7 @@ import { mockContracts } from "@/data/mockContracts";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { normalizeText, fixMojibake, normalizeForSearch } from "@/utils/textUtils";
+import { isActiveStatus } from "@/utils/contractUtils";
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
@@ -160,6 +161,7 @@ export interface OperationalLeakClient {
 export interface OperationalLeaks {
   semFaturamento: OperationalLeakClient[];
   semOperacao: OperationalLeakClient[];
+  naoImplantado: OperationalLeakClient[];
 }
 
 export function useContracts() {
@@ -167,7 +169,7 @@ export function useContracts() {
   const [loading, setLoading] = useState(true);
   const [dataSource, setDataSource] = useState<"mock" | "database">("mock");
   const [includeInactiveOperation, setIncludeInactiveOperation] = useState(false);
-  const [operationalLeaks, setOperationalLeaks] = useState<OperationalLeaks>({ semFaturamento: [], semOperacao: [] });
+  const [operationalLeaks, setOperationalLeaks] = useState<OperationalLeaks>({ semFaturamento: [], semOperacao: [], naoImplantado: [] });
   const { accessToken } = useAuth();
 
   const loadFromDatabase = useCallback(async (opts?: { includeInactiveOperation?: boolean }) => {
