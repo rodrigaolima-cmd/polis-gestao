@@ -90,7 +90,7 @@ export function SectionReportDialog({ reportType, clients, contracts, open, onOp
           {reportType === "byRegiao" && <ByRankingReport clients={clients} rankingKey="regiao" label="Região" />}
           {reportType === "byConsultorDetalhado" && <ByConsultorDetalhadoReport contracts={contracts} />}
           {reportType === "byModulos" && <ByModulosReport clients={clients} />}
-          {reportType === "operationalLeak" && <OperationalLeakReport leaks={operationalLeaks ?? { semFaturamento: [], semOperacao: [] }} />}
+          {reportType === "operationalLeak" && <OperationalLeakReport leaks={operationalLeaks ?? { semFaturamento: [], semOperacao: [], naoImplantado: [] }} />}
         </div>
       </DialogContent>
     </Dialog>
@@ -845,6 +845,7 @@ function ByModulosReport({ clients }: { clients: ClientSummary[] }) {
 
 function OperationalLeakReport({ leaks }: { leaks: OperationalLeaks }) {
   const totalRisco = leaks.semFaturamento.reduce((s, c) => s + c.valorEmRisco, 0);
+  const totalNaoImp = leaks.naoImplantado.reduce((s, c) => s + c.valorEmRisco, 0);
 
   return (
     <div className="space-y-8">
@@ -895,7 +896,54 @@ function OperationalLeakReport({ leaks }: { leaks: OperationalLeaks }) {
         )}
       </section>
 
-      {/* Seção 2 — Sem operação ativa */}
+      {/* Seção 2 — Não implantado (NOVA) */}
+      <section>
+        <div className="mb-3">
+          <h3 className="text-sm font-semibold text-foreground">
+            Não implantado — <span className="text-danger">{leaks.naoImplantado.length} clientes</span>
+          </h3>
+          <p className="text-xs text-muted-foreground">
+            Contrato <strong>Ativo</strong>, módulo <strong>não faturado</strong> e <strong>inativo no cliente</strong>. Vendido mas não implantado. Responsável: Operações / CS.
+          </p>
+        </div>
+        {leaks.naoImplantado.length === 0 ? (
+          <p className="text-xs text-muted-foreground italic px-2 py-4">Nenhum cliente nesta condição. ✓</p>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow className="border-border/50">
+                <TableHead className="text-xs">Cliente</TableHead>
+                <TableHead className="text-xs">Consultor</TableHead>
+                <TableHead className="text-xs">Região</TableHead>
+                <TableHead className="text-xs">Módulos não implantados</TableHead>
+                <TableHead className="text-xs text-right">Valor em risco</TableHead>
+                <TableHead className="text-xs">Última atualização</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {leaks.naoImplantado.map((c) => (
+                <TableRow key={c.id} className="border-border/30">
+                  <TableCell className="text-sm font-medium">{c.clientName}</TableCell>
+                  <TableCell className="text-xs">{c.consultor || "—"}</TableCell>
+                  <TableCell className="text-xs">{c.regiao || "—"}</TableCell>
+                  <TableCell className="text-xs">{c.modulosAtivosNaoFaturados.join(", ")}</TableCell>
+                  <TableCell className="text-xs text-right mono font-bold text-danger">{formatCurrency(c.valorEmRisco)}</TableCell>
+                  <TableCell className="text-xs">{c.ultimaAtualizacao ? formatDate(c.ultimaAtualizacao) : "—"}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+            <TableFooter>
+              <TableRow className="bg-muted/50 font-bold">
+                <TableCell colSpan={4} className="text-sm">Total ({leaks.naoImplantado.length} clientes)</TableCell>
+                <TableCell className="text-xs text-right mono text-danger">{formatCurrency(totalNaoImp)}</TableCell>
+                <TableCell></TableCell>
+              </TableRow>
+            </TableFooter>
+          </Table>
+        )}
+      </section>
+
+      {/* Seção 3 — Sem operação ativa */}
       <section>
         <div className="mb-3">
           <h3 className="text-sm font-semibold text-foreground">

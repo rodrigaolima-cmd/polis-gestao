@@ -1,4 +1,4 @@
-import { AlertOctagon, AlertTriangle } from "lucide-react";
+import { AlertOctagon, AlertTriangle, PackageX } from "lucide-react";
 import { OperationalLeaks } from "@/hooks/useContracts";
 import { formatCurrency } from "@/utils/contractUtils";
 import { cn } from "@/lib/utils";
@@ -12,9 +12,11 @@ interface OperationalLeakAlertProps {
 export function OperationalLeakAlert({ leaks, onClick, isFiltered = false }: OperationalLeakAlertProps) {
   const semFatCount = leaks.semFaturamento.length;
   const semOpCount = leaks.semOperacao.length;
+  const naoImpCount = leaks.naoImplantado.length;
   const valorRisco = leaks.semFaturamento.reduce((s, c) => s + c.valorEmRisco, 0);
+  const valorNaoImp = leaks.naoImplantado.reduce((s, c) => s + c.valorEmRisco, 0);
 
-  if (semFatCount === 0 && semOpCount === 0) return null;
+  if (semFatCount === 0 && semOpCount === 0 && naoImpCount === 0) return null;
 
   return (
     <div className="bg-card border border-border rounded-xl shadow-sm overflow-hidden animate-fade-in">
@@ -33,7 +35,7 @@ export function OperationalLeakAlert({ leaks, onClick, isFiltered = false }: Ope
         <span className="text-[10px] uppercase tracking-wider text-muted-foreground">Clique para ver detalhes</span>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-border/50">
+      <div className="grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-border/50">
         <LeakBlock
           variant="danger"
           icon={AlertOctagon}
@@ -42,6 +44,16 @@ export function OperationalLeakAlert({ leaks, onClick, isFiltered = false }: Ope
           count={semFatCount}
           extra={valorRisco > 0 ? `${formatCurrency(valorRisco)} em risco` : undefined}
           responsavel="Financeiro"
+          onClick={onClick}
+        />
+        <LeakBlock
+          variant="danger"
+          icon={PackageX}
+          title="Não implantado"
+          subtitle="Contrato ativo, vendido mas não implantado"
+          count={naoImpCount}
+          extra={valorNaoImp > 0 ? `${formatCurrency(valorNaoImp)} em risco` : undefined}
+          responsavel="Operações / CS"
           onClick={onClick}
         />
         <LeakBlock
