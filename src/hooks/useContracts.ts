@@ -327,9 +327,20 @@ export function useContracts() {
       semOperacao.sort(sortPt);
       naoImplantado.sort(sortPt);
 
+      console.log("[OperationalLeaks]", {
+        totalActiveClients: activeClients.length,
+        totalModules: cms?.length ?? 0,
+        semFaturamento: semFaturamento.length,
+        semOperacao: semOperacao.length,
+        naoImplantado: naoImplantado.length,
+      });
+
       setOperationalLeaks({ semFaturamento, semOperacao, naoImplantado });
     } catch (err) {
       console.error("Error loading operational leaks:", err);
+      toast.error("Falha ao carregar vazamento operacional", {
+        description: err instanceof Error ? err.message : String(err),
+      });
     }
   }, []);
 
