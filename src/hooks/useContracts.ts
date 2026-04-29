@@ -235,13 +235,13 @@ export function useContracts() {
       // 2. All client_modules for those clients
       const ids = activeClients.map((c) => c.id);
       if (ids.length === 0) {
-        setOperationalLeaks({ semFaturamento: [], semOperacao: [] });
+        setOperationalLeaks({ semFaturamento: [], semOperacao: [], naoImplantado: [] });
         return;
       }
 
       const { data: cms, error: mErr } = await supabase
         .from("client_modules")
-        .select("id, client_id, valor_contratado, ativo_no_cliente, faturado_flag, updated_at, modules(nome_modulo)")
+        .select("id, client_id, valor_contratado, ativo_no_cliente, faturado_flag, status_contrato, updated_at, modules(nome_modulo)")
         .in("client_id", ids)
         .range(0, 19999);
       if (mErr) throw mErr;
@@ -255,6 +255,7 @@ export function useContracts() {
 
       const semOperacao: OperationalLeakClient[] = [];
       const semFaturamento: OperationalLeakClient[] = [];
+      const naoImplantado: OperationalLeakClient[] = [];
 
       for (const c of activeClients) {
         const mods = byClient.get(c.id) || [];
@@ -270,6 +271,30 @@ export function useContracts() {
           clienteDesde: c.cliente_desde,
           statusCadastro: c.status_cliente || "Ativo",
         };
+
+        // Categoria 3 (NOVA): Contrato ativo, módulo NÃO faturado, módulo INATIVO no cliente — vendido sem implantar
+        const naoImplantadosMods = mods.filter(
+          (m) =>
+            m.ativo_no_cliente === false &&
+            m.faturado_flag === false &&
+            isActiveStatus(String((m as any).status_contrato || ""))
+        );
+        if (naoImplantadosMods.length > 0) {
+          const valor = naoImplantadosMods.reduce((s, m) => s + (Number(m.valor_contratado) || 0), 0);
+          const nomes = naoImplantadosMods
+            .map((m) => fixMojibake((m.modules as any)?.nome_modulo || ""))
+            .filter(Boolean);
+          const ult = naoImplantadosMods
+            .map((m) => m.updated_at)
+            .sort()
+            .pop() || null;
+          naoImplantado.push({
+            ...base,
+            modulosAtivosNaoFaturados: nomes,
+            valorEmRisco: valor,
+            ultimaAtualizacao: ult,
+          });
+        }
 
         if (ativos.length === 0) {
           semOperacao.push({ ...base, modulosAtivosNaoFaturados: [], valorEmRisco: 0, ultimaAtualizacao: c.updated_at });
@@ -295,10 +320,13 @@ export function useContracts() {
         }
       }
 
-      semFaturamento.sort((a, b) => a.clientName.localeCompare(b.clientName, "pt-BR", { sensitivity: "base" }));
-      semOperacao.sort((a, b) => a.clientName.localeCompare(b.clientName, "pt-BR", { sensitivity: "base" }));
+      const sortPt = (a: OperationalLeakClient, b: OperationalLeakClient) =>
+        a.clientName.localeCompare(b.clientName, "pt-BR", { sensitivity: "base" });
+      semFaturamento.sort(sortPt);
+      semOperacao.sort(sortPt);
+      naoImplantado.sort(sortPt);
 
-      setOperationalLeaks({ semFaturamento, semOperacao });
+      setOperationalLeaks({ semFaturamento, semOperacao, naoImplantado });
     } catch (err) {
       console.error("Error loading operational leaks:", err);
     }
