@@ -1,80 +1,48 @@
 ## Problema confirmado
 
-O cliente **Prefeitura Municipal de Caparaó** (código 95) tem 2 módulos que se enquadram exatamente no critério "Não implantado":
+Logs em runtime mostram `totalModules: 1000` — exatamente o teto padrão do Supabase REST (`max-rows`). No banco existem **1.081** `client_modules` para clientes ativos. Os módulos cortados incluem justamente os do cliente 95 (Prefeitura Municipal de Caparaó) e do 122 (ARDOCE), explicando por que aparecem somente 2 clientes em "Não implantado" em vez dos 3 reais.
 
-| Módulo | status_contrato | faturado_flag | ativo_no_cliente | valor_contratado |
-|---|---|---|---|---|
-| ISS BAN | Ativo | false | false | R$ 850 |
-| DATA CENTER | Ativo | false | false | R$ 1.400 |
+O `.range(0, 19999)` não eleva o teto — apenas desloca a janela. Com `from = 0`, a query continua devolvendo apenas as primeiras 1000 linhas.
 
-Consulta direta no banco confirma que existem **44 clientes** que deveriam aparecer na categoria "Não implantado" — mas o card mostra 0.
+## Causa
 
-## Causa provável
-
-A lógica em `useContracts.ts > loadOperationalLeaks()` está sintaticamente correta. Possíveis causas do estado vazio em runtime:
-
-1. **Erro silencioso** dentro do `try/catch` (cai no `console.error` e o estado nunca é populado com a nova categoria — mantém o inicial `[]`).
-2. **Estado inicial não atualizado** em algum dos múltiplos pontos onde `setOperationalLeaks` é chamado (já validado: linhas 172, 238, 329 estão consistentes).
-3. **Tipagem do select**: a query usa `select("...status_contrato...")` mas o TypeScript pode estar inferindo o campo como `unknown` se os tipos do Supabase não foram regenerados após adicionarmos a coluna no critério — fazendo `(m as any).status_contrato` retornar `undefined` em runtime quando o cliente Supabase faz tree-shaking.
-
-## Correções
-
-### 1. Adicionar logs de diagnóstico em `loadOperationalLeaks`
-
-Em `src/hooks/useContracts.ts`, logar contagens antes do `setOperationalLeaks` para ver no console exatamente o que está sendo carregado:
+Em `src/hooks/useContracts.ts > loadOperationalLeaks()`:
 
 ```ts
-console.log("[OperationalLeaks]", {
-  totalActiveClients: activeClients.length,
-  totalModules: cms?.length ?? 0,
-  semFaturamento: semFaturamento.length,
-  semOperacao: semOperacao.length,
-  naoImplantado: naoImplantado.length,
-});
+const { data: cms } = await supabase
+  .from("client_modules")
+  .select("...")
+  .in("client_id", ids)
+  .range(0, 19999); // ← não funciona; Supabase corta em 1000
 ```
 
-### 2. Tornar o filtro de `status_contrato` mais robusto
+Esse mesmo problema já foi tratado em `loadFromDatabase` com paginação por `PAGE_SIZE = 1000`. Falta replicar aqui.
 
-Substituir o filtro atual:
-```ts
-isActiveStatus(String((m as any).status_contrato || ""))
-```
-por uma leitura tipada e com fallback explícito (caso o campo venha `null`/`undefined`, considerar como "Ativo" — já que o default da coluna no banco é `'Ativo'`):
-```ts
-const sc = (m as { status_contrato?: string | null }).status_contrato;
-const contratoAtivo = !sc || isActiveStatus(String(sc));
-```
+## Correção
 
-Isso garante que módulos com `status_contrato` nulo/vazio (que no banco são tratados como "Ativo" pelo default) também sejam considerados.
+Em `src/hooks/useContracts.ts`, dentro de `loadOperationalLeaks()`:
 
-### 3. Adicionar tratamento de erro visível
+1. **Paginar a query de `client_modules`** com loop idêntico ao usado em `loadFromDatabase`:
+   - `PAGE_SIZE = 1000`, `MAX_PAGES = 50` (50k registros, margem segura).
+   - Ordenar por `id` ascendente para paginação estável.
+   - Acumular em `allCms: typeof cms` e parar quando o lote retornado for menor que `PAGE_SIZE`.
 
-No `catch` de `loadOperationalLeaks`, além do `console.error`, exibir um `toast` de aviso para evitar falha silenciosa:
-```ts
-toast({ title: "Falha ao carregar vazamento operacional", description: String(err), variant: "destructive" });
-```
+2. **Paginar também a query de `clients`** (`status_cliente = 'Ativo'`) pelo mesmo motivo — hoje são ~120 clientes ativos, mas crescerá. Mesmo padrão de paginação.
 
-### 4. Garantir que `resetToMock` também limpe `operationalLeaks`
+3. **Paginar a query interna `.in("client_id", ids)`**: como `ids` pode passar de centenas, e o Postgres tem limite de tamanho de URL, dividir `ids` em chunks de 200 e fazer múltiplas chamadas, concatenando o resultado.
 
-Em `resetToMock` (linha 528), adicionar:
-```ts
-setOperationalLeaks({ semFaturamento: [], semOperacao: [], naoImplantado: [] });
-```
-Para evitar que dados reais residuais se misturem ao modo demo.
-
-## Arquivos a editar
-
-- `src/hooks/useContracts.ts` (4 alterações pontuais — sem refator estrutural)
+4. **Manter** todos os filtros já implementados (status_contrato, faturado_flag, ativo_no_cliente) e o log de diagnóstico `[OperationalLeaks]`.
 
 ## Resultado esperado
 
-Após o deploy:
-- O console mostrará `naoImplantado: 44` confirmando que a lógica processa corretamente.
-- A Prefeitura Municipal de Caparaó aparecerá no card "Não implantado" com 2 módulos e R$ 2.250,00 em risco.
-- Erros futuros na carga serão visíveis ao usuário via toast.
+Após o deploy, o log mostrará `totalModules: 1081` (e crescerá com o tempo) e o card "Não implantado" exibirá **3 clientes**, incluindo Prefeitura Municipal de Caparaó com R$ 2.250 em risco.
+
+## Arquivos a editar
+
+- `src/hooks/useContracts.ts` — apenas a função `loadOperationalLeaks()` (sem mudanças de layout, UI ou outras categorias).
 
 ## O que NÃO muda
 
-- Layout do card e do dashboard.
-- Critérios das outras categorias (Sem faturamento ativo, Sem operação ativa).
-- Filtros do hero.
+- Layout do card `OperationalLeakAlert`.
+- Lógica de filtros do hero (`Dashboard.tsx`).
+- Outras consultas e o fluxo de import.

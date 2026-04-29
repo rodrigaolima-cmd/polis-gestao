@@ -223,28 +223,71 @@ export function useContracts() {
 
   const loadOperationalLeaks = useCallback(async () => {
     try {
-      // 1. All Active clients
-      const { data: activeClients, error: cErr } = await supabase
-        .from("clients")
-        .select("id, nome_cliente, tipo_ug, regiao, consultor, observacoes_cliente, cliente_desde, status_cliente, updated_at")
-        .eq("status_cliente", "Ativo")
-        .range(0, 9999);
-      if (cErr) throw cErr;
-      if (!activeClients) return;
+      const PAGE_SIZE = 1000;
+      const MAX_PAGES = 50;
 
-      // 2. All client_modules for those clients
+      // 1. All Active clients (paginado — Supabase REST tem teto de 1000 por chamada)
+      type ActiveClient = {
+        id: string;
+        nome_cliente: string;
+        tipo_ug: string | null;
+        regiao: string | null;
+        consultor: string | null;
+        observacoes_cliente: string | null;
+        cliente_desde: string | null;
+        status_cliente: string | null;
+        updated_at: string | null;
+      };
+      const activeClients: ActiveClient[] = [];
+      for (let page = 0; page < MAX_PAGES; page++) {
+        const from = page * PAGE_SIZE;
+        const { data, error: cErr } = await supabase
+          .from("clients")
+          .select("id, nome_cliente, tipo_ug, regiao, consultor, observacoes_cliente, cliente_desde, status_cliente, updated_at")
+          .eq("status_cliente", "Ativo")
+          .order("id", { ascending: true })
+          .range(from, from + PAGE_SIZE - 1);
+        if (cErr) throw cErr;
+        if (!data || data.length === 0) break;
+        activeClients.push(...(data as ActiveClient[]));
+        if (data.length < PAGE_SIZE) break;
+      }
+
+      // 2. All client_modules for those clients (paginado por chunks de IDs + paginação interna)
       const ids = activeClients.map((c) => c.id);
       if (ids.length === 0) {
         setOperationalLeaks({ semFaturamento: [], semOperacao: [], naoImplantado: [] });
         return;
       }
 
-      const { data: cms, error: mErr } = await supabase
-        .from("client_modules")
-        .select("id, client_id, valor_contratado, ativo_no_cliente, faturado_flag, status_contrato, updated_at, modules(nome_modulo)")
-        .in("client_id", ids)
-        .range(0, 19999);
-      if (mErr) throw mErr;
+      type CmRow = {
+        id: string;
+        client_id: string;
+        valor_contratado: number | null;
+        ativo_no_cliente: boolean | null;
+        faturado_flag: boolean | null;
+        status_contrato: string | null;
+        updated_at: string | null;
+        modules: { nome_modulo: string } | null;
+      };
+      const cms: CmRow[] = [];
+      const ID_CHUNK = 200;
+      for (let i = 0; i < ids.length; i += ID_CHUNK) {
+        const chunk = ids.slice(i, i + ID_CHUNK);
+        for (let page = 0; page < MAX_PAGES; page++) {
+          const from = page * PAGE_SIZE;
+          const { data, error: mErr } = await supabase
+            .from("client_modules")
+            .select("id, client_id, valor_contratado, ativo_no_cliente, faturado_flag, status_contrato, updated_at, modules(nome_modulo)")
+            .in("client_id", chunk)
+            .order("id", { ascending: true })
+            .range(from, from + PAGE_SIZE - 1);
+          if (mErr) throw mErr;
+          if (!data || data.length === 0) break;
+          cms.push(...(data as unknown as CmRow[]));
+          if (data.length < PAGE_SIZE) break;
+        }
+      }
 
       const byClient = new Map<string, typeof cms>();
       (cms || []).forEach((m) => {
