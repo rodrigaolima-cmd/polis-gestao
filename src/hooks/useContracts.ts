@@ -540,6 +540,7 @@ export function useContracts() {
   const resetToMock = useCallback(() => {
     setContracts(mockContracts);
     setDataSource("mock");
+    setOperationalLeaks({ semFaturamento: [], semOperacao: [], naoImplantado: [] });
   }, []);
 
   return {
