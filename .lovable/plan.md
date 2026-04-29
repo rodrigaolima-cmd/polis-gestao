@@ -1,68 +1,80 @@
-## Objetivo
+## Problema confirmado
 
-Criar uma terceira categoria de "Dinheiro na Mesa" — chamada **"Não implantado"** — que detecta módulos:
+O cliente **Prefeitura Municipal de Caparaó** (código 95) tem 2 módulos que se enquadram exatamente no critério "Não implantado":
 
-- Pertencentes a cliente com **status_cliente = Ativo**
-- Com **status_contrato = Ativo** (`isActiveStatus`)
-- **Não faturados** (`faturado_flag = false`)
-- **Inativos no cliente** (`ativo_no_cliente = false`)
+| Módulo | status_contrato | faturado_flag | ativo_no_cliente | valor_contratado |
+|---|---|---|---|---|
+| ISS BAN | Ativo | false | false | R$ 850 |
+| DATA CENTER | Ativo | false | false | R$ 1.400 |
 
-Essa combinação revela contratos vendidos mas que ainda **não foram implantados** — dinheiro real parado, distinto das duas categorias atuais (sem faturamento de módulo ATIVO, e cliente sem nenhum módulo ativo).
+Consulta direta no banco confirma que existem **44 clientes** que deveriam aparecer na categoria "Não implantado" — mas o card mostra 0.
 
-## Diferença vs. categorias existentes
+## Causa provável
 
-| Categoria | Cliente | Contrato | Faturado | Ativo no cliente | Significado |
-|---|---|---|---|---|---|
-| Sem faturamento ativo (existente) | Ativo | — | Não | **Sim** | Implantado mas não cobrado |
-| Sem operação ativa (existente) | Ativo | — | — | nenhum módulo ativo | Cliente ocioso |
-| **Não implantado (novo)** | Ativo | **Ativo** | **Não** | **Não** | **Vendido, não implantado — dinheiro na mesa** |
+A lógica em `useContracts.ts > loadOperationalLeaks()` está sintaticamente correta. Possíveis causas do estado vazio em runtime:
 
-## Arquivos a editar (4)
+1. **Erro silencioso** dentro do `try/catch` (cai no `console.error` e o estado nunca é populado com a nova categoria — mantém o inicial `[]`).
+2. **Estado inicial não atualizado** em algum dos múltiplos pontos onde `setOperationalLeaks` é chamado (já validado: linhas 172, 238, 329 estão consistentes).
+3. **Tipagem do select**: a query usa `select("...status_contrato...")` mas o TypeScript pode estar inferindo o campo como `unknown` se os tipos do Supabase não foram regenerados após adicionarmos a coluna no critério — fazendo `(m as any).status_contrato` retornar `undefined` em runtime quando o cliente Supabase faz tree-shaking.
 
-### 1. `src/hooks/useContracts.ts`
+## Correções
 
-- Estender `OperationalLeaks` adicionando `naoImplantado: OperationalLeakClient[]`.
-- Em `loadOperationalLeaks()`:
-  - Incluir `status_contrato` na query de `client_modules`.
-  - Após o loop atual, identificar para cada cliente Ativo os módulos com: `ativo_no_cliente === false` **E** `faturado_flag === false` **E** `status_contrato` é "ativo" (usar lista case-insensitive: `["ativo", "vigente", "em vigor"]`, alinhado com `isActiveStatus` em `contractUtils`).
-  - Agregar nomes dos módulos, `valorEmRisco` (soma de `valor_contratado`) e `ultimaAtualizacao`.
-  - Ordenar alfabeticamente pt-BR como nas demais.
-- Inicializar estado com `naoImplantado: []`.
+### 1. Adicionar logs de diagnóstico em `loadOperationalLeaks`
 
-### 2. `src/components/dashboard/OperationalLeakAlert.tsx`
+Em `src/hooks/useContracts.ts`, logar contagens antes do `setOperationalLeaks` para ver no console exatamente o que está sendo carregado:
 
-- Trocar grid de 2 para 3 colunas (`md:grid-cols-3`), mantendo divisores.
-- Adicionar terceiro `LeakBlock`:
-  - `variant="danger"`, `icon={PackageX}` (importar de lucide).
-  - Título: **"Não implantado"**
-  - Subtítulo: "Contrato ativo, vendido mas não implantado"
-  - `count` = `leaks.naoImplantado.length`
-  - `extra` = soma `valorEmRisco` formatada (em risco)
-  - `responsavel="Operações / CS"`
-- `if (semFatCount === 0 && semOpCount === 0 && naoImpCount === 0) return null;`
-- Topo do card: somar `valorRisco` das duas categorias com valor (semFaturamento + naoImplantado) — opcional, manter cálculo separado por bloco para não inflar o header.
+```ts
+console.log("[OperationalLeaks]", {
+  totalActiveClients: activeClients.length,
+  totalModules: cms?.length ?? 0,
+  semFaturamento: semFaturamento.length,
+  semOperacao: semOperacao.length,
+  naoImplantado: naoImplantado.length,
+});
+```
 
-### 3. `src/components/dashboard/Dashboard.tsx`
+### 2. Tornar o filtro de `status_contrato` mais robusto
 
-- `filteredOperationalLeaks` (useMemo): aplicar mesmo `matches` à nova lista `naoImplantado`. Quando `!isLeakFiltered`, devolve `operationalLeaks` direto (já contém `naoImplantado`).
+Substituir o filtro atual:
+```ts
+isActiveStatus(String((m as any).status_contrato || ""))
+```
+por uma leitura tipada e com fallback explícito (caso o campo venha `null`/`undefined`, considerar como "Ativo" — já que o default da coluna no banco é `'Ativo'`):
+```ts
+const sc = (m as { status_contrato?: string | null }).status_contrato;
+const contratoAtivo = !sc || isActiveStatus(String(sc));
+```
 
-### 4. `src/components/dashboard/SectionReportDialog.tsx`
+Isso garante que módulos com `status_contrato` nulo/vazio (que no banco são tratados como "Ativo" pelo default) também sejam considerados.
 
-- `OperationalLeakReport`:
-  - Adicionar terceira seção **"Não implantado — vendido mas não entregue"** com tabela idêntica em estrutura à de "Sem faturamento ativo" (Cliente, UG, Consultor, Módulos não implantados, Valor em risco, Última atualização).
-  - Linha de total ao final (count + soma `valorEmRisco`).
-  - Atualizar fallbacks (`leaks ?? { semFaturamento: [], semOperacao: [], naoImplantado: [] }`).
+### 3. Adicionar tratamento de erro visível
 
-## O que NÃO muda
+No `catch` de `loadOperationalLeaks`, além do `console.error`, exibir um `toast` de aviso para evitar falha silenciosa:
+```ts
+toast({ title: "Falha ao carregar vazamento operacional", description: String(err), variant: "destructive" });
+```
 
-- Critérios das duas categorias atuais.
-- Toggle "Incluir clientes sem operação ativa" (a nova categoria já depende de `ativo_no_cliente=false`, então é independente do toggle — sempre carregada).
-- KPIs principais, layout do dashboard, sidebar.
-- Estrutura interna de `SectionReportDialog`.
+### 4. Garantir que `resetToMock` também limpe `operationalLeaks`
+
+Em `resetToMock` (linha 528), adicionar:
+```ts
+setOperationalLeaks({ semFaturamento: [], semOperacao: [], naoImplantado: [] });
+```
+Para evitar que dados reais residuais se misturem ao modo demo.
+
+## Arquivos a editar
+
+- `src/hooks/useContracts.ts` (4 alterações pontuais — sem refator estrutural)
 
 ## Resultado esperado
 
-- Card "Vazamento Operacional" passa a ter **3 blocos** lado a lado.
-- "Não implantado" mostra contagem + valor em risco — visível imediatamente quanto dinheiro está parado por falta de implantação.
-- Filtros do hero (consultor, região, UG, cliente, busca) afetam também a nova categoria.
-- Relatório expandido com nova seção dedicada, ordenada alfabeticamente.
+Após o deploy:
+- O console mostrará `naoImplantado: 44` confirmando que a lógica processa corretamente.
+- A Prefeitura Municipal de Caparaó aparecerá no card "Não implantado" com 2 módulos e R$ 2.250,00 em risco.
+- Erros futuros na carga serão visíveis ao usuário via toast.
+
+## O que NÃO muda
+
+- Layout do card e do dashboard.
+- Critérios das outras categorias (Sem faturamento ativo, Sem operação ativa).
+- Filtros do hero.

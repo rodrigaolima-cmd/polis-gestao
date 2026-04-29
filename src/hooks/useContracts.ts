@@ -273,12 +273,13 @@ export function useContracts() {
         };
 
         // Categoria 3 (NOVA): Contrato ativo, módulo NÃO faturado, módulo INATIVO no cliente — vendido sem implantar
-        const naoImplantadosMods = mods.filter(
-          (m) =>
-            m.ativo_no_cliente === false &&
-            m.faturado_flag === false &&
-            isActiveStatus(String((m as any).status_contrato || ""))
-        );
+        const naoImplantadosMods = mods.filter((m) => {
+          if (m.ativo_no_cliente !== false) return false;
+          if (m.faturado_flag !== false) return false;
+          const sc = (m as { status_contrato?: string | null }).status_contrato;
+          // Default da coluna é 'Ativo' — se vier null/vazio, considera ativo
+          return !sc || isActiveStatus(String(sc));
+        });
         if (naoImplantadosMods.length > 0) {
           const valor = naoImplantadosMods.reduce((s, m) => s + (Number(m.valor_contratado) || 0), 0);
           const nomes = naoImplantadosMods
@@ -326,9 +327,20 @@ export function useContracts() {
       semOperacao.sort(sortPt);
       naoImplantado.sort(sortPt);
 
+      console.log("[OperationalLeaks]", {
+        totalActiveClients: activeClients.length,
+        totalModules: cms?.length ?? 0,
+        semFaturamento: semFaturamento.length,
+        semOperacao: semOperacao.length,
+        naoImplantado: naoImplantado.length,
+      });
+
       setOperationalLeaks({ semFaturamento, semOperacao, naoImplantado });
     } catch (err) {
       console.error("Error loading operational leaks:", err);
+      toast.error("Falha ao carregar vazamento operacional", {
+        description: err instanceof Error ? err.message : String(err),
+      });
     }
   }, []);
 
@@ -528,6 +540,7 @@ export function useContracts() {
   const resetToMock = useCallback(() => {
     setContracts(mockContracts);
     setDataSource("mock");
+    setOperationalLeaks({ semFaturamento: [], semOperacao: [], naoImplantado: [] });
   }, []);
 
   return {
