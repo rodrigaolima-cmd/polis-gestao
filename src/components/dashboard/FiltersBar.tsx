@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { RotateCcw, Search, SlidersHorizontal, X } from "lucide-react";
 import { useState } from "react";
+import type { ClientStatusScope } from "@/hooks/useContracts";
 
 interface FiltersBarProps {
   filters: DashboardFilters;
@@ -15,11 +16,14 @@ interface FiltersBarProps {
   onReset: () => void;
   includeInactiveOperation?: boolean;
   onIncludeInactiveOperationChange?: (value: boolean) => void;
+  clientStatusScope?: ClientStatusScope;
+  onClientStatusScopeChange?: (value: ClientStatusScope) => void;
 }
 
 export function FiltersBar({
   filters, contracts, onFilterChange, onReset,
   includeInactiveOperation = false, onIncludeInactiveOperationChange,
+  clientStatusScope = "ativos", onClientStatusScopeChange,
 }: FiltersBarProps) {
   const [expanded, setExpanded] = useState(false);
   const ugTypes = getUniqueValues(contracts, "ugType");
