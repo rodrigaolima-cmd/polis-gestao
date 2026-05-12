@@ -1,58 +1,54 @@
-# Diagnóstico das divergências
+## 1. O que significa "Diferença > 0"
 
-Confirmei os números diretamente no banco:
+É um filtro do Dashboard que mostra **apenas linhas onde Valor Contratado > Valor Faturado** — ou seja, módulos com saldo a faturar ("dinheiro na mesa"). Quando ligado:
 
-| Métrica | Valor real (DB) |
-|---|---|
-| Clientes total | **124** (123 Ativo + 1 Inativo) |
-| Módulos total | **1.108** |
-| Módulos ativos no cliente (`ativo_no_cliente=true`) | **831** |
-| Módulos inativos no cliente (`ativo_no_cliente=false`) | **277** |
+- Esconde módulos já 100% faturados (diferença = 0)
+- Esconde módulos com sobre-faturamento (diferença < 0)
+- Útil para focar na fila de cobrança / oportunidades de faturamento
 
-## O que cada tela mostra
+Implementação atual: `src/utils/contractUtils.ts → applyFilters` (`c.contractedValue - c.billedValue <= 0` é descartado).
 
-### Dashboard — 119 clientes / 831 módulos
-- **831 módulos** = está correto (todos os módulos ativos de clientes Ativos). O `useContracts.loadFromDatabase` já pagina em chunks de 1.000.
-- **119 clientes** = clientes com `status_cliente='Ativo'` **E** ao menos 1 módulo ativo. São 123 Ativos no DB, mas 4 não têm nenhum módulo ativo, então o Dashboard só conta 119. Comportamento intencional (regra "Dashboard Client Visibility Rule").
+**Sugestão de melhoria opcional:** renomear o rótulo no `FiltersBar` de **"Diferença > 0"** para **"Apenas com saldo a faturar"** com tooltip explicativo (mais claro para o usuário final). Confirmar se quer essa renomeação.
 
-### Menu Clientes — 124 clientes / 759 módulos
-- **124 clientes** = correto (lista todos, inclusive Inativo).
-- **759 módulos** = **BUG**. A query em `src/pages/ClientesPage.tsx` (linhas 64-66) busca `client_modules` sem paginação:
+## 2. Filtro de Status do Cliente (Ativo / Inativo / Prospect)
 
-  ```ts
-  const { data: modulesData } = await supabase
-    .from("client_modules")
-    .select("client_id, ativo_no_cliente");
-  ```
+### Comportamento atual
+- O Dashboard chama `loadFromDatabase` em `useContracts.ts` com filtro **fixo** `clients.status_cliente = 'Ativo'`. Clientes Inativos e Prospects **nunca** chegam ao Dashboard.
+- O toggle existente **"Incluir clientes sem operação ativa"** controla apenas `ativo_no_cliente` dos módulos (não o status do cliente).
+- Há um filtro "Status" no `FiltersBar`, mas ele filtra `contractStatus` (status do contrato/módulo), não `status_cliente`.
 
-  O Supabase REST tem teto **default de 1.000 linhas por chamada**. Como temos 1.108 registros, ele retorna só os primeiros 1.000 — desses, exatamente 759 têm `ativo_no_cliente=true`. Os 108 restantes ficam de fora da contagem.
+Resultado: hoje é impossível ver Inativos/Prospects no Dashboard.
 
-# Plano de correção
+### Mudanças propostas
 
-## 1. Paginar a query de `client_modules` em `ClientesPage.tsx`
-Aplicar o mesmo padrão de paginação já usado em `useContracts.ts` (loop `range(from, from+999)` até esvaziar). Após o fix, o rodapé passará a mostrar **831 módulo(s)** — alinhado com o Dashboard e com o banco.
+**a) `src/hooks/useContracts.ts`**
+- Adicionar parâmetro `clientStatusFilter: 'ativos' | 'inativos' | 'prospects' | 'todos'` (default `'ativos'` — preserva comportamento atual).
+- Substituir o `.eq("clients.status_cliente", "Ativo")` por filtro condicional baseado no parâmetro.
+- Expor estado `clientStatusFilter` + setter no retorno do hook (mesmo padrão do `includeInactiveOperation`).
+- Disparar reload quando o filtro mudar.
 
-```text
-Antes:  124 cliente(s) encontrado(s) • 759 módulo(s)
-Depois: 124 cliente(s) encontrado(s) • 831 módulo(s)
-```
+**b) `src/types/contract.ts`**
+- (Opcional) propagar o tipo `ClientStatusScope` se for útil.
 
-## 2. (Opcional, recomendado) Clarear o subtítulo do Dashboard
-Hoje o Dashboard exibe "Dados do banco (831 contratos)" e o card "Relatório Geral" mostra "119 Clientes". Para evitar nova confusão entre "clientes Ativos com módulo" (119) vs "clientes cadastrados" (124), posso:
-- Trocar o subtítulo para `Dados do banco — 831 módulos ativos de 119 clientes operacionais`
-- Manter o link "Relatório Geral" como está (já segue a regra de visibilidade do Dashboard)
+**c) `src/components/dashboard/FiltersBar.tsx`**
+- Adicionar um novo controle **"Status do Cliente"** ao lado do toggle "Incluir clientes sem operação ativa", com 4 opções:
+  - **Ativos** (padrão)
+  - **Inativos**
+  - **Prospects**
+  - **Todos**
+- Visual: `Select` compacto (mesmo estilo dos demais filtros) ou um pequeno grupo de botões `ToggleGroup`. Recomendado `Select` para consistência.
 
-## 3. Sem alteração nas regras de negócio
-- A regra "Dashboard só mostra clientes Ativos com ≥1 módulo ativo" permanece (memória do projeto).
-- Nenhum dado é alterado — apenas a forma de **contar/exibir** no menu Clientes.
+**d) `src/components/dashboard/Dashboard.tsx`**
+- Ler `clientStatusFilter` / `setClientStatusFilter` do `useContracts` e passar ao `FiltersBar`.
 
-# Arquivos afetados
+**e) Indicador no subtítulo (opcional, recomendado)**
+- Quando o escopo for diferente de "Ativos", mostrar no subtítulo do Dashboard, ex.: `Dados do banco — escopo: Inativos (X módulos / Y clientes)`. Evita confusão com a leitura "padrão".
 
-- `src/pages/ClientesPage.tsx` — paginar query de `client_modules` (item 1, obrigatório).
-- `src/components/dashboard/Dashboard.tsx` — ajuste textual no subtítulo (item 2, se aprovado).
+### Pontos a confirmar
+1. Renomear "Diferença > 0" para "Apenas com saldo a faturar" — sim/não?
+2. Controle de status do cliente como **Select** (Ativos/Inativos/Prospects/Todos) ou **multi-seleção** (ex.: marcar Ativos + Prospects ao mesmo tempo)?
+3. Quando o usuário escolher "Inativos" ou "Todos", devo manter o toggle "Incluir clientes sem operação ativa" ativo automaticamente (faz mais sentido nesse contexto) ou deixar como está?
 
-# Pergunta antes de implementar
-
-Confirma que devo:
-- (a) Apenas corrigir a contagem do menu Clientes (item 1)?
-- (b) Item 1 **+** ajustar o subtítulo do Dashboard (item 2)?
+### Fora do escopo
+- Não altero a lógica do Menu Clientes (que já mostra todos os status).
+- Não altero RLS / migrações — apenas filtros de leitura no front-end.

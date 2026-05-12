@@ -164,16 +164,20 @@ export interface OperationalLeaks {
   naoImplantado: OperationalLeakClient[];
 }
 
+export type ClientStatusScope = "ativos" | "inativos" | "prospects" | "todos";
+
 export function useContracts() {
   const [contracts, setContracts] = useState<ContractRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [dataSource, setDataSource] = useState<"mock" | "database">("mock");
   const [includeInactiveOperation, setIncludeInactiveOperation] = useState(false);
+  const [clientStatusScope, setClientStatusScopeState] = useState<ClientStatusScope>("ativos");
   const [operationalLeaks, setOperationalLeaks] = useState<OperationalLeaks>({ semFaturamento: [], semOperacao: [], naoImplantado: [] });
   const { accessToken } = useAuth();
 
-  const loadFromDatabase = useCallback(async (opts?: { includeInactiveOperation?: boolean }) => {
+  const loadFromDatabase = useCallback(async (opts?: { includeInactiveOperation?: boolean; clientStatusScope?: ClientStatusScope }) => {
     const includeInactive = opts?.includeInactiveOperation ?? false;
+    const scope: ClientStatusScope = opts?.clientStatusScope ?? "ativos";
     setLoading(true);
     try {
       const PAGE_SIZE = 1000;
@@ -185,9 +189,17 @@ export function useContracts() {
         let query = supabase
           .from("client_modules")
           .select("*, clients!inner(*), modules(*)")
-          .eq("clients.status_cliente", "Ativo")
           .order("id", { ascending: true })
           .range(from, from + PAGE_SIZE - 1);
+
+        if (scope === "ativos") {
+          query = query.eq("clients.status_cliente", "Ativo");
+        } else if (scope === "inativos") {
+          query = query.eq("clients.status_cliente", "Inativo");
+        } else if (scope === "prospects") {
+          query = query.eq("clients.status_cliente", "Prospect");
+        }
+        // "todos": sem filtro de status_cliente
 
         if (!includeInactive) {
           query = query.eq("ativo_no_cliente", true);
@@ -389,8 +401,13 @@ export function useContracts() {
 
   const toggleIncludeInactiveOperation = useCallback((value: boolean) => {
     setIncludeInactiveOperation(value);
-    loadFromDatabase({ includeInactiveOperation: value });
-  }, [loadFromDatabase]);
+    loadFromDatabase({ includeInactiveOperation: value, clientStatusScope });
+  }, [loadFromDatabase, clientStatusScope]);
+
+  const setClientStatusScope = useCallback((value: ClientStatusScope) => {
+    setClientStatusScopeState(value);
+    loadFromDatabase({ includeInactiveOperation, clientStatusScope: value });
+  }, [loadFromDatabase, includeInactiveOperation]);
 
   useEffect(() => {
     loadFromDatabase();
@@ -597,5 +614,7 @@ export function useContracts() {
     operationalLeaks,
     includeInactiveOperation,
     setIncludeInactiveOperation: toggleIncludeInactiveOperation,
+    clientStatusScope,
+    setClientStatusScope,
   };
 }

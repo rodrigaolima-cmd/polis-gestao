@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { RotateCcw, Search, SlidersHorizontal, X } from "lucide-react";
 import { useState } from "react";
+import type { ClientStatusScope } from "@/hooks/useContracts";
 
 interface FiltersBarProps {
   filters: DashboardFilters;
@@ -15,11 +16,14 @@ interface FiltersBarProps {
   onReset: () => void;
   includeInactiveOperation?: boolean;
   onIncludeInactiveOperationChange?: (value: boolean) => void;
+  clientStatusScope?: ClientStatusScope;
+  onClientStatusScopeChange?: (value: ClientStatusScope) => void;
 }
 
 export function FiltersBar({
   filters, contracts, onFilterChange, onReset,
   includeInactiveOperation = false, onIncludeInactiveOperationChange,
+  clientStatusScope = "ativos", onClientStatusScopeChange,
 }: FiltersBarProps) {
   const [expanded, setExpanded] = useState(false);
   const ugTypes = getUniqueValues(contracts, "ugType");
@@ -101,7 +105,9 @@ export function FiltersBar({
               onCheckedChange={(v) => update({ onlyWithDifference: v })}
               id="diff-switch"
             />
-            <Label htmlFor="diff-switch" className="text-xs text-muted-foreground">Diferença &gt; 0</Label>
+            <Label htmlFor="diff-switch" className="text-xs text-muted-foreground" title="Mostra apenas módulos onde Valor Contratado é maior que Valor Faturado (saldo a faturar / dinheiro na mesa)">
+              Apenas com saldo a faturar
+            </Label>
           </div>
 
           <div className="flex items-center gap-2 col-span-2 md:col-span-1">
@@ -121,6 +127,23 @@ export function FiltersBar({
             </Select>
           </div>
 
+          {onClientStatusScopeChange && (
+            <div className="space-y-1 col-span-2 md:col-span-1">
+              <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">Status do Cliente</Label>
+              <Select value={clientStatusScope} onValueChange={(v) => onClientStatusScopeChange(v as ClientStatusScope)}>
+                <SelectTrigger className="h-8 text-xs bg-muted/50 border-border/50">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ativos">Ativos</SelectItem>
+                  <SelectItem value="inativos">Inativos</SelectItem>
+                  <SelectItem value="prospects">Prospects</SelectItem>
+                  <SelectItem value="todos">Todos</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
           {onIncludeInactiveOperationChange && (
             <div className="flex items-start gap-2 col-span-2 md:col-span-2 lg:col-span-3 rounded-md border border-border/50 bg-muted/30 px-3 py-2">
               <Switch
@@ -132,7 +155,7 @@ export function FiltersBar({
               <Label htmlFor="include-inactive-op" className="text-xs text-foreground leading-tight cursor-pointer">
                 Incluir clientes sem operação ativa
                 <span className="block text-[10px] font-normal text-muted-foreground mt-0.5">
-                  Mostra também clientes Ativos com módulos inativos / não faturados (visão de potencial total)
+                  Mostra também clientes com módulos inativos / não faturados (visão de potencial total)
                 </span>
               </Label>
             </div>
