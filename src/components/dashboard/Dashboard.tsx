@@ -38,7 +38,7 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const { profile, signOut, isAdmin } = useAuth();
   const { logAction } = useAuditLog();
-  const { contracts, setContracts, dataSource, importToDatabase, resetToMock, loading, operationalLeaks, includeInactiveOperation, setIncludeInactiveOperation } = useContracts();
+  const { contracts, setContracts, dataSource, importToDatabase, resetToMock, loading, operationalLeaks, includeInactiveOperation, setIncludeInactiveOperation, clientStatusScope, setClientStatusScope } = useContracts();
   const [filters, setFilters] = useState<DashboardFilters>(defaultFilters);
   const [importOpen, setImportOpen] = useState(false);
   const [reportConfig, setReportConfig] = useState<ReportConfig | null>(null);
@@ -175,6 +175,8 @@ export default function Dashboard() {
             onReset={() => setFilters(defaultFilters)}
             includeInactiveOperation={includeInactiveOperation}
             onIncludeInactiveOperationChange={setIncludeInactiveOperation}
+            clientStatusScope={clientStatusScope}
+            onClientStatusScopeChange={setClientStatusScope}
           />
 
           {/* Financial KPIs - Row 1 */}
