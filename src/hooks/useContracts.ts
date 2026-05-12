@@ -164,6 +164,8 @@ export interface OperationalLeaks {
   naoImplantado: OperationalLeakClient[];
 }
 
+export type ClientStatusScope = "ativos" | "inativos" | "prospects" | "todos";
+
 export function useContracts() {
   const [contracts, setContracts] = useState<ContractRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -187,9 +189,17 @@ export function useContracts() {
         let query = supabase
           .from("client_modules")
           .select("*, clients!inner(*), modules(*)")
-          .eq("clients.status_cliente", "Ativo")
           .order("id", { ascending: true })
           .range(from, from + PAGE_SIZE - 1);
+
+        if (scope === "ativos") {
+          query = query.eq("clients.status_cliente", "Ativo");
+        } else if (scope === "inativos") {
+          query = query.eq("clients.status_cliente", "Inativo");
+        } else if (scope === "prospects") {
+          query = query.eq("clients.status_cliente", "Prospect");
+        }
+        // "todos": sem filtro de status_cliente
 
         if (!includeInactive) {
           query = query.eq("ativo_no_cliente", true);
