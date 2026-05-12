@@ -1,74 +1,58 @@
-## Plano: Expurgo de 9 clientes + renumeração alfabética PT-BR
+# Diagnóstico das divergências
 
-### 1. Exclusões (transação única)
+Confirmei os números diretamente no banco:
 
-**9 clientes** + **50 lançamentos** em `client_modules`:
+| Métrica | Valor real (DB) |
+|---|---|
+| Clientes total | **124** (123 Ativo + 1 Inativo) |
+| Módulos total | **1.108** |
+| Módulos ativos no cliente (`ativo_no_cliente=true`) | **831** |
+| Módulos inativos no cliente (`ativo_no_cliente=false`) | **277** |
 
-| Código | Nome | Módulos |
-|---|---|---|
-| 1 | AMOC | 0 |
-| 14 | Prefeitura Municipal de Carangola | 16 |
-| 17 | Prefeitura Municipal de Congonhas do Norte | 12 |
-| 40 | Prefeitura Municipal de Santa Maria de Itabira | 14 |
-| 47 | Prefeitura Municipal de Guanhães | 0 |
-| 75 | Câmara Municipal de Santa Maria de Itabira | 8 |
-| 123 | Câmara Municipal de Água Boa | 0 |
-| 125 | Consórcio Intermunicipal de Saúde da Micro Região de Caratinga (encoding quebrado) | 0 |
-| 128 | Prefeitura Municipal de Araçuaí | 0 |
+## O que cada tela mostra
 
-### 2. Renumeração — alfabética PT-BR (1 → 124)
+### Dashboard — 119 clientes / 831 módulos
+- **831 módulos** = está correto (todos os módulos ativos de clientes Ativos). O `useContracts.loadFromDatabase` já pagina em chunks de 1.000.
+- **119 clientes** = clientes com `status_cliente='Ativo'` **E** ao menos 1 módulo ativo. São 123 Ativos no DB, mas 4 não têm nenhum módulo ativo, então o Dashboard só conta 119. Comportamento intencional (regra "Dashboard Client Visibility Rule").
 
-Ordenação por `nome_cliente` usando `unaccent` + `lower` para respeitar PT-BR ignorando acentos e caixa. Sequence `clients_codigo_cliente_seq` realinhada ao final.
+### Menu Clientes — 124 clientes / 759 módulos
+- **124 clientes** = correto (lista todos, inclusive Inativo).
+- **759 módulos** = **BUG**. A query em `src/pages/ClientesPage.tsx` (linhas 64-66) busca `client_modules` sem paginação:
 
-### 3. Migration (executada em uma chamada após sua aprovação)
+  ```ts
+  const { data: modulesData } = await supabase
+    .from("client_modules")
+    .select("client_id, ativo_no_cliente");
+  ```
 
-```sql
-BEGIN;
+  O Supabase REST tem teto **default de 1.000 linhas por chamada**. Como temos 1.108 registros, ele retorna só os primeiros 1.000 — desses, exatamente 759 têm `ativo_no_cliente=true`. Os 108 restantes ficam de fora da contagem.
 
--- 1) audit log do expurgo
-INSERT INTO audit_logs (action, entity_type, entity_id, details)
-SELECT 'bulk_delete_pre_migration', 'client', id::text,
-       jsonb_build_object('codigo_cliente', codigo_cliente, 'nome_cliente', nome_cliente)
-FROM clients WHERE codigo_cliente IN (1,14,17,40,47,75,123,125,128);
+# Plano de correção
 
--- 2) excluir lançamentos vinculados
-DELETE FROM client_modules
-WHERE client_id IN (SELECT id FROM clients WHERE codigo_cliente IN (1,14,17,40,47,75,123,125,128));
+## 1. Paginar a query de `client_modules` em `ClientesPage.tsx`
+Aplicar o mesmo padrão de paginação já usado em `useContracts.ts` (loop `range(from, from+999)` até esvaziar). Após o fix, o rodapé passará a mostrar **831 módulo(s)** — alinhado com o Dashboard e com o banco.
 
--- 3) excluir clientes
-DELETE FROM clients WHERE codigo_cliente IN (1,14,17,40,47,75,123,125,128);
-
--- 4) mover códigos atuais para faixa negativa (evita colisão de UNIQUE)
-UPDATE clients SET codigo_cliente = -codigo_cliente;
-
--- 5) renumeração alfabética PT-BR (1..N)
-WITH ranked AS (
-  SELECT id,
-         ROW_NUMBER() OVER (
-           ORDER BY lower(public.unaccent(nome_cliente)) ASC, id ASC
-         ) AS novo
-  FROM clients
-)
-UPDATE clients c SET codigo_cliente = r.novo
-FROM ranked r WHERE r.id = c.id;
-
--- 6) realinhar sequence
-SELECT setval('clients_codigo_cliente_seq', (SELECT MAX(codigo_cliente) FROM clients));
-
-COMMIT;
+```text
+Antes:  124 cliente(s) encontrado(s) • 759 módulo(s)
+Depois: 124 cliente(s) encontrado(s) • 831 módulo(s)
 ```
 
-> Se a extensão `unaccent` não estiver habilitada, a migration adicionará `CREATE EXTENSION IF NOT EXISTS unaccent;` no início.
+## 2. (Opcional, recomendado) Clarear o subtítulo do Dashboard
+Hoje o Dashboard exibe "Dados do banco (831 contratos)" e o card "Relatório Geral" mostra "119 Clientes". Para evitar nova confusão entre "clientes Ativos com módulo" (119) vs "clientes cadastrados" (124), posso:
+- Trocar o subtítulo para `Dados do banco — 831 módulos ativos de 119 clientes operacionais`
+- Manter o link "Relatório Geral" como está (já segue a regra de visibilidade do Dashboard)
 
-### 4. Pós-execução
+## 3. Sem alteração nas regras de negócio
+- A regra "Dashboard só mostra clientes Ativos com ≥1 módulo ativo" permanece (memória do projeto).
+- Nenhum dado é alterado — apenas a forma de **contar/exibir** no menu Clientes.
 
-- Gero CSV `mapeamento_codigo_cliente.csv` em `/mnt/documents/` com colunas `codigo_antigo (negativo invertido) → codigo_novo → nome_cliente` para os 124 remanescentes.
-- Atualizo a memória `mem://data/client-sequence-code` para refletir o novo `MAX`.
+# Arquivos afetados
 
-### 5. Sem alterações de código-fonte
+- `src/pages/ClientesPage.tsx` — paginar query de `client_modules` (item 1, obrigatório).
+- `src/components/dashboard/Dashboard.tsx` — ajuste textual no subtítulo (item 2, se aprovado).
 
-Renumeração é puramente de dados; UI exibe `codigo_cliente` como leitura, joins internos usam `id` (UUID).
+# Pergunta antes de implementar
 
----
-
-**Aprove para que eu rode a migration.** A operação não é reversível após COMMIT.
+Confirma que devo:
+- (a) Apenas corrigir a contagem do menu Clientes (item 1)?
+- (b) Item 1 **+** ajustar o subtítulo do Dashboard (item 2)?

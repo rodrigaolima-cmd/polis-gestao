@@ -61,12 +61,25 @@ export default function ClientesPage() {
 
       if (error) throw error;
 
-      const { data: modulesData } = await supabase
-        .from("client_modules")
-        .select("client_id, ativo_no_cliente");
+      // Paginação para contornar o teto de 1.000 linhas do Supabase REST
+      const PAGE_SIZE = 1000;
+      const MAX_PAGES = 50;
+      const modulesData: { client_id: string; ativo_no_cliente: boolean | null }[] = [];
+      for (let page = 0; page < MAX_PAGES; page++) {
+        const from = page * PAGE_SIZE;
+        const { data: pageData, error: mErr } = await supabase
+          .from("client_modules")
+          .select("client_id, ativo_no_cliente")
+          .order("id", { ascending: true })
+          .range(from, from + PAGE_SIZE - 1);
+        if (mErr) throw mErr;
+        if (!pageData || pageData.length === 0) break;
+        modulesData.push(...(pageData as any[]));
+        if (pageData.length < PAGE_SIZE) break;
+      }
 
       const moduleCounts = new Map<string, number>();
-      (modulesData || []).forEach((m: any) => {
+      modulesData.forEach((m: any) => {
         if (m.ativo_no_cliente) {
           moduleCounts.set(m.client_id, (moduleCounts.get(m.client_id) || 0) + 1);
         }
