@@ -401,8 +401,13 @@ export function useContracts() {
 
   const toggleIncludeInactiveOperation = useCallback((value: boolean) => {
     setIncludeInactiveOperation(value);
-    loadFromDatabase({ includeInactiveOperation: value });
-  }, [loadFromDatabase]);
+    loadFromDatabase({ includeInactiveOperation: value, clientStatusScope });
+  }, [loadFromDatabase, clientStatusScope]);
+
+  const setClientStatusScope = useCallback((value: ClientStatusScope) => {
+    setClientStatusScopeState(value);
+    loadFromDatabase({ includeInactiveOperation, clientStatusScope: value });
+  }, [loadFromDatabase, includeInactiveOperation]);
 
   useEffect(() => {
     loadFromDatabase();
