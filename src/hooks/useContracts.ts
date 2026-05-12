@@ -614,5 +614,7 @@ export function useContracts() {
     operationalLeaks,
     includeInactiveOperation,
     setIncludeInactiveOperation: toggleIncludeInactiveOperation,
+    clientStatusScope,
+    setClientStatusScope,
   };
 }
