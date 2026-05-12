@@ -169,11 +169,13 @@ export function useContracts() {
   const [loading, setLoading] = useState(true);
   const [dataSource, setDataSource] = useState<"mock" | "database">("mock");
   const [includeInactiveOperation, setIncludeInactiveOperation] = useState(false);
+  const [clientStatusScope, setClientStatusScopeState] = useState<ClientStatusScope>("ativos");
   const [operationalLeaks, setOperationalLeaks] = useState<OperationalLeaks>({ semFaturamento: [], semOperacao: [], naoImplantado: [] });
   const { accessToken } = useAuth();
 
-  const loadFromDatabase = useCallback(async (opts?: { includeInactiveOperation?: boolean }) => {
+  const loadFromDatabase = useCallback(async (opts?: { includeInactiveOperation?: boolean; clientStatusScope?: ClientStatusScope }) => {
     const includeInactive = opts?.includeInactiveOperation ?? false;
+    const scope: ClientStatusScope = opts?.clientStatusScope ?? "ativos";
     setLoading(true);
     try {
       const PAGE_SIZE = 1000;
