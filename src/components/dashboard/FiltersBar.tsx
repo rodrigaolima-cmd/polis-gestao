@@ -127,6 +127,23 @@ export function FiltersBar({
             </Select>
           </div>
 
+          {onClientStatusScopeChange && (
+            <div className="space-y-1 col-span-2 md:col-span-1">
+              <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">Status do Cliente</Label>
+              <Select value={clientStatusScope} onValueChange={(v) => onClientStatusScopeChange(v as ClientStatusScope)}>
+                <SelectTrigger className="h-8 text-xs bg-muted/50 border-border/50">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ativos">Ativos</SelectItem>
+                  <SelectItem value="inativos">Inativos</SelectItem>
+                  <SelectItem value="prospects">Prospects</SelectItem>
+                  <SelectItem value="todos">Todos</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
           {onIncludeInactiveOperationChange && (
             <div className="flex items-start gap-2 col-span-2 md:col-span-2 lg:col-span-3 rounded-md border border-border/50 bg-muted/30 px-3 py-2">
               <Switch
@@ -138,7 +155,7 @@ export function FiltersBar({
               <Label htmlFor="include-inactive-op" className="text-xs text-foreground leading-tight cursor-pointer">
                 Incluir clientes sem operação ativa
                 <span className="block text-[10px] font-normal text-muted-foreground mt-0.5">
-                  Mostra também clientes Ativos com módulos inativos / não faturados (visão de potencial total)
+                  Mostra também clientes com módulos inativos / não faturados (visão de potencial total)
                 </span>
               </Label>
             </div>
