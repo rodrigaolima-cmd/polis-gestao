@@ -105,7 +105,9 @@ export function FiltersBar({
               onCheckedChange={(v) => update({ onlyWithDifference: v })}
               id="diff-switch"
             />
-            <Label htmlFor="diff-switch" className="text-xs text-muted-foreground">Diferença &gt; 0</Label>
+            <Label htmlFor="diff-switch" className="text-xs text-muted-foreground" title="Mostra apenas módulos onde Valor Contratado é maior que Valor Faturado (saldo a faturar / dinheiro na mesa)">
+              Apenas com saldo a faturar
+            </Label>
           </div>
 
           <div className="flex items-center gap-2 col-span-2 md:col-span-1">
