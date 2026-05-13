@@ -217,13 +217,11 @@ export function useContracts() {
       }
 
       if (allData.length > 0) {
-        const mapped = allData.map(mapToContractRow);
-        setContracts(mapped);
-        setDataSource("database");
+        setContracts(allData.map(mapToContractRow));
       } else {
-        setContracts(mockContracts);
-        setDataSource("mock");
+        setContracts([]);
       }
+      setDataSource("database");
     } catch (err) {
       console.error("Error loading contracts:", err);
       setContracts(mockContracts);
