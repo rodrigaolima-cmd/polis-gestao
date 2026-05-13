@@ -1,54 +1,53 @@
-## 1. O que significa "Diferença > 0"
+# Corrigir valores fantasmas em "Inativos" / "Prospects"
 
-É um filtro do Dashboard que mostra **apenas linhas onde Valor Contratado > Valor Faturado** — ou seja, módulos com saldo a faturar ("dinheiro na mesa"). Quando ligado:
+## Problema
 
-- Esconde módulos já 100% faturados (diferença = 0)
-- Esconde módulos com sobre-faturamento (diferença < 0)
-- Útil para focar na fila de cobrança / oportunidades de faturamento
+Ao selecionar **Status do Cliente = Inativos** ou **Prospects** no Dashboard, aparecem valores grandes (R$ 6.504.000,00 contratado, R$ 3.104.000,00 faturado, etc.) que **não existem no banco**.
 
-Implementação atual: `src/utils/contractUtils.ts → applyFilters` (`c.contractedValue - c.billedValue <= 0` é descartado).
+## Causa
 
-**Sugestão de melhoria opcional:** renomear o rótulo no `FiltersBar` de **"Diferença > 0"** para **"Apenas com saldo a faturar"** com tooltip explicativo (mais claro para o usuário final). Confirmar se quer essa renomeação.
+Verificação real no banco:
+- **Ativos**: 123 clientes / 1.107 módulos / R$ 1.780.534,49
+- **Inativos**: 1 cliente / 1 módulo / R$ 2.000 (com `ativo_no_cliente = false`)
+- **Prospects**: 0 clientes / 0 módulos
 
-## 2. Filtro de Status do Cliente (Ativo / Inativo / Prospect)
+Em `src/hooks/useContracts.ts → loadFromDatabase` (linhas ~219-226), quando a consulta retorna 0 linhas o hook substitui tudo pelos **dados de demonstração (`mockContracts`)**:
 
-### Comportamento atual
-- O Dashboard chama `loadFromDatabase` em `useContracts.ts` com filtro **fixo** `clients.status_cliente = 'Ativo'`. Clientes Inativos e Prospects **nunca** chegam ao Dashboard.
-- O toggle existente **"Incluir clientes sem operação ativa"** controla apenas `ativo_no_cliente` dos módulos (não o status do cliente).
-- Há um filtro "Status" no `FiltersBar`, mas ele filtra `contractStatus` (status do contrato/módulo), não `status_cliente`.
+```ts
+if (allData.length > 0) {
+  setContracts(mapped);
+  setDataSource("database");
+} else {
+  setContracts(mockContracts);   // ← bug
+  setDataSource("mock");
+}
+```
 
-Resultado: hoje é impossível ver Inativos/Prospects no Dashboard.
+Como Inativos (com toggle off) e Prospects retornam zero, o mock entra no lugar — daí os R$ 6.5M.
 
-### Mudanças propostas
+## Correção
 
-**a) `src/hooks/useContracts.ts`**
-- Adicionar parâmetro `clientStatusFilter: 'ativos' | 'inativos' | 'prospects' | 'todos'` (default `'ativos'` — preserva comportamento atual).
-- Substituir o `.eq("clients.status_cliente", "Ativo")` por filtro condicional baseado no parâmetro.
-- Expor estado `clientStatusFilter` + setter no retorno do hook (mesmo padrão do `includeInactiveOperation`).
-- Disparar reload quando o filtro mudar.
+**`src/hooks/useContracts.ts`** — única alteração:
 
-**b) `src/types/contract.ts`**
-- (Opcional) propagar o tipo `ClientStatusScope` se for útil.
+Trocar o fallback para mock por estado vazio real, **mantendo** `dataSource = "database"`:
 
-**c) `src/components/dashboard/FiltersBar.tsx`**
-- Adicionar um novo controle **"Status do Cliente"** ao lado do toggle "Incluir clientes sem operação ativa", com 4 opções:
-  - **Ativos** (padrão)
-  - **Inativos**
-  - **Prospects**
-  - **Todos**
-- Visual: `Select` compacto (mesmo estilo dos demais filtros) ou um pequeno grupo de botões `ToggleGroup`. Recomendado `Select` para consistência.
+```ts
+if (allData.length > 0) {
+  setContracts(allData.map(mapToContractRow));
+} else {
+  setContracts([]);
+}
+setDataSource("database");
+```
 
-**d) `src/components/dashboard/Dashboard.tsx`**
-- Ler `clientStatusFilter` / `setClientStatusFilter` do `useContracts` e passar ao `FiltersBar`.
+Mock continua disponível apenas via `resetToMock()` (botão "Dados demo" já existente).
 
-**e) Indicador no subtítulo (opcional, recomendado)**
-- Quando o escopo for diferente de "Ativos", mostrar no subtítulo do Dashboard, ex.: `Dados do banco — escopo: Inativos (X módulos / Y clientes)`. Evita confusão com a leitura "padrão".
+## Resultado
 
-### Pontos a confirmar
-1. Renomear "Diferença > 0" para "Apenas com saldo a faturar" — sim/não?
-2. Controle de status do cliente como **Select** (Ativos/Inativos/Prospects/Todos) ou **multi-seleção** (ex.: marcar Ativos + Prospects ao mesmo tempo)?
-3. Quando o usuário escolher "Inativos" ou "Todos", devo manter o toggle "Incluir clientes sem operação ativa" ativo automaticamente (faz mais sentido nesse contexto) ou deixar como está?
+- **Ativos**: continua igual (123 clientes / 1.107 módulos).
+- **Inativos** (toggle off): KPIs zerados / tabelas vazias — sem números falsos.
+- **Inativos** (toggle on): mostra o 1 cliente / 1 módulo (R$ 2.000) real.
+- **Prospects**: KPIs zerados (não há nenhum no banco).
+- **Todos**: 124 clientes do banco.
 
-### Fora do escopo
-- Não altero a lógica do Menu Clientes (que já mostra todos os status).
-- Não altero RLS / migrações — apenas filtros de leitura no front-end.
+Sem mudanças em layout, filtros ou outros componentes.
