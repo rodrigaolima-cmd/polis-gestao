@@ -406,7 +406,6 @@ export function useContracts() {
       return { created: 0, failed: rows.length };
     }
 
-    setLoading(true);
     const controller = new AbortController();
     const { signal } = controller;
 
