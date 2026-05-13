@@ -98,6 +98,8 @@ export default function ClientesPage() {
 
   const loadClients = () => {
     queryClient.invalidateQueries({ queryKey: ["clientes-list"] });
+    queryClient.invalidateQueries({ queryKey: ["contracts"] });
+    queryClient.invalidateQueries({ queryKey: ["operational-leaks"] });
   };
 
   // Restore editing client when modal was persisted open
