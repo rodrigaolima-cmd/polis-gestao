@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { ContractRow } from "@/types/contract";
 import { mockContracts } from "@/data/mockContracts";
@@ -166,251 +167,225 @@ export interface OperationalLeaks {
 
 export type ClientStatusScope = "ativos" | "inativos" | "prospects" | "todos";
 
+// Slim column selection — only what mapToContractRow uses
+const CM_SELECT_SLIM =
+  "id,client_id,modulo_id,valor_contratado,valor_faturado,data_assinatura,vencimento_contrato,faturado_flag,status_contrato,observacoes,ativo_no_cliente," +
+  "clients!inner(id,nome_cliente,tipo_ug,regiao,consultor,status_cliente,observacoes_cliente)," +
+  "modules(id,nome_modulo)";
+
+async function fetchClientModules(scope: ClientStatusScope, includeInactive: boolean): Promise<DbClientModule[]> {
+  const PAGE_SIZE = 1000;
+  const MAX_PAGES = 50;
+  const all: DbClientModule[] = [];
+  let from = 0;
+
+  for (let page = 0; page < MAX_PAGES; page++) {
+    let query = supabase
+      .from("client_modules")
+      .select(CM_SELECT_SLIM)
+      .order("id", { ascending: true })
+      .range(from, from + PAGE_SIZE - 1);
+
+    if (scope === "ativos") query = query.eq("clients.status_cliente", "Ativo");
+    else if (scope === "inativos") query = query.eq("clients.status_cliente", "Inativo");
+    else if (scope === "prospects") query = query.eq("clients.status_cliente", "Prospect");
+
+    if (!includeInactive) query = query.eq("ativo_no_cliente", true);
+
+    const { data, error } = await query;
+    if (error) throw error;
+    if (!data || data.length === 0) break;
+    all.push(...(data as unknown as DbClientModule[]));
+    if (data.length < PAGE_SIZE) break;
+    from += PAGE_SIZE;
+  }
+  return all;
+}
+
+type ActiveClient = {
+  id: string;
+  nome_cliente: string;
+  tipo_ug: string | null;
+  regiao: string | null;
+  consultor: string | null;
+  observacoes_cliente: string | null;
+  cliente_desde: string | null;
+  status_cliente: string | null;
+  updated_at: string | null;
+};
+
+type CmLeakRow = {
+  id: string;
+  client_id: string;
+  valor_contratado: number | null;
+  ativo_no_cliente: boolean | null;
+  faturado_flag: boolean | null;
+  status_contrato: string | null;
+  updated_at: string | null;
+  modules: { nome_modulo: string } | null;
+};
+
+async function fetchOperationalLeaksData(): Promise<{ activeClients: ActiveClient[]; cms: CmLeakRow[] }> {
+  const PAGE_SIZE = 1000;
+  const MAX_PAGES = 50;
+
+  const activeClients: ActiveClient[] = [];
+  for (let page = 0; page < MAX_PAGES; page++) {
+    const from = page * PAGE_SIZE;
+    const { data, error } = await supabase
+      .from("clients")
+      .select("id, nome_cliente, tipo_ug, regiao, consultor, observacoes_cliente, cliente_desde, status_cliente, updated_at")
+      .eq("status_cliente", "Ativo")
+      .order("id", { ascending: true })
+      .range(from, from + PAGE_SIZE - 1);
+    if (error) throw error;
+    if (!data || data.length === 0) break;
+    activeClients.push(...(data as ActiveClient[]));
+    if (data.length < PAGE_SIZE) break;
+  }
+
+  const ids = activeClients.map((c) => c.id);
+  const cms: CmLeakRow[] = [];
+  if (ids.length === 0) return { activeClients, cms };
+
+  const ID_CHUNK = 200;
+  for (let i = 0; i < ids.length; i += ID_CHUNK) {
+    const chunk = ids.slice(i, i + ID_CHUNK);
+    for (let page = 0; page < MAX_PAGES; page++) {
+      const from = page * PAGE_SIZE;
+      const { data, error } = await supabase
+        .from("client_modules")
+        .select("id, client_id, valor_contratado, ativo_no_cliente, faturado_flag, status_contrato, updated_at, modules(nome_modulo)")
+        .in("client_id", chunk)
+        .order("id", { ascending: true })
+        .range(from, from + PAGE_SIZE - 1);
+      if (error) throw error;
+      if (!data || data.length === 0) break;
+      cms.push(...(data as unknown as CmLeakRow[]));
+      if (data.length < PAGE_SIZE) break;
+    }
+  }
+  return { activeClients, cms };
+}
+
+function buildOperationalLeaks(activeClients: ActiveClient[], cms: CmLeakRow[]): OperationalLeaks {
+  const byClient = new Map<string, CmLeakRow[]>();
+  cms.forEach((m) => {
+    const arr = byClient.get(m.client_id) || [];
+    arr.push(m);
+    byClient.set(m.client_id, arr);
+  });
+
+  const semOperacao: OperationalLeakClient[] = [];
+  const semFaturamento: OperationalLeakClient[] = [];
+  const naoImplantado: OperationalLeakClient[] = [];
+
+  for (const c of activeClients) {
+    const mods = byClient.get(c.id) || [];
+    const ativos = mods.filter((m) => m.ativo_no_cliente === true);
+
+    const base: Omit<OperationalLeakClient, "modulosAtivosNaoFaturados" | "valorEmRisco" | "ultimaAtualizacao"> = {
+      id: c.id,
+      clientName: fixMojibake(c.nome_cliente),
+      ugType: fixMojibake(c.tipo_ug || ""),
+      regiao: fixMojibake(c.regiao || ""),
+      consultor: fixMojibake(c.consultor || ""),
+      observations: fixMojibake(c.observacoes_cliente || ""),
+      clienteDesde: c.cliente_desde,
+      statusCadastro: c.status_cliente || "Ativo",
+    };
+
+    const naoImplantadosMods = mods.filter((m) => {
+      if (m.ativo_no_cliente !== false) return false;
+      if (m.faturado_flag !== false) return false;
+      const sc = m.status_contrato;
+      return !sc || isActiveStatus(String(sc));
+    });
+    if (naoImplantadosMods.length > 0) {
+      const valor = naoImplantadosMods.reduce((s, m) => s + (Number(m.valor_contratado) || 0), 0);
+      const nomes = naoImplantadosMods.map((m) => fixMojibake(m.modules?.nome_modulo || "")).filter(Boolean);
+      const ult = naoImplantadosMods.map((m) => m.updated_at).sort().pop() || null;
+      naoImplantado.push({ ...base, modulosAtivosNaoFaturados: nomes, valorEmRisco: valor, ultimaAtualizacao: ult });
+    }
+
+    if (ativos.length === 0) {
+      semOperacao.push({ ...base, modulosAtivosNaoFaturados: [], valorEmRisco: 0, ultimaAtualizacao: c.updated_at });
+      continue;
+    }
+
+    const naoFaturados = ativos.filter((m) => m.faturado_flag === false);
+    if (naoFaturados.length > 0) {
+      const valor = naoFaturados.reduce((s, m) => s + (Number(m.valor_contratado) || 0), 0);
+      const nomes = naoFaturados.map((m) => fixMojibake(m.modules?.nome_modulo || "")).filter(Boolean);
+      const ult = naoFaturados.map((m) => m.updated_at).sort().pop() || null;
+      semFaturamento.push({ ...base, modulosAtivosNaoFaturados: nomes, valorEmRisco: valor, ultimaAtualizacao: ult });
+    }
+  }
+
+  const sortPt = (a: OperationalLeakClient, b: OperationalLeakClient) =>
+    a.clientName.localeCompare(b.clientName, "pt-BR", { sensitivity: "base" });
+  semFaturamento.sort(sortPt);
+  semOperacao.sort(sortPt);
+  naoImplantado.sort(sortPt);
+
+  return { semFaturamento, semOperacao, naoImplantado };
+}
+
 export function useContracts() {
-  const [contracts, setContracts] = useState<ContractRow[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [dataSource, setDataSource] = useState<"mock" | "database">("mock");
+  const queryClient = useQueryClient();
+  const [dataSource, setDataSource] = useState<"mock" | "database">("database");
   const [includeInactiveOperation, setIncludeInactiveOperation] = useState(false);
   const [clientStatusScope, setClientStatusScopeState] = useState<ClientStatusScope>("ativos");
-  const [operationalLeaks, setOperationalLeaks] = useState<OperationalLeaks>({ semFaturamento: [], semOperacao: [], naoImplantado: [] });
+  const [overrideContracts, setOverrideContracts] = useState<ContractRow[] | null>(null);
   const { accessToken } = useAuth();
 
+  // ---- Query: client_modules (escopado por scope + includeInactive) ----
+  const contractsQuery = useQuery({
+    queryKey: ["contracts", clientStatusScope, includeInactiveOperation],
+    queryFn: () => fetchClientModules(clientStatusScope, includeInactiveOperation),
+  });
+
+  // ---- Query: operational leaks (independente do escopo do dashboard) ----
+  const leaksQuery = useQuery({
+    queryKey: ["operational-leaks"],
+    queryFn: fetchOperationalLeaksData,
+  });
+
+  const contracts: ContractRow[] = useMemo(() => {
+    if (overrideContracts) return overrideContracts;
+    if (contractsQuery.error) return mockContracts;
+    return (contractsQuery.data || []).map(mapToContractRow);
+  }, [overrideContracts, contractsQuery.data, contractsQuery.error]);
+
+  const operationalLeaks: OperationalLeaks = useMemo(() => {
+    if (!leaksQuery.data) return { semFaturamento: [], semOperacao: [], naoImplantado: [] };
+    return buildOperationalLeaks(leaksQuery.data.activeClients, leaksQuery.data.cms);
+  }, [leaksQuery.data]);
+
+  const loading = contractsQuery.isLoading || leaksQuery.isLoading;
+
+  const invalidateAll = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: ["contracts"] });
+    queryClient.invalidateQueries({ queryKey: ["operational-leaks"] });
+  }, [queryClient]);
+
   const loadFromDatabase = useCallback(async (opts?: { includeInactiveOperation?: boolean; clientStatusScope?: ClientStatusScope }) => {
-    const includeInactive = opts?.includeInactiveOperation ?? false;
-    const scope: ClientStatusScope = opts?.clientStatusScope ?? "ativos";
-    setLoading(true);
-    try {
-      const PAGE_SIZE = 1000;
-      const MAX_PAGES = 50; // safety guard (50k records max)
-      const allData: DbClientModule[] = [];
-      let from = 0;
-
-      for (let page = 0; page < MAX_PAGES; page++) {
-        let query = supabase
-          .from("client_modules")
-          .select("*, clients!inner(*), modules(*)")
-          .order("id", { ascending: true })
-          .range(from, from + PAGE_SIZE - 1);
-
-        if (scope === "ativos") {
-          query = query.eq("clients.status_cliente", "Ativo");
-        } else if (scope === "inativos") {
-          query = query.eq("clients.status_cliente", "Inativo");
-        } else if (scope === "prospects") {
-          query = query.eq("clients.status_cliente", "Prospect");
-        }
-        // "todos": sem filtro de status_cliente
-
-        if (!includeInactive) {
-          query = query.eq("ativo_no_cliente", true);
-        }
-
-        const { data, error } = await query;
-
-        if (error) throw error;
-        if (!data || data.length === 0) break;
-
-        allData.push(...(data as unknown as DbClientModule[]));
-
-        if (data.length < PAGE_SIZE) break;
-        from += PAGE_SIZE;
-      }
-
-      if (allData.length > 0) {
-        setContracts(allData.map(mapToContractRow));
-      } else {
-        setContracts([]);
-      }
-      setDataSource("database");
-    } catch (err) {
-      console.error("Error loading contracts:", err);
-      setContracts(mockContracts);
-      setDataSource("mock");
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  const loadOperationalLeaks = useCallback(async () => {
-    try {
-      const PAGE_SIZE = 1000;
-      const MAX_PAGES = 50;
-
-      // 1. All Active clients (paginado — Supabase REST tem teto de 1000 por chamada)
-      type ActiveClient = {
-        id: string;
-        nome_cliente: string;
-        tipo_ug: string | null;
-        regiao: string | null;
-        consultor: string | null;
-        observacoes_cliente: string | null;
-        cliente_desde: string | null;
-        status_cliente: string | null;
-        updated_at: string | null;
-      };
-      const activeClients: ActiveClient[] = [];
-      for (let page = 0; page < MAX_PAGES; page++) {
-        const from = page * PAGE_SIZE;
-        const { data, error: cErr } = await supabase
-          .from("clients")
-          .select("id, nome_cliente, tipo_ug, regiao, consultor, observacoes_cliente, cliente_desde, status_cliente, updated_at")
-          .eq("status_cliente", "Ativo")
-          .order("id", { ascending: true })
-          .range(from, from + PAGE_SIZE - 1);
-        if (cErr) throw cErr;
-        if (!data || data.length === 0) break;
-        activeClients.push(...(data as ActiveClient[]));
-        if (data.length < PAGE_SIZE) break;
-      }
-
-      // 2. All client_modules for those clients (paginado por chunks de IDs + paginação interna)
-      const ids = activeClients.map((c) => c.id);
-      if (ids.length === 0) {
-        setOperationalLeaks({ semFaturamento: [], semOperacao: [], naoImplantado: [] });
-        return;
-      }
-
-      type CmRow = {
-        id: string;
-        client_id: string;
-        valor_contratado: number | null;
-        ativo_no_cliente: boolean | null;
-        faturado_flag: boolean | null;
-        status_contrato: string | null;
-        updated_at: string | null;
-        modules: { nome_modulo: string } | null;
-      };
-      const cms: CmRow[] = [];
-      const ID_CHUNK = 200;
-      for (let i = 0; i < ids.length; i += ID_CHUNK) {
-        const chunk = ids.slice(i, i + ID_CHUNK);
-        for (let page = 0; page < MAX_PAGES; page++) {
-          const from = page * PAGE_SIZE;
-          const { data, error: mErr } = await supabase
-            .from("client_modules")
-            .select("id, client_id, valor_contratado, ativo_no_cliente, faturado_flag, status_contrato, updated_at, modules(nome_modulo)")
-            .in("client_id", chunk)
-            .order("id", { ascending: true })
-            .range(from, from + PAGE_SIZE - 1);
-          if (mErr) throw mErr;
-          if (!data || data.length === 0) break;
-          cms.push(...(data as unknown as CmRow[]));
-          if (data.length < PAGE_SIZE) break;
-        }
-      }
-
-      const byClient = new Map<string, typeof cms>();
-      (cms || []).forEach((m) => {
-        const arr = byClient.get(m.client_id) || [];
-        arr.push(m);
-        byClient.set(m.client_id, arr);
-      });
-
-      const semOperacao: OperationalLeakClient[] = [];
-      const semFaturamento: OperationalLeakClient[] = [];
-      const naoImplantado: OperationalLeakClient[] = [];
-
-      for (const c of activeClients) {
-        const mods = byClient.get(c.id) || [];
-        const ativos = mods.filter((m) => m.ativo_no_cliente === true);
-
-        const base: Omit<OperationalLeakClient, "modulosAtivosNaoFaturados" | "valorEmRisco" | "ultimaAtualizacao"> = {
-          id: c.id,
-          clientName: fixMojibake(c.nome_cliente),
-          ugType: fixMojibake(c.tipo_ug || ""),
-          regiao: fixMojibake(c.regiao || ""),
-          consultor: fixMojibake(c.consultor || ""),
-          observations: fixMojibake(c.observacoes_cliente || ""),
-          clienteDesde: c.cliente_desde,
-          statusCadastro: c.status_cliente || "Ativo",
-        };
-
-        // Categoria 3 (NOVA): Contrato ativo, módulo NÃO faturado, módulo INATIVO no cliente — vendido sem implantar
-        const naoImplantadosMods = mods.filter((m) => {
-          if (m.ativo_no_cliente !== false) return false;
-          if (m.faturado_flag !== false) return false;
-          const sc = (m as { status_contrato?: string | null }).status_contrato;
-          // Default da coluna é 'Ativo' — se vier null/vazio, considera ativo
-          return !sc || isActiveStatus(String(sc));
-        });
-        if (naoImplantadosMods.length > 0) {
-          const valor = naoImplantadosMods.reduce((s, m) => s + (Number(m.valor_contratado) || 0), 0);
-          const nomes = naoImplantadosMods
-            .map((m) => fixMojibake((m.modules as any)?.nome_modulo || ""))
-            .filter(Boolean);
-          const ult = naoImplantadosMods
-            .map((m) => m.updated_at)
-            .sort()
-            .pop() || null;
-          naoImplantado.push({
-            ...base,
-            modulosAtivosNaoFaturados: nomes,
-            valorEmRisco: valor,
-            ultimaAtualizacao: ult,
-          });
-        }
-
-        if (ativos.length === 0) {
-          semOperacao.push({ ...base, modulosAtivosNaoFaturados: [], valorEmRisco: 0, ultimaAtualizacao: c.updated_at });
-          continue;
-        }
-
-        const naoFaturados = ativos.filter((m) => m.faturado_flag === false);
-        if (naoFaturados.length > 0) {
-          const valor = naoFaturados.reduce((s, m) => s + (Number(m.valor_contratado) || 0), 0);
-          const nomes = naoFaturados
-            .map((m) => fixMojibake((m.modules as any)?.nome_modulo || ""))
-            .filter(Boolean);
-          const ult = naoFaturados
-            .map((m) => m.updated_at)
-            .sort()
-            .pop() || null;
-          semFaturamento.push({
-            ...base,
-            modulosAtivosNaoFaturados: nomes,
-            valorEmRisco: valor,
-            ultimaAtualizacao: ult,
-          });
-        }
-      }
-
-      const sortPt = (a: OperationalLeakClient, b: OperationalLeakClient) =>
-        a.clientName.localeCompare(b.clientName, "pt-BR", { sensitivity: "base" });
-      semFaturamento.sort(sortPt);
-      semOperacao.sort(sortPt);
-      naoImplantado.sort(sortPt);
-
-      console.log("[OperationalLeaks]", {
-        totalActiveClients: activeClients.length,
-        totalModules: cms?.length ?? 0,
-        semFaturamento: semFaturamento.length,
-        semOperacao: semOperacao.length,
-        naoImplantado: naoImplantado.length,
-      });
-
-      setOperationalLeaks({ semFaturamento, semOperacao, naoImplantado });
-    } catch (err) {
-      console.error("Error loading operational leaks:", err);
-      toast.error("Falha ao carregar vazamento operacional", {
-        description: err instanceof Error ? err.message : String(err),
-      });
-    }
-  }, []);
+    if (opts?.includeInactiveOperation !== undefined) setIncludeInactiveOperation(opts.includeInactiveOperation);
+    if (opts?.clientStatusScope !== undefined) setClientStatusScopeState(opts.clientStatusScope);
+    setOverrideContracts(null);
+    setDataSource("database");
+    await queryClient.invalidateQueries({ queryKey: ["contracts"] });
+    await queryClient.invalidateQueries({ queryKey: ["operational-leaks"] });
+  }, [queryClient]);
 
   const toggleIncludeInactiveOperation = useCallback((value: boolean) => {
     setIncludeInactiveOperation(value);
-    loadFromDatabase({ includeInactiveOperation: value, clientStatusScope });
-  }, [loadFromDatabase, clientStatusScope]);
+  }, []);
 
   const setClientStatusScope = useCallback((value: ClientStatusScope) => {
     setClientStatusScopeState(value);
-    loadFromDatabase({ includeInactiveOperation, clientStatusScope: value });
-  }, [loadFromDatabase, includeInactiveOperation]);
+  }, []);
 
-  useEffect(() => {
-    loadFromDatabase();
-    loadOperationalLeaks();
-  }, [loadFromDatabase, loadOperationalLeaks]);
 
   const importToDatabase = useCallback(async (
     rows: ContractRow[],
@@ -431,7 +406,6 @@ export function useContracts() {
       return { created: 0, failed: rows.length };
     }
 
-    setLoading(true);
     const controller = new AbortController();
     const { signal } = controller;
 
@@ -578,7 +552,7 @@ export function useContracts() {
         toast.success(`Importação concluída: ${created} registros importados`);
       }
       await loadFromDatabase({ includeInactiveOperation });
-      await loadOperationalLeaks();
+      invalidateAll();
       return { created, failed };
     } catch (err: any) {
       console.error("Import error:", err);
@@ -587,18 +561,19 @@ export function useContracts() {
         : "Erro ao importar para o banco de dados";
       toast.error(msg);
       controller.abort();
-      setContracts(rows);
+      setOverrideContracts(rows);
       setDataSource("mock");
       return { created: 0, failed: rows.length };
-    } finally {
-      setLoading(false);
     }
-  }, [loadFromDatabase, loadOperationalLeaks, accessToken, includeInactiveOperation]);
+  }, [loadFromDatabase, invalidateAll, accessToken, includeInactiveOperation]);
 
   const resetToMock = useCallback(() => {
-    setContracts(mockContracts);
+    setOverrideContracts(mockContracts);
     setDataSource("mock");
-    setOperationalLeaks({ semFaturamento: [], semOperacao: [], naoImplantado: [] });
+  }, []);
+
+  const setContracts = useCallback((rows: ContractRow[]) => {
+    setOverrideContracts(rows);
   }, []);
 
   return {

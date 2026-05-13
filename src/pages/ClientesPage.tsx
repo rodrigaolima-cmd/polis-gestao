@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -29,94 +30,86 @@ interface ClientRow {
   modules_count: number;
 }
 
+async function fetchClientesWithCounts(): Promise<ClientRow[]> {
+  const { data: clientsData, error } = await supabase
+    .from("clients")
+    .select("id,codigo_cliente,nome_cliente,nome_fantasia,tipo_ug,regiao,consultor,status_cliente,observacoes_cliente,cnpj,email,celular")
+    .order("nome_cliente");
+  if (error) throw error;
+
+  const PAGE_SIZE = 1000;
+  const MAX_PAGES = 50;
+  const modulesData: { client_id: string; ativo_no_cliente: boolean | null }[] = [];
+  for (let page = 0; page < MAX_PAGES; page++) {
+    const from = page * PAGE_SIZE;
+    const { data: pageData, error: mErr } = await supabase
+      .from("client_modules")
+      .select("client_id, ativo_no_cliente")
+      .order("id", { ascending: true })
+      .range(from, from + PAGE_SIZE - 1);
+    if (mErr) throw mErr;
+    if (!pageData || pageData.length === 0) break;
+    modulesData.push(...(pageData as any[]));
+    if (pageData.length < PAGE_SIZE) break;
+  }
+
+  const moduleCounts = new Map<string, number>();
+  modulesData.forEach((m: any) => {
+    if (m.ativo_no_cliente) {
+      moduleCounts.set(m.client_id, (moduleCounts.get(m.client_id) || 0) + 1);
+    }
+  });
+
+  return (clientsData || []).map((c: any) => ({
+    id: c.id,
+    codigo_cliente: c.codigo_cliente ?? null,
+    nome_cliente: fixMojibake(c.nome_cliente),
+    nome_fantasia: fixMojibake(c.nome_fantasia || ""),
+    tipo_ug: fixMojibake(c.tipo_ug || ""),
+    regiao: fixMojibake(c.regiao || ""),
+    consultor: fixMojibake(c.consultor || ""),
+    status_cliente: c.status_cliente || "Ativo",
+    observacoes_cliente: fixMojibake(c.observacoes_cliente || ""),
+    cnpj: c.cnpj || "",
+    email: c.email || "",
+    celular: c.celular || "",
+    modules_count: moduleCounts.get(c.id) || 0,
+  }));
+}
+
 export default function ClientesPage() {
   const navigate = useNavigate();
-  const [clients, setClients] = useState<ClientRow[]>([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
   const [filterRegiao, setFilterRegiao] = useState("");
   const [filterConsultor, setFilterConsultor] = useState("");
   const [filterUG, setFilterUG] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
   const [reportOpen, setReportOpen] = useState(false);
-  const [loadError, setLoadError] = useState(false);
 
   const clientForm = usePersistentModal("clientes:client-form");
-  const [editingClient, setEditingClient] = useState<ClientRow | null>(() => {
-    // Restore editing client from persistence if modal was open
-    if (clientForm.isOpen && clientForm.entityId) {
-      return null; // Will be resolved after clients load
-    }
-    return null;
+  const [editingClient, setEditingClient] = useState<ClientRow | null>(null);
+
+  const { data: clientsData, isLoading: loading, isError: loadError } = useQuery({
+    queryKey: ["clientes-list"],
+    queryFn: fetchClientesWithCounts,
   });
+  const clients: ClientRow[] = clientsData || [];
 
-  const loadClients = async () => {
-    setLoading(true);
-    setLoadError(false);
-    try {
-      const { data: clientsData, error } = await supabase
-        .from("clients")
-        .select("*")
-        .order("nome_cliente");
-
-      if (error) throw error;
-
-      // Paginação para contornar o teto de 1.000 linhas do Supabase REST
-      const PAGE_SIZE = 1000;
-      const MAX_PAGES = 50;
-      const modulesData: { client_id: string; ativo_no_cliente: boolean | null }[] = [];
-      for (let page = 0; page < MAX_PAGES; page++) {
-        const from = page * PAGE_SIZE;
-        const { data: pageData, error: mErr } = await supabase
-          .from("client_modules")
-          .select("client_id, ativo_no_cliente")
-          .order("id", { ascending: true })
-          .range(from, from + PAGE_SIZE - 1);
-        if (mErr) throw mErr;
-        if (!pageData || pageData.length === 0) break;
-        modulesData.push(...(pageData as any[]));
-        if (pageData.length < PAGE_SIZE) break;
-      }
-
-      const moduleCounts = new Map<string, number>();
-      modulesData.forEach((m: any) => {
-        if (m.ativo_no_cliente) {
-          moduleCounts.set(m.client_id, (moduleCounts.get(m.client_id) || 0) + 1);
-        }
-      });
-
-      const result: ClientRow[] = (clientsData || []).map((c: any) => ({
-        id: c.id,
-        codigo_cliente: c.codigo_cliente ?? null,
-        nome_cliente: fixMojibake(c.nome_cliente),
-        nome_fantasia: fixMojibake(c.nome_fantasia || ""),
-        tipo_ug: fixMojibake(c.tipo_ug || ""),
-        regiao: fixMojibake(c.regiao || ""),
-        consultor: fixMojibake(c.consultor || ""),
-        status_cliente: c.status_cliente || "Ativo",
-        observacoes_cliente: fixMojibake(c.observacoes_cliente || ""),
-        cnpj: c.cnpj || "",
-        email: c.email || "",
-        celular: c.celular || "",
-        modules_count: moduleCounts.get(c.id) || 0,
-      }));
-
-      setClients(result);
-
-      // Restore editing client if modal was persisted open
-      if (clientForm.isOpen && clientForm.entityId) {
-        const found = result.find(c => c.id === clientForm.entityId);
-        if (found) setEditingClient(found);
-      }
-    } catch (err) {
-      console.error("Erro ao carregar clientes:", err);
-      setLoadError(true);
-    } finally {
-      setLoading(false);
-    }
+  const loadClients = () => {
+    queryClient.invalidateQueries({ queryKey: ["clientes-list"] });
+    queryClient.invalidateQueries({ queryKey: ["contracts"] });
+    queryClient.invalidateQueries({ queryKey: ["operational-leaks"] });
   };
 
-  useEffect(() => { loadClients(); }, []);
+  // Restore editing client when modal was persisted open
+  useEffect(() => {
+    if (clientForm.isOpen && clientForm.entityId && !editingClient && clients.length > 0) {
+      const found = clients.find(c => c.id === clientForm.entityId);
+      if (found) setEditingClient(found);
+    }
+  }, [clients, clientForm.isOpen, clientForm.entityId, editingClient]);
+
 
   const regioes = useMemo(() => [...new Set(clients.map(c => c.regiao).filter(Boolean))].sort(), [clients]);
   const consultores = useMemo(() => [...new Set(clients.map(c => c.consultor).filter(Boolean))].sort(), [clients]);
