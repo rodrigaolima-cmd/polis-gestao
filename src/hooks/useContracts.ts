@@ -552,7 +552,7 @@ export function useContracts() {
         toast.success(`Importação concluída: ${created} registros importados`);
       }
       await loadFromDatabase({ includeInactiveOperation });
-      await loadOperationalLeaks();
+      invalidateAll();
       return { created, failed };
     } catch (err: any) {
       console.error("Import error:", err);
@@ -561,18 +561,19 @@ export function useContracts() {
         : "Erro ao importar para o banco de dados";
       toast.error(msg);
       controller.abort();
-      setContracts(rows);
+      setOverrideContracts(rows);
       setDataSource("mock");
       return { created: 0, failed: rows.length };
-    } finally {
-      setLoading(false);
     }
-  }, [loadFromDatabase, loadOperationalLeaks, accessToken, includeInactiveOperation]);
+  }, [loadFromDatabase, invalidateAll, accessToken, includeInactiveOperation]);
 
   const resetToMock = useCallback(() => {
-    setContracts(mockContracts);
+    setOverrideContracts(mockContracts);
     setDataSource("mock");
-    setOperationalLeaks({ semFaturamento: [], semOperacao: [], naoImplantado: [] });
+  }, []);
+
+  const setContracts = useCallback((rows: ContractRow[]) => {
+    setOverrideContracts(rows);
   }, []);
 
   return {
