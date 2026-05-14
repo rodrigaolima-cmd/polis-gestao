@@ -9,6 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { ClienteForm } from "@/components/clientes/ClienteForm";
 import { ClientesReportDialog } from "@/components/clientes/ClientesReportDialog";
+import { RelacaoCadastralDialog } from "@/components/clientes/RelacaoCadastralDialog";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Plus, Search, Eye, Pencil, FileText, Upload } from "lucide-react";
 import { normalizeForSearch, fixMojibake } from "@/utils/textUtils";
@@ -86,6 +87,7 @@ export default function ClientesPage() {
   const [filterUG, setFilterUG] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
   const [reportOpen, setReportOpen] = useState(false);
+  const [relacaoOpen, setRelacaoOpen] = useState(false);
 
   const clientForm = usePersistentModal("clientes:client-form");
   const [editingClient, setEditingClient] = useState<ClientRow | null>(null);
@@ -156,6 +158,9 @@ export default function ClientesPage() {
       </Button>
       <Button variant="outline" size="sm" className="gap-2 text-xs hidden sm:flex" onClick={() => setReportOpen(true)}>
         <FileText className="h-3.5 w-3.5" /> Relatório
+      </Button>
+      <Button variant="outline" size="sm" className="gap-2 text-xs hidden sm:flex" onClick={() => setRelacaoOpen(true)}>
+        <FileText className="h-3.5 w-3.5" /> Relação Cadastral
       </Button>
       <Button size="sm" className="gap-2 text-xs" onClick={handleNew}>
         <Plus className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Novo Cliente</span><span className="sm:hidden">Novo</span>
@@ -285,6 +290,12 @@ export default function ClientesPage() {
       <ClientesReportDialog
         open={reportOpen}
         onOpenChange={setReportOpen}
+        filteredClientIds={filtered.map(c => c.id)}
+      />
+
+      <RelacaoCadastralDialog
+        open={relacaoOpen}
+        onOpenChange={setRelacaoOpen}
         filteredClientIds={filtered.map(c => c.id)}
       />
     </AppLayout>
